@@ -14,7 +14,8 @@ El cliente con sesión para `apps/admin` (`@supabase/ssr`) se agrega en la spec 
 ## Errores de dominio
 
 ```ts
-export class ErrorDominio extends Error { codigo: CodigoError; detalle?: string; cause: ErrorPostgrest }
+export class ErrorDominio extends Error { codigo: CodigoError; detalle?: string; errores?: ErrorBloque[]; cause?: unknown }
+// `errores` solo viene con `contenido_invalido` (validación Zod previa a la base).
 export type CodigoError =
   | 'conflicto_version'      // RF-008
   | 'estado_invalido'        // RF-009 (transición no permitida)
@@ -49,7 +50,8 @@ listarParaSitemap(c): Promise<{ tipo; slug; actualizadoEn }[]>                  
 ## Operaciones del equipo (las usa el panel en su spec)
 
 ```ts
-crearArticulo(c, datos: NuevoArticulo): Promise<Articulo>                     // valida contenido con @blog/bloques
+crearArticulo(c, datos: NuevoArticulo): Promise<Articulo>                     // valida contenido con @blog/bloques; autor = usuario actual (default auth.uid())
+// NuevoArticulo = { titulo; slug?; extracto?; titulo_seo?; descripcion_seo?; imagen_destacada?; contenido?; categoria_id? }
 actualizarArticulo(c, id, version, cambios: CambiosArticulo): Promise<Articulo>
 cambiarEstado(c, id, version, destino: EstadoArticulo, opciones?: { programadoPara?: Date }): Promise<Articulo>
 asignarEtiquetas(c, articuloId, version, etiquetaIds: string[]): Promise<{ version: number }> // RPC atómico asignar_etiquetas

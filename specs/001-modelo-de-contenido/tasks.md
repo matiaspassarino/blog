@@ -156,12 +156,12 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 1 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T020 [P] [H1] Crear `packages/bloques/src/imagen.test.ts`:
+- [X] T020 [P] [H1] Crear `packages/bloques/src/imagen.test.ts`:
   - imagen válida;
   - error cuando falta `alt` y `decorativa = false`, con el mensaje "La imagen necesita un texto alternativo o marcarse como decorativa";
   - válida si `decorativa = true` sin `alt`;
   - rechazo de `ancho`/`alto` ≤ 0 o no enteros, y de `alt` > 200.
-- [ ] T021 [P] [H1] Crear `packages/bloques/src/esquema.test.ts`, con un caso válido y al menos un caso inválido **por cada uno** de los 10 tipos, siguiendo la tabla de [contracts/bloques.md](contracts/bloques.md#tipos-de-bloque):
+- [X] T021 [P] [H1] Crear `packages/bloques/src/esquema.test.ts`, con un caso válido y al menos un caso inválido **por cada uno** de los 10 tipos, siguiendo la tabla de [contracts/bloques.md](contracts/bloques.md#tipos-de-bloque):
   - `parrafo` con `texto` de 1–5.000;
   - `titulo` con `nivel` 2, 3 o 4 y texto de 1–150;
   - `cita` con texto ≤ 1.000 y `fuente` https;
@@ -173,15 +173,15 @@ description: "Lista de tareas: modelo de contenido del blog"
   - `separador`;
   - `imagen` con leyenda ≤ 300.
   Además: un `tipo` inexistente se rechaza, más de 200 bloques se rechazan, y todo bloque exige `id` uuid.
-- [ ] T022 [P] [H1] Crear `packages/bloques/src/validar.test.ts` (H1-E2, CE-006):
+- [X] T022 [P] [H1] Crear `packages/bloques/src/validar.test.ts` (H1-E2, CE-006):
   - `validarContenido` devuelve **todos** los errores, con `indice` en base 0 y `campo` con ruta de puntos (`imagen.alt`, `items.3`);
   - los mensajes están en español;
   - nunca lanza, ni siquiera con entradas `null`, string u objeto;
   - un contenido válido devuelve `{ ok: true, contenido }`.
-- [ ] T023 [P] [H1] Crear `packages/bloques/src/utilidades.test.ts`:
+- [X] T023 [P] [H1] Crear `packages/bloques/src/utilidades.test.ts`:
   - `textoPlano` concatena el texto de `parrafo`, `titulo`, `cita` y `lista`, sin marcas Markdown ni URLs, y omite `codigo`;
   - `crearBloque(tipo)` devuelve un bloque con `id` nuevo que **no** pasa la validación hasta completarse (salvo `separador`).
-- [ ] T024 [P] [H1] Crear `supabase/tests/articulos_borrador.test.sql` (H1-E1, H1-E3, H1-E4, RF-008, B5). Debe verificar:
+- [X] T024 [P] [H1] Crear `supabase/tests/articulos_borrador.test.sql` (H1-E1, H1-E3, H1-E4, RF-008, B5). Debe verificar:
   - el insert como editor con 3 bloques queda `estado = borrador`, con el slug derivado del título y `version = 1`;
   - un segundo artículo con el mismo título recibe el slug `mi-articulo-2`;
   - anon no ve el borrador (`is_empty`);
@@ -194,12 +194,12 @@ description: "Lista de tareas: modelo de contenido del blog"
   - un `contenido` con un `tipo` inexistente o con más de 200 elementos viola el check;
   - un editor no puede borrar (solo un admin);
   - un editor desactivado no puede insertar.
-- [ ] T025 [P] [H1] Crear `supabase/tests/storage.test.sql`:
+- [X] T025 [P] [H1] Crear `supabase/tests/storage.test.sql`:
   - anon puede leer objetos del bucket `medios` y no puede insertar;
   - un editor activo puede insertar, actualizar y borrar en `medios`;
   - un editor desactivado no puede;
   - ninguna política permite operar en otro `bucket_id`.
-- [ ] T026 [P] [H1] Crear `packages/db/src/consultas/equipo-articulos.test.ts`, de integración (con sesión de editor):
+- [X] T026 [P] [H1] Crear `packages/db/src/consultas/equipo-articulos.test.ts`, de integración (con sesión de editor):
   - `crearArticulo` con contenido inválido devuelve `contenido_invalido` con `ErrorBloque[]` **sin** llamar a la base (espiar `from`);
   - `actualizarArticulo` siempre envía `version` en el filtro;
   - un conflicto se traduce a `ErrorDominio('conflicto_version')`;
@@ -211,9 +211,14 @@ description: "Lista de tareas: modelo de contenido del blog"
 - [ ] T028 [H1] Crear `packages/bloques/src/esquema.ts`, con `esquemaBloque` (`z.discriminatedUnion('tipo', [...])` sobre la base `{ id: z.uuid(), tipo }`) y `esquemaContenido` (`z.array(esquemaBloque).max(200)`), siguiendo [contracts/bloques.md](contracts/bloques.md#tipos-de-bloque). Reutiliza `esquemaImagen` y `TIPOS_BLOQUE` del `index.ts` existente. Debe pasar T021. Depende de T027.
 - [ ] T029 [H1] Crear `packages/bloques/src/validar.ts` (`validarContenido` y `ErrorBloque`, que convierte `issues` de Zod a `{ indice, campo, mensaje }`) y `packages/bloques/src/utilidades.ts` (`textoPlano` y `crearBloque`). Actualizar `packages/bloques/src/index.ts` para reexportar todo según [contracts/bloques.md](contracts/bloques.md#exportaciones). Deben pasar T020, T022 y T023.
 - [ ] T030 [H1] Crear `supabase/migrations/20261018120300_articulos.sql` ([data-model.md](data-model.md#articulos)):
+  - **Antes, corregir `20261018120000_fundacion.sql`**. Está permitido porque la rama no se mergeó (ver Notas). Son dos errores que detectó escritor-tests: un `check` que da NULL se considera cumplido.
+    - `privado.imagen_valida` devuelve NULL (no false) si falta `ruta`, `ancho`, `alto` o `alt`: envolver la expresión en `coalesce(..., false)`.
+    - `privado.contenido_valido` acepta bloques sin `id` o sin `tipo` (`jsonb_typeof(null) <> 'string'` da NULL): usar `is distinct from` y `coalesce`.
+    - Agregar casos de regresión a `supabase/tests/slugs.test.sql` (o a un archivo `utilidades.test.sql`) para ambas funciones, incluido `perfiles.avatar` sin alt.
   - **Tabla** `public.articulos`, con las columnas exactamente como en el data-model y estas reglas:
     - `titulo`: `not null check (char_length(btrim(titulo)) between 1 and 120)`
-    - `slug`: `not null unique`, con el check de formato
+    - `slug`: `not null default '' unique`, con el check de formato. El `default ''` evita que el tipo `Insert` exija el slug, porque lo genera `a10`. Aplicar el mismo `default ''` a `categorias.slug` y `etiquetas.slug` en `20261018120200_taxonomias.sql`.
+    - `autor_id`: `default auth.uid()`. La política de insert exige que sea el usuario actual, así que `crearArticulo` no lo envía.
     - `extracto ≤ 300`, `titulo_seo ≤ 60`, `descripcion_seo ≤ 160`
     - `imagen_destacada`: `check (imagen_destacada is null or privado.imagen_valida(imagen_destacada))`
     - `contenido jsonb not null default '[]' check (privado.contenido_valido(contenido))`
@@ -236,8 +241,8 @@ description: "Lista de tareas: modelo de contenido del blog"
     - `articulos_update_equipo`: using y check `E`
     - `articulos_delete_admin`: using `A`
   - **Grants**: `select` a `anon, authenticated`; `insert, update, delete` a `authenticated`.
-  - **RPC** `public.previsualizar_slug(texto text, tipo public.tipo_entidad)`, `stable`, invoker, con `case` estático y sin SQL dinámico. `grant execute` solo a `authenticated`.
-- [ ] T031 [P] [H1] Crear `supabase/migrations/20261018120310_storage.sql`: `insert into storage.buckets (id, name, public) values ('medios','medios', true) on conflict do nothing`, con las políticas `medios_select` (select to anon, authenticated using `bucket_id = 'medios'`) y `medios_escritura_equipo` (insert, update y delete to authenticated, using y check `bucket_id = 'medios' and (select privado.es_equipo())`).
+  - **RPC** `public.previsualizar_slug(texto text, tipo public.tipo_entidad)`, `stable`, **`security definer`** (necesita `slugificar`, que `authenticated` no puede ejecutar por D20), con `set search_path = ''`, `case` estático, sin SQL dinámico y con chequeo `privado.es_equipo()`. `revoke execute ... from public` y `grant execute` solo a `authenticated`.
+- [ ] T031 [P] [H1] Crear `supabase/migrations/20261018120310_storage.sql`: `insert into storage.buckets (id, name, public) values ('medios','medios', true) on conflict do nothing`, con las políticas `medios_select` (select to anon, authenticated using `bucket_id = 'medios'`), `medios_insert_equipo` (insert, with check), `medios_update_equipo` (update, using y with check) y `medios_delete_equipo` (delete, using). Las tres de escritura van `to authenticated` con la condición `bucket_id = 'medios' and (select privado.es_equipo())`. Nota: `storage.protect_delete()` bloquea los DELETE directos en SQL; la Storage API habilita `storage.allow_delete_query`.
 - [ ] T032 [H1] Crear `packages/db/src/consultas/equipo-articulos.ts`:
   - `crearArticulo(c, datos)`: valida con `validarContenido` antes de llamar a la base;
   - `actualizarArticulo(c, id, version, cambios)`: `update ... eq('id', id).eq('version', version)`; si responde 0 filas, distingue entre `no_encontrado` y `conflicto_version`;

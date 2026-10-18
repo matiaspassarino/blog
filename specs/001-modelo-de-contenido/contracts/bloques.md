@@ -54,3 +54,12 @@ Todo bloque tiene `{ id: string (uuid), tipo: TipoBloque }`. El `id` da estabili
 ## Invariante con la base
 
 `TIPOS_BLOQUE` debe ser igual a `privado.tipos_bloque()`. Lo verifica un test de integración en `packages/db`.
+
+## Supuestos de interpretación (fijados por los tests de H1)
+
+- `cta.url`: es interna si empieza con `/` **pero no** con `//`. Las demás tienen que ser `https://`.
+- `video.idVideo`: YouTube `^[A-Za-z0-9_-]{11}$`; Vimeo solo dígitos. Se valida según el `proveedor`.
+- `textoPlano`: quita las marcas inline y las URLs de los enlaces, conserva el texto del código inline (sin los backticks) y omite los bloques `codigo`.
+- `crearBloque('titulo')` devuelve `nivel: 2` por defecto.
+- Los mensajes de error son propios y están en español. No se usan los mensajes por defecto de Zod en inglés.
+

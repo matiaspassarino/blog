@@ -55,7 +55,7 @@ Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 |---|---|---|
 | `id` | `uuid` | PK |
 | `nombre` | `text` | `not null`, longitud 1–60; `unique index (lower(nombre))` |
-| `slug` | `text` | `not null`, `unique`, `check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')` |
+| `slug` | `text` | `not null default ''` (lo genera `a10`), `unique`, `check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$')` |
 | `descripcion` | `text` | `≤ 300` |
 | `creado_en` / `actualizado_en` | `timestamptz` | |
 
@@ -74,7 +74,7 @@ Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 |---|---|---|
 | `id` | `uuid` | PK |
 | `titulo` | `text` | `not null`, longitud 1–120 |
-| `slug` | `text` | `not null`, `unique`, mismo formato que las taxonomías |
+| `slug` | `text` | `not null default ''` (lo genera `a10`), `unique`, mismo formato que las taxonomías |
 | `extracto` | `text` | `≤ 300` |
 | `titulo_seo` | `text` | `≤ 60` |
 | `descripcion_seo` | `text` | `≤ 160` |
@@ -83,7 +83,7 @@ Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 | `estado` | `estado_articulo` | `not null default 'borrador'` |
 | `programado_para` | `timestamptz` | |
 | `publicado_en` | `timestamptz` | lo gestiona el sistema |
-| `autor_id` | `uuid` | `not null`, FK → `perfiles` `restrict`; inmutable para el cliente |
+| `autor_id` | `uuid` | `not null default auth.uid()`, FK → `perfiles` `restrict`; inmutable para el cliente |
 | `categoria_id` | `uuid` | FK → `categorias` `restrict` |
 | `version` | `integer` | `not null default 1` |
 | `busqueda` | `tsvector` | lo gestiona el sistema |
@@ -184,7 +184,7 @@ Hay un test que verifica que **insert, update y delete fallan** como `anon` y co
 |---|---|---|---|
 | `buscar_articulos(consulta text, limite int = 12, desplazamiento int = 0)` | invoker | anon, authenticated | Filtro explícito de publicados; `least(limite, 50)`; devuelve `total` (D12) |
 | `resolver_redireccion(tipo tipo_entidad, slug text)` | invoker | anon, authenticated | Join contra la entidad, que pasa por la RLS (D24) |
-| `previsualizar_slug(texto text, tipo tipo_entidad)` | invoker | authenticated | `case` estático, sin SQL dinámico |
+| `previsualizar_slug(texto text, tipo tipo_entidad)` | definer, con chequeo `es_equipo()` | authenticated | `case` estático, sin SQL dinámico |
 | `asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int)` | **definer** con chequeo `es_equipo()` | authenticated | `volatile`; atómica; única vía de escritura de etiquetas (D22) |
 
 **Internas** (`privado`): `es_cliente`, `es_equipo`, `es_admin`, `slugificar`, `tipos_bloque`, `contenido_valido`, `imagen_valida`, `bloques_a_texto`, las funciones de los triggers, `recalcular_busqueda(uuid)`, `notificar_cambio_publico(jsonb)`, `publicar_programados()`.
@@ -233,7 +233,7 @@ Todas las tablas tienen RLS. `E` = `(select privado.es_equipo())`, `A` = `(selec
 | | `ae_select_equipo` | authenticated | select | la misma condición `or E` |
 | `redirecciones` | `redirecciones_select` | anon, authenticated | select | `tipo_entidad <> 'articulo' or exists (select 1 from articulos a where a.id = entidad_id)` (hereda la RLS) |
 | `storage.objects` | `medios_select` | anon, authenticated | select | `bucket_id = 'medios'` |
-| | `medios_escritura_equipo` | authenticated | insert / update / delete | `bucket_id = 'medios' and E` |
+| | `medios_insert_equipo` / `medios_update_equipo` / `medios_delete_equipo` | authenticated | insert / update / delete | `bucket_id = 'medios' and E` |
 
 Cada política tiene al menos un test pgTAP positivo y uno negativo.
 
