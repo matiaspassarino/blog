@@ -8,7 +8,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo h3-tax-).
 begin;
 \ir helpers/pruebas.psql
-select plan(58);
+select plan(64);
 
 -- Sin secretos de revalidación al empezar: el armado de datos no notifica.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -293,6 +293,25 @@ select is(public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002', '{}':
 select pruebas.como_postgres();
 select is(pruebas.etiquetas_de('a3000000-0000-4000-8000-000000000002'), '{}'::text[],
   'RF-015: con un arreglo vacío el artículo queda sin etiquetas');
+
+-- Validación ronda 5 (A5-M2): la entrada se valida antes de tocar nada.
+select pruebas.como('h3-tax-editor@prueba.local');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002', null, 4)$$,
+  'P0001', 'contenido_invalido', 'A5-M2: un arreglo nulo se rechaza (no borra todas las etiquetas)');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002',
+    array['e3000000-0000-4000-8000-000000000001', null]::uuid[], 4)$$,
+  'P0001', 'contenido_invalido', 'A5-M2: un elemento nulo se rechaza');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002',
+    array['e3000000-0000-4000-8000-0000000000ff']::uuid[], 4)$$,
+  'P0001', 'no_encontrado', 'A5-M2: una etiqueta inexistente da no_encontrado');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002',
+    array(select gen_random_uuid() from generate_series(1, 101)), 4)$$,
+  'P0001', 'contenido_invalido', 'A5-M2: más de 100 etiquetas se rechaza');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002', '{}'::uuid[], null)$$,
+  'P0001', 'conflicto_version', 'A5-M2: una versión nula da conflicto_version');
+select pruebas.como_postgres();
+select is((select version from public.articulos where id = 'a3000000-0000-4000-8000-000000000002'), 4,
+  'A5-M2: las entradas inválidas no cambian la versión');
 
 select pruebas.como('h3-tax-editor@prueba.local');
 select throws_ok($$

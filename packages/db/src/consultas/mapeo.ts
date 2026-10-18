@@ -3,6 +3,7 @@
 // base tiene un check liviano; no se revalida en cada lectura.
 import type { Contenido, Imagen } from '@blog/bloques';
 import type { Json } from '../tipos';
+import type { TipoEntidad } from '../tipos-dominio';
 import type { AutorPublico, ReferenciaTaxonomia, ResumenArticulo } from './tipos-publicos';
 
 type FilaSeo = { titulo: string; extracto: string | null; titulo_seo: string | null; descripcion_seo: string | null };
@@ -39,4 +40,22 @@ export function aResumen(fila: FilaResumen): ResumenArticulo {
     publicado_en: aFechaPublicacion(fila.publicado_en),
     categoria: fila.categoria,
   };
+}
+
+type FilaSitemap = { tipo: TipoEntidad; slug: string; actualizado_en: string };
+
+/** El RPC entradas_sitemap devuelve un arreglo jsonb con esa forma (ver su migración). */
+export function aEntradasSitemap(valor: Json) {
+  return (valor as FilaSitemap[]).map((fila) => ({
+    tipo: fila.tipo,
+    slug: fila.slug,
+    actualizadoEn: fila.actualizado_en,
+  }));
+}
+
+/** Etiquetas embebidas en orden estable por nombre (validación C5-M3). */
+export function aEtiquetas(filas: { etiqueta: ReferenciaTaxonomia | null }[]): ReferenciaTaxonomia[] {
+  return filas
+    .flatMap(({ etiqueta }) => (etiqueta ? [etiqueta] : []))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }

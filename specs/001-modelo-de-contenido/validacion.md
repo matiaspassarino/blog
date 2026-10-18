@@ -8,8 +8,9 @@
 | 2 | `cb91af2` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 | 3 · H2 | `68a0622` | ❌ **CAMBIOS REQUERIDOS** (1 bloqueante) |
 | 4 · H2 | `e835a6a` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
+| 5 · H3 | `2796004` | ❌ **CAMBIOS REQUERIDOS** (3 bloqueantes) |
 
-**Resultado global vigente**: ✅ **APROBADO** (ronda 4, Historia 2). Ver la sección "Ronda 4" al final.
+**Resultado global vigente**: ❌ **CAMBIOS REQUERIDOS** (ronda 5, Historia 3). Ver la sección "Ronda 5" al final.
 
 ---
 
@@ -222,3 +223,58 @@ Los cambios en `apps/` y `packages/ui` son solo de formato y ESLint, sin regresi
 - [x] A4-M1: `asignar_slug` solo recalcula en el insert o cuando cambia el slug, con un test de regresión en `slugs.test.sql`.
 - [x] A4-M2: T048 reescrita (`drop` y recreación de `mensaje_articulo` con `etiqueta_ids_extra`, más las funciones que la llaman). El nombre `z30` en las taxonomías se mantiene porque `z20` queda para `z20_recalcular_articulos` (H5); documentado.
 - [x] C4-M1: casts tipados desde `Json` y el tipo del embebido. C4-M2: los tipos públicos se movieron a `consultas/tipos-publicos.ts`. C4-M3: todos los casts quedan en `mapeo.ts` (`aFechaPublicacion`). C4-M4: TS filtra solo `estado` y la fecha la decide la base.
+
+---
+
+# Ronda 5 (`2796004`, Historia 3 · T045–T052): ❌ CAMBIOS REQUERIDOS
+
+## Verificaciones automáticas
+`formato:verificar` · `lint` · `typecheck` · `test` (80 en `@blog/db`) · `calidad` · `test:db` (13 archivos) · `test:e2e`: todo ✓.
+Corrección del informe: jscpd encuentra **3 clones (1,44 %)** en los tests nuevos de H3. Pasa el umbral del 3 %, pero no son 0 como se informó al lanzar la ronda (ver C5-B1).
+
+## arquitecto-db: CAMBIOS REQUERIDOS
+
+### Bloqueante
+- **A5-B1. El sitemap sale incompleto sin error a partir de 1.000 artículos.** `supabase/config.toml` tiene `max_rows = 1000` y `listarParaSitemap` consulta los artículos sin `order` ni `range`. Con unos 2.000 publicados se pierde más de la mitad de las URLs, y el subconjunto cambia de una vez a otra (§IV.4, RSEO-004). Los tests no lo detectan porque la demo tiene unos 14 artículos.
+  → Un RPC invoker `public.entradas_sitemap()` que devuelve un único `jsonb` (un escalar no lo corta `max_rows`; además entra en una sola petición y no trae los ids embebidos), con test pgTAP, su línea en privilegios y un test que supere el límite.
+
+### Menores
+- **A5-M1.** Deadlock posible entre `asignar_etiquetas` (borra todo y vuelve a insertar) y el borrado de una etiqueta. → Reemplazar por diferencia: `delete … <> all(...)` e `insert … on conflict do nothing`.
+- **A5-M2.** En `asignar_etiquetas`, los ids inexistentes o `null` terminan en `desconocido`. `etiqueta_ids = null` borra todas las etiquetas y `version = null` pasa por accidente. → Validar la entrada (null, elementos null, existencia, tope de 100) y usar `is distinct from` para la versión.
+- **A5-M3.** `traducirError` deja 23503 (FK) como `desconocido`. → Mapearlo a `no_encontrado` con la tabla en `detalle`.
+- **A5-M4.** El sitemap de taxonomías trae todos los ids embebidos solo para filtrar (~500 KB). Se resuelve con A5-B1.
+- **A5-M5.** `tasks.md` (dependencias) dice que T058 hace que `asignar_etiquetas` llame a `recalcular_busqueda`, en contradicción con T058 y D22 (eso traería de vuelta el doble incremento). → Corregir.
+
+### Riesgos para H5 (se anotan en T058)
+- Borrar una etiqueta debería recalcular la búsqueda: más simple, desde el `before delete`, con un `delete … returning` sobre `articulos_etiquetas`.
+- `a90_actualizado_en` también se dispara en los recálculos. Eso movería el `lastmod` del sitemap y `dateModified`, y la carga inicial de la migración daría `conflicto_version` a los editores con artículos abiertos. → En los recálculos, conservar `actualizado_en` y `version`.
+- Mantener en `asignar_etiquetas` el orden insert → update.
+
+### Observaciones (sin hallazgos)
+- La atomicidad y el `for update` de `asignar_etiquetas` son correctos, la versión sube una sola vez y el aviso sale una sola vez con la unión de etiquetas. Que sea definer no amplía permisos frente a la RLS actual. Si la RLS de artículos se restringe en el futuro, el RPC tiene que repetir la condición.
+- `mensaje_articulo` tiene una sola firma y todos sus llamadores se recrearon.
+- `articulos_etiquetas` no deja ver borradores. El índice se usa y los listados tardan unos 3 ms con 2.000 artículos.
+- `categoria_en_uso` no deja huecos de integridad ante la concurrencia.
+
+## consistencia-codigo: CAMBIOS REQUERIDOS
+
+### Bloqueantes
+- **C5-B1. Los helpers de test están duplicados.** `rechazoDe`, la preparación y la limpieza en cascada, y la fábrica de artículos publicados se repiten en `equipo-articulos`, `equipo-taxonomias`, `listados` y `articulos-publicos` (3 clones de jscpd). → Moverlos a `packages/db/src/pruebas/`.
+- **C5-B2. Hay tipos duplicados.** `Taxonomia` repite `Categoria` (y tipa mal las etiquetas). `TipoTaxonomia` y `EntradaSitemap.tipo` reescriben `TipoEntidad`. → `Taxonomia = Categoria | Etiqueta` en un solo módulo, `Exclude<TipoEntidad, 'articulo'>` y `tipo: TipoEntidad`.
+
+### Menores
+- **C5-M1.** Exports sin documentar en `contracts/db.md`: `OpcionesPagina`, `Taxonomia`, `NuevaTaxonomia`, `CambiosTaxonomia` y `EntradaSitemap`. `Categoria` y `Etiqueta` son la fila completa, no `{ id, nombre, slug, descripcion }`: alinear el contrato o usar `Pick`.
+- **C5-M2.** `listarArticulosPublicados` no declara el tipo de retorno. `listarPorCategoria` y `listarPorEtiqueta` repiten la búsqueda de la taxonomía por slug: extraer `taxonomiaPorSlug`.
+- **C5-M3.** Las etiquetas de `obtenerArticuloPublicado` llegan sin orden. → Ordenarlas por nombre y testearlo con dos.
+- **C5-M4.** En `listados.test.ts`, el tipo local `Taxonomia` y la función local `crearTaxonomia` tapan los nombres públicos.
+- **C5-M5.** T058 debería verificar que las 2 aserciones de búsqueda de `taxonomias.test.sql` dejan de saltearse.
+- La repetición de `no_encontrado` entre `equipo-taxonomias` y `equipo-articulos` es aceptable; se extrae si aparece un tercer uso (H6).
+
+## revisor-ux-ui: sin cambios de UI desde la ronda 3 (APROBADO)
+
+## Acciones (ronda 5)
+- [x] **A5-B1**: RPC `entradas_sitemap()` (un `jsonb`), con `sitemap.test.sql` (1.100 publicados, más que `max_rows`), su línea en privilegios y un test TS de una sola petición.
+- [x] **C5-B1**: `pruebas/afirmaciones.ts` (`rechazoDe`), `pruebas/datos.ts` (`registroDePrueba`, `crearArticuloDePrueba`) y `sesionesDemo()`; jscpd da 0 clones.
+- [x] **C5-B2**: `Categoria`, `Etiqueta`, `Taxonomia`, `TipoTaxonomia` y `TABLA_TAXONOMIA` en `tipos-dominio.ts`; `EntradaSitemap.tipo` es `TipoEntidad`.
+- [x] A5-M1: reemplazo por diferencia. A5-M2: validación de la entrada, con 6 tests. A5-M3: 23503 → `no_encontrado`, con test. A5-M4: resuelto por A5-B1. A5-M5: corregida la contradicción en tasks.
+- [x] C5-M1: contrato actualizado. C5-M2: `taxonomiaPorSlug` y tipos de retorno. C5-M3: etiquetas ordenadas, testeado con dos. C5-M4: `insertarTaxonomia` y `TaxonomiaDePrueba` en `listados.test.ts`. C5-M5 y los riesgos de H5, anotados en T058.

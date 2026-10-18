@@ -11,7 +11,15 @@ export {
   type NuevoArticulo,
   type CambiosArticulo,
 } from './consultas/equipo-articulos';
-export type { TipoEntidad, EstadoArticulo, RolMiembro } from './tipos-dominio';
+export type {
+  TipoEntidad,
+  EstadoArticulo,
+  RolMiembro,
+  Categoria,
+  Etiqueta,
+  Taxonomia,
+  TipoTaxonomia,
+} from './tipos-dominio';
 export {
   obtenerArticuloPublicado,
   resolverRedireccion,
@@ -27,8 +35,6 @@ export {
   listarPorCategoria,
   listarPorEtiqueta,
   listarParaSitemap,
-  type Categoria,
-  type Etiqueta,
   type EntradaSitemap,
 } from './consultas/listados';
 export {
@@ -36,7 +42,6 @@ export {
   actualizarTaxonomia,
   eliminarTaxonomia,
   asignarEtiquetas,
-  type Taxonomia,
   type NuevaTaxonomia,
   type CambiosTaxonomia,
 } from './consultas/equipo-taxonomias';

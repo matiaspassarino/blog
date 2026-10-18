@@ -4,6 +4,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import { obtenerArticuloPublicado, resolverRedireccion } from './articulos-publicos';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
@@ -14,8 +15,9 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   let anon: ClienteBlog;
   let categoria: { id: string; nombre: string; slug: string };
   let etiqueta: { id: string; nombre: string; slug: string };
+  let otraEtiqueta: { id: string; nombre: string; slug: string };
   let perfilAdmin: { nombre: string; biografia: string | null; avatar: unknown };
-  const creados: string[] = [];
+  const creados = registroDePrueba();
 
   beforeAll(async () => {
     admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
@@ -37,6 +39,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       .single();
     if (error) throw new Error(`No se pudo crear la categoría de prueba: ${error.message}`);
     categoria = data;
+    creados.categorias.push(data.id);
 
     const { data: etiquetaCreada, error: errorEtiqueta } = await admin
       .from('etiquetas')
@@ -45,6 +48,17 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       .single();
     if (errorEtiqueta) throw new Error(`No se pudo crear la etiqueta de prueba: ${errorEtiqueta.message}`);
     etiqueta = etiquetaCreada;
+    creados.etiquetas.push(etiquetaCreada.id);
+
+    // "A …" ordena antes que "H2 …": verifica el orden por nombre (validación C5-M3).
+    const { data: otraCreada, error: errorOtra } = await admin
+      .from('etiquetas')
+      .insert({ nombre: `A primera etiqueta ${sufijo}`, slug: `h2-publicos-primera-${sufijo}` })
+      .select('id, nombre, slug')
+      .single();
+    if (errorOtra) throw new Error(`No se pudo crear la segunda etiqueta de prueba: ${errorOtra.message}`);
+    otraEtiqueta = otraCreada;
+    creados.etiquetas.push(otraCreada.id);
   });
 
   afterEach(() => {
@@ -52,42 +66,21 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   });
 
   // Borra primero los artículos (la categoría tiene FK restrict).
-  afterAll(async () => {
-    if (creados.length > 0) await admin.from('articulos').delete().in('id', creados);
-    if (categoria) await admin.from('categorias').delete().eq('id', categoria.id);
-    if (etiqueta) await admin.from('etiquetas').delete().eq('id', etiqueta.id);
-  });
+  afterAll(() => creados.limpiar(admin));
 
-  /** Crea un borrador con categoría y un bloque (requisitos de RF-010) y, si se pide, lo publica. */
-  async function crearArticulo(
+  function crearArticulo(
     nombre: string,
     { publicar = true, ...campos }: { publicar?: boolean; titulo_seo?: string; descripcion_seo?: string } = {},
   ) {
-    const { data: borrador, error } = await admin
-      .from('articulos')
-      .insert({
-        titulo: `H2 públicos: ${nombre}`,
-        slug: `h2-publicos-${nombre}-${sufijo}`,
-        extracto: `Extracto de ${nombre}.`,
-        contenido,
-        categoria_id: categoria.id,
-        ...campos,
-      })
-      .select('id, slug, version')
-      .single();
-    if (error) throw new Error(`No se pudo crear el artículo de prueba: ${error.message}`);
-    creados.push(borrador.id);
-    if (!publicar) return borrador;
-
-    const { data: publicado, error: errorPublicar } = await admin
-      .from('articulos')
-      .update({ estado: 'publicado', version: borrador.version })
-      .eq('id', borrador.id)
-      .select('id, slug, version, estado')
-      .single();
-    if (errorPublicar) throw new Error(`No se pudo publicar el artículo de prueba: ${errorPublicar.message}`);
-    if (publicado.estado !== 'publicado') throw new Error('El artículo de prueba no quedó publicado');
-    return publicado;
+    return crearArticuloDePrueba(admin, creados, {
+      titulo: `H2 públicos: ${nombre}`,
+      slug: `h2-publicos-${nombre}-${sufijo}`,
+      extracto: `Extracto de ${nombre}.`,
+      contenido,
+      categoriaId: categoria.id,
+      publicar,
+      ...campos,
+    });
   }
 
   describe('obtenerArticuloPublicado', () => {
@@ -95,7 +88,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       const creado = await crearArticulo('completo');
       const { error } = await admin.rpc('asignar_etiquetas', {
         articulo_id: creado.id,
-        etiqueta_ids: [etiqueta.id],
+        etiqueta_ids: [etiqueta.id, otraEtiqueta.id],
         version: creado.version,
       });
       if (error) throw new Error(`No se pudieron asignar las etiquetas: ${error.message}`);
@@ -109,7 +102,10 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
         extracto: 'Extracto de completo.',
         contenido,
         categoria: { nombre: categoria.nombre, slug: categoria.slug },
-        etiquetas: [{ nombre: etiqueta.nombre, slug: etiqueta.slug }],
+        etiquetas: [
+          { nombre: otraEtiqueta.nombre, slug: otraEtiqueta.slug },
+          { nombre: etiqueta.nombre, slug: etiqueta.slug },
+        ],
         seo: { titulo: 'H2 públicos: completo', descripcion: 'Extracto de completo.' },
       });
       expect(articulo?.autor).toEqual(perfilAdmin);

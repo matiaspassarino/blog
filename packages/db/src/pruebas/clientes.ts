@@ -24,3 +24,12 @@ export async function clienteComo(email: string, contrasenia: string) {
   if (error) throw new Error(`No se pudo iniciar sesión como ${email}: ${error.message}`);
   return cliente;
 }
+
+/** Sesiones de los usuarios demo del seed (editor y admin) y el id del editor. */
+export async function sesionesDemo() {
+  const editor = await clienteComo('editor@demo.local', 'demo-editor-2026');
+  const admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+  const { data, error } = await editor.auth.getUser();
+  if (error || !data.user) throw new Error('No se pudo obtener el usuario editor');
+  return { editor, admin, idEditor: data.user.id };
+}

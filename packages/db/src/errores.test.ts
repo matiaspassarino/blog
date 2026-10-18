@@ -110,6 +110,21 @@ describe('traducirError', () => {
     });
   });
 
+  describe('referencias inexistentes', () => {
+    it('A5-M3: mapea el 23503 (FK) a no_encontrado y conserva el detalle', () => {
+      const resultado = traducir(
+        errorPostgrest(
+          '23503',
+          'insert or update on table "articulos" violates foreign key constraint "articulos_categoria_id_fkey"',
+          'Key (categoria_id)=(c1) is not present in table "categorias".',
+        ),
+      );
+
+      expect(resultado.codigo).toBe('no_encontrado');
+      expect(resultado.detalle).toContain('categorias');
+    });
+  });
+
   describe('no encontrado', () => {
     it('mapea el PGRST116 a no_encontrado', () => {
       const resultado = traducir(

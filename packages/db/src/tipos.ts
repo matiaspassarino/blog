@@ -160,6 +160,9 @@ isOneToOne: false
             "asignar_etiquetas":
 { Args: { "articulo_id": string,"etiqueta_ids": (string)[],"version": number }; Returns: number
                            },
+"entradas_sitemap":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "previsualizar_slug":
 { Args: { "texto": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
                            },

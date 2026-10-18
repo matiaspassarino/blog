@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(118);
+select plan(120);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -401,6 +401,12 @@ select is(
   true, 'asignar_etiquetas es security definer (con chequeo es_equipo)');
 select function_privs_are('privado', 'mensaje_articulo', array['uuid', 'jsonb', 'uuid[]', 'uuid[]'], 'authenticated', array[]::text[],
   'authenticated no puede ejecutar privado.mensaje_articulo');
+
+select function_privs_are('public', 'entradas_sitemap', array[]::text[], 'anon', array['EXECUTE'],
+  'anon puede ejecutar entradas_sitemap');
+select is(
+  (select prosecdef from pg_proc where oid = 'public.entradas_sitemap()'::regprocedure),
+  false, 'entradas_sitemap es invoker (la RLS decide qué es visible)');
 
 select pruebas.como_postgres();
 select * from finish();

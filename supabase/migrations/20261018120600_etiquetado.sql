@@ -115,21 +115,40 @@ begin
   if not privado.es_equipo() then
     raise exception using errcode = 'P0001', message = 'sin_permiso';
   end if;
+  -- Validación de entrada antes de tocar nada (validación A5-M2).
+  if asignar_etiquetas.etiqueta_ids is null or array_position(asignar_etiquetas.etiqueta_ids, null) is not null then
+    raise exception using errcode = 'P0001', message = 'contenido_invalido', detail = 'etiquetas';
+  end if;
+  if cardinality(asignar_etiquetas.etiqueta_ids) > 100 then
+    raise exception using errcode = 'P0001', message = 'contenido_invalido', detail = 'etiquetas: máximo 100';
+  end if;
+  if exists (
+    select 1 from unnest(asignar_etiquetas.etiqueta_ids) as t(id)
+    where not exists (select 1 from public.etiquetas e where e.id = t.id)
+  ) then
+    raise exception using errcode = 'P0001', message = 'no_encontrado', detail = 'etiqueta';
+  end if;
+
   select a.version, a.slug, a.categoria_id, a.estado, a.publicado_en into fila
   from public.articulos a where a.id = asignar_etiquetas.articulo_id for update;
   if not found then
     raise exception using errcode = 'P0001', message = 'no_encontrado';
   end if;
-  if fila.version <> asignar_etiquetas.version then
+  if fila.version is distinct from asignar_etiquetas.version then
     raise exception using errcode = 'P0001', message = 'conflicto_version';
   end if;
 
   select coalesce(array_agg(ae.etiqueta_id), '{}') into anteriores
   from public.articulos_etiquetas ae where ae.articulo_id = asignar_etiquetas.articulo_id;
 
-  delete from public.articulos_etiquetas ae where ae.articulo_id = asignar_etiquetas.articulo_id;
+  -- Reemplazo por diferencia: borrar todo y reinsertar podía trabarse (deadlock)
+  -- con el borrado concurrente de una etiqueta que se conserva (validación A5-M1).
+  delete from public.articulos_etiquetas ae
+  where ae.articulo_id = asignar_etiquetas.articulo_id
+    and ae.etiqueta_id <> all (asignar_etiquetas.etiqueta_ids);
   insert into public.articulos_etiquetas (articulo_id, etiqueta_id)
-  select distinct asignar_etiquetas.articulo_id, t.id from unnest(etiqueta_ids) as t(id);
+  select distinct asignar_etiquetas.articulo_id, t.id from unnest(asignar_etiquetas.etiqueta_ids) as t(id)
+  on conflict do nothing;
 
   update public.articulos a set version = asignar_etiquetas.version where a.id = asignar_etiquetas.articulo_id;
 
@@ -184,3 +203,40 @@ create trigger z10_registrar_redireccion
 create trigger z30_borrar_redirecciones
   after delete on public.etiquetas
   for each row execute function privado.borrar_redirecciones('etiqueta');
+
+-- ---------------------------------------------------------------------------
+-- Sitemap (RSEO-004, validación A5-B1). Un único jsonb: PostgREST corta las
+-- respuestas de filas en max_rows (1000), un escalar no. Invoker: la RLS decide
+-- qué es visible; el predicado de publicado va explícito.
+-- ---------------------------------------------------------------------------
+create function public.entradas_sitemap()
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(x order by x.tipo, x.slug), '[]'::jsonb)
+  from (
+    select 'articulo' as tipo, a.slug, a.actualizado_en
+    from public.articulos a
+    where a.estado = 'publicado' and a.publicado_en <= now()
+    union all
+    select 'categoria', c.slug, c.actualizado_en
+    from public.categorias c
+    where exists (
+      select 1 from public.articulos a
+      where a.categoria_id = c.id and a.estado = 'publicado' and a.publicado_en <= now()
+    )
+    union all
+    select 'etiqueta', e.slug, e.actualizado_en
+    from public.etiquetas e
+    where exists (
+      select 1 from public.articulos_etiquetas ae
+      join public.articulos a on a.id = ae.articulo_id
+      where ae.etiqueta_id = e.id and a.estado = 'publicado' and a.publicado_en <= now()
+    )
+  ) as x
+$$;
+
+revoke execute on function public.entradas_sitemap() from public, anon, authenticated;
+grant execute on function public.entradas_sitemap() to anon, authenticated;

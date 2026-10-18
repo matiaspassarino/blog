@@ -1,16 +1,14 @@
 // Listados públicos paginados y entradas del sitemap (contracts/db.md, RF-017, RSEO-004).
 // Cantidad constante de peticiones: hasta 2 por listado de taxonomía (para
-// distinguir un slug inexistente de un listado vacío) y 3 para el sitemap.
+// distinguir un slug inexistente de un listado vacío) y 1 para el sitemap.
 import type { ClienteBlog } from '../cliente';
 import { traducirError } from '../errores';
 import { aPagina, rangoDe, type OpcionesPagina, type Pagina } from '../paginacion';
-import type { Database } from '../tipos';
-import { aResumen } from './mapeo';
+import { TABLA_TAXONOMIA, type Categoria, type Etiqueta, type TipoEntidad, type TipoTaxonomia } from '../tipos-dominio';
+import { aEntradasSitemap, aResumen } from './mapeo';
 import type { ResumenArticulo } from './tipos-publicos';
 
-export type Categoria = Database['public']['Tables']['categorias']['Row'];
-export type Etiqueta = Database['public']['Tables']['etiquetas']['Row'];
-export type EntradaSitemap = { tipo: 'articulo' | 'categoria' | 'etiqueta'; slug: string; actualizadoEn: string };
+export type EntradaSitemap = { tipo: TipoEntidad; slug: string; actualizadoEn: string };
 
 const COLUMNAS_RESUMEN =
   'id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria:categorias(nombre, slug)';
@@ -40,8 +38,18 @@ async function paginaDeArticulos(
   return aPagina(data.map(aResumen), count ?? 0, pagina, porPagina);
 }
 
-export async function listarArticulosPublicados(c: ClienteBlog, opciones: OpcionesPagina = {}) {
+export async function listarArticulosPublicados(
+  c: ClienteBlog,
+  opciones: OpcionesPagina = {},
+): Promise<Pagina<ResumenArticulo>> {
   return paginaDeArticulos(c, opciones, {});
+}
+
+/** La taxonomía por slug, o null si no existe (para distinguirla de un listado vacío). */
+async function taxonomiaPorSlug(c: ClienteBlog, tipo: TipoTaxonomia, slug: string) {
+  const { data, error } = await c.from(TABLA_TAXONOMIA[tipo]).select('*').eq('slug', slug).maybeSingle();
+  if (error) throw traducirError(error);
+  return data;
 }
 
 export async function listarPorCategoria(
@@ -49,10 +57,9 @@ export async function listarPorCategoria(
   slug: string,
   opciones: OpcionesPagina = {},
 ): Promise<{ categoria: Categoria; articulos: Pagina<ResumenArticulo> } | null> {
-  const { data, error } = await c.from('categorias').select('*').eq('slug', slug).maybeSingle();
-  if (error) throw traducirError(error);
-  if (!data) return null;
-  return { categoria: data, articulos: await paginaDeArticulos(c, opciones, { categoriaId: data.id }) };
+  const categoria = await taxonomiaPorSlug(c, 'categoria', slug);
+  if (!categoria) return null;
+  return { categoria, articulos: await paginaDeArticulos(c, opciones, { categoriaId: categoria.id }) };
 }
 
 export async function listarPorEtiqueta(
@@ -60,30 +67,18 @@ export async function listarPorEtiqueta(
   slug: string,
   opciones: OpcionesPagina = {},
 ): Promise<{ etiqueta: Etiqueta; articulos: Pagina<ResumenArticulo> } | null> {
-  const { data, error } = await c.from('etiquetas').select('*').eq('slug', slug).maybeSingle();
-  if (error) throw traducirError(error);
-  if (!data) return null;
-  return { etiqueta: data, articulos: await paginaDeArticulos(c, opciones, { etiquetaId: data.id }) };
+  const etiqueta = await taxonomiaPorSlug(c, 'etiqueta', slug);
+  if (!etiqueta) return null;
+  return { etiqueta, articulos: await paginaDeArticulos(c, opciones, { etiquetaId: etiqueta.id }) };
 }
 
-/** Artículos publicados y solo las taxonomías con algún artículo publicado (RSEO-004). */
+/**
+ * Artículos publicados y solo las taxonomías con algún artículo publicado
+ * (RSEO-004). Un único jsonb vía RPC: PostgREST corta las filas en max_rows
+ * (1000) y el sitemap tiene que ser completo (validación A5-B1).
+ */
 export async function listarParaSitemap(c: ClienteBlog): Promise<EntradaSitemap[]> {
-  const [articulos, categorias, etiquetas] = await Promise.all([
-    c.from('articulos').select('slug, actualizado_en').eq('estado', 'publicado'),
-    c.from('categorias').select('slug, actualizado_en, articulos!inner(id)').eq('articulos.estado', 'publicado'),
-    c
-      .from('etiquetas')
-      .select('slug, actualizado_en, articulos_etiquetas!inner(articulos!inner(id))')
-      .eq('articulos_etiquetas.articulos.estado', 'publicado'),
-  ]);
-  for (const resultado of [articulos, categorias, etiquetas]) {
-    if (resultado.error) throw traducirError(resultado.error);
-  }
-  const entradas = (tipo: EntradaSitemap['tipo'], filas: { slug: string; actualizado_en: string }[] | null) =>
-    (filas ?? []).map((fila) => ({ tipo, slug: fila.slug, actualizadoEn: fila.actualizado_en }));
-  return [
-    ...entradas('articulo', articulos.data),
-    ...entradas('categoria', categorias.data),
-    ...entradas('etiqueta', etiquetas.data),
-  ];
+  const { data, error } = await c.rpc('entradas_sitemap');
+  if (error) throw traducirError(error);
+  return aEntradasSitemap(data);
 }

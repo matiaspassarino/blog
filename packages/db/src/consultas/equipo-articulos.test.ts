@@ -3,24 +3,13 @@
 import type { ErrorBloque } from '@blog/bloques';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
-import { ErrorDominio } from '../errores';
-import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import type { ErrorDominio } from '../errores';
+import { rechazoDe } from '../pruebas/afirmaciones';
+import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
 import { actualizarArticulo, crearArticulo, eliminarArticulo, previsualizarSlug } from './equipo-articulos';
 
 type NuevoArticulo = Parameters<typeof crearArticulo>[1];
 type CambiosArticulo = Parameters<typeof actualizarArticulo>[3];
-
-/** Ejecuta la promesa y devuelve el error con el que se rechaza (o falla si se resuelve). */
-async function rechazoDe(promesa: Promise<unknown>): Promise<ErrorDominio> {
-  const error = await promesa.then(
-    () => {
-      throw new Error('se esperaba que la operación se rechazara');
-    },
-    (motivo: unknown) => motivo,
-  );
-  expect(error).toBeInstanceOf(ErrorDominio);
-  return error as ErrorDominio;
-}
 
 /**
  * Los ErrorBloque[] de un error contenido_invalido. El contrato dice que se devuelven
@@ -49,11 +38,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
   const creados: string[] = [];
 
   beforeAll(async () => {
-    editor = await clienteComo('editor@demo.local', 'demo-editor-2026');
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
-    const { data, error } = await editor.auth.getUser();
-    if (error || !data.user) throw new Error('No se pudo obtener el usuario editor');
-    idEditor = data.user.id;
+    ({ editor, admin, idEditor } = await sesionesDemo());
   });
 
   afterEach(() => {

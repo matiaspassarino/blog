@@ -2,16 +2,17 @@
 // Integración contra Supabase local como visitante (anon). Los datos los crea y los borra el admin demo
 // del seed (research D18). Otras suites publican en paralelo: los listados globales se verifican por
 // sus invariantes y por la presencia de los artículos propios, nunca por totales exactos.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
 import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import { listarArticulosPublicados, listarParaSitemap, listarPorCategoria, listarPorEtiqueta } from './listados';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
 const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
 
-type Taxonomia = { id: string; nombre: string; slug: string; descripcion: string | null };
+type TaxonomiaDePrueba = { id: string; nombre: string; slug: string; descripcion: string | null };
 type Creado = { id: string; slug: string; version: number };
 
 /** Verifica que los items vengan del más reciente al más antiguo (RF-017). */
@@ -31,84 +32,63 @@ function esperarPaginaCoherente<T>(pagina: Pagina<T>, numero: number, porPagina:
 describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
   let admin: ClienteBlog;
   let anon: ClienteBlog;
-  let categoria: Taxonomia;
-  let categoriaSinPublicados: Taxonomia;
-  let etiquetaDiseno: Taxonomia;
-  let etiquetaSeo: Taxonomia;
-  let etiquetaSoloBorrador: Taxonomia;
-  let etiquetaSinArticulos: Taxonomia;
+  let categoria: TaxonomiaDePrueba;
+  let categoriaSinPublicados: TaxonomiaDePrueba;
+  let etiquetaDiseno: TaxonomiaDePrueba;
+  let etiquetaSeo: TaxonomiaDePrueba;
+  let etiquetaSoloBorrador: TaxonomiaDePrueba;
+  let etiquetaSinArticulos: TaxonomiaDePrueba;
   /** Publicados de `categoria`, en el orden en que se publicaron (el primero es el más antiguo). */
   const publicados: Creado[] = [];
   let borrador: Creado;
   let borradorSinPublicados: Creado;
-  const articulosCreados: string[] = [];
-  const categoriasCreadas: string[] = [];
-  const etiquetasCreadas: string[] = [];
+  const creados = registroDePrueba();
 
-  async function crearTaxonomia(tabla: 'categorias' | 'etiquetas', nombre: string, slug: string) {
+  async function insertarTaxonomia(tabla: 'categorias' | 'etiquetas', nombre: string, slug: string) {
     const { data, error } = await admin
       .from(tabla)
       .insert({ nombre: `${nombre} ${sufijo}`, slug: `${slug}-${sufijo}`, descripcion: `Descripción de ${nombre}.` })
       .select('id, nombre, slug, descripcion')
       .single();
     if (error) throw new Error(`No se pudo crear la taxonomía de prueba: ${error.message}`);
-    (tabla === 'categorias' ? categoriasCreadas : etiquetasCreadas).push(data.id);
+    (tabla === 'categorias' ? creados.categorias : creados.etiquetas).push(data.id);
     return data;
   }
 
-  /** Crea un borrador con categoría y un bloque (RF-010), le asigna etiquetas y, si se pide, lo publica. */
-  async function crearArticulo(
+  function crearArticulo(
     nombre: string,
     categoriaId: string,
     { publicar, etiquetas = [] }: { publicar: boolean; etiquetas?: string[] },
   ): Promise<Creado> {
-    const { data: creado, error } = await admin
-      .from('articulos')
-      .insert({
-        titulo: `H3 listados: ${nombre}`,
-        slug: `h3-listados-${nombre}-${sufijo}`,
-        extracto: `Extracto de ${nombre}.`,
-        contenido,
-        categoria_id: categoriaId,
-      })
-      .select('id, slug, version')
-      .single();
-    if (error) throw new Error(`No se pudo crear el artículo de prueba: ${error.message}`);
-    articulosCreados.push(creado.id);
-
-    let version = creado.version;
-    if (etiquetas.length > 0) {
-      const { data: nuevaVersion, error: errorEtiquetas } = await admin.rpc('asignar_etiquetas', {
-        articulo_id: creado.id,
-        etiqueta_ids: etiquetas,
-        version,
-      });
-      if (errorEtiquetas) throw new Error(`No se pudieron asignar las etiquetas: ${errorEtiquetas.message}`);
-      version = nuevaVersion;
-    }
-    if (!publicar) return { ...creado, version };
-
-    const { data: publicado, error: errorPublicar } = await admin
-      .from('articulos')
-      .update({ estado: 'publicado', version })
-      .eq('id', creado.id)
-      .select('id, slug, version, estado')
-      .single();
-    if (errorPublicar) throw new Error(`No se pudo publicar el artículo de prueba: ${errorPublicar.message}`);
-    if (publicado.estado !== 'publicado') throw new Error('El artículo de prueba no quedó publicado');
-    return publicado;
+    return crearArticuloDePrueba(admin, creados, {
+      titulo: `H3 listados: ${nombre}`,
+      slug: `h3-listados-${nombre}-${sufijo}`,
+      extracto: `Extracto de ${nombre}.`,
+      contenido,
+      categoriaId,
+      etiquetas,
+      publicar,
+    });
   }
 
   beforeAll(async () => {
     admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
     anon = clienteAnon();
 
-    categoria = await crearTaxonomia('categorias', 'H3 Listados Categoría', 'h3-listados-categoria');
-    categoriaSinPublicados = await crearTaxonomia('categorias', 'H3 Listados Vacía', 'h3-listados-vacia');
-    etiquetaDiseno = await crearTaxonomia('etiquetas', 'H3 Listados Diseño', 'h3-listados-diseno');
-    etiquetaSeo = await crearTaxonomia('etiquetas', 'H3 Listados SEO', 'h3-listados-seo');
-    etiquetaSoloBorrador = await crearTaxonomia('etiquetas', 'H3 Listados Solo Borrador', 'h3-listados-solo-borrador');
-    etiquetaSinArticulos = await crearTaxonomia('etiquetas', 'H3 Listados Sin Artículos', 'h3-listados-sin-articulos');
+    categoria = await insertarTaxonomia('categorias', 'H3 Listados Categoría', 'h3-listados-categoria');
+    categoriaSinPublicados = await insertarTaxonomia('categorias', 'H3 Listados Vacía', 'h3-listados-vacia');
+    etiquetaDiseno = await insertarTaxonomia('etiquetas', 'H3 Listados Diseño', 'h3-listados-diseno');
+    etiquetaSeo = await insertarTaxonomia('etiquetas', 'H3 Listados SEO', 'h3-listados-seo');
+    etiquetaSoloBorrador = await insertarTaxonomia(
+      'etiquetas',
+      'H3 Listados Solo Borrador',
+      'h3-listados-solo-borrador',
+    );
+    etiquetaSinArticulos = await insertarTaxonomia(
+      'etiquetas',
+      'H3 Listados Sin Artículos',
+      'h3-listados-sin-articulos',
+    );
 
     // H3-E1: 3 publicados y 1 borrador en la misma categoría. Se publican en orden, así que el
     // último publicado es el más reciente (publicado_en = now() de cada petición).
@@ -131,11 +111,7 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
   });
 
   // Primero los artículos (la categoría tiene FK restrict y no se borra en uso).
-  afterAll(async () => {
-    if (articulosCreados.length > 0) await admin.from('articulos').delete().in('id', articulosCreados);
-    if (categoriasCreadas.length > 0) await admin.from('categorias').delete().in('id', categoriasCreadas);
-    if (etiquetasCreadas.length > 0) await admin.from('etiquetas').delete().in('id', etiquetasCreadas);
-  });
+  afterAll(() => creados.limpiar(admin));
 
   describe('listarPorCategoria', () => {
     it('H3-E1: devuelve exactamente los 3 publicados, del más reciente al más antiguo', async () => {
@@ -257,6 +233,15 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
   });
 
   describe('listarParaSitemap', () => {
+    it('A5-B1: hace una sola petición (RPC entradas_sitemap, sin el corte de max_rows)', async () => {
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+
+      await listarParaSitemap(anon);
+
+      expect(espiaFetch).toHaveBeenCalledTimes(1);
+      espiaFetch.mockRestore();
+    });
+
     it('RSEO-004: incluye los artículos publicados con su fecha de última modificación', async () => {
       const entradas = await listarParaSitemap(anon);
 

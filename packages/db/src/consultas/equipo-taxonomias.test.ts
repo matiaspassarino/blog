@@ -3,24 +3,13 @@
 // sesión de un editor demo del seed (research D18). El admin demo borra los artículos al final.
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
-import { ErrorDominio } from '../errores';
-import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { rechazoDe } from '../pruebas/afirmaciones';
+import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
+import { registroDePrueba } from '../pruebas/datos';
 import { resolverRedireccion } from './articulos-publicos';
 import { actualizarTaxonomia, asignarEtiquetas, crearTaxonomia, eliminarTaxonomia } from './equipo-taxonomias';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
-
-/** Ejecuta la promesa y devuelve el error con el que se rechaza (o falla si se resuelve). */
-async function rechazoDe(promesa: Promise<unknown>): Promise<ErrorDominio> {
-  const error = await promesa.then(
-    () => {
-      throw new Error('se esperaba que la operación se rechazara');
-    },
-    (motivo: unknown) => motivo,
-  );
-  expect(error).toBeInstanceOf(ErrorDominio);
-  return error as ErrorDominio;
-}
 
 /** Cuerpo JSON de las llamadas a un RPC capturadas por el espía de fetch. */
 function cuerposDeRpc(espia: { mock: { calls: unknown[][] } }, rpc: string): unknown[] {
@@ -37,17 +26,11 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre taxonomías (integrac
   let admin: ClienteBlog;
   let anon: ClienteBlog;
   let idEditor: string;
-  const articulosCreados: string[] = [];
-  const categoriasCreadas: string[] = [];
-  const etiquetasCreadas: string[] = [];
+  const creados = registroDePrueba();
 
   beforeAll(async () => {
-    editor = await clienteComo('editor@demo.local', 'demo-editor-2026');
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    ({ editor, admin, idEditor } = await sesionesDemo());
     anon = clienteAnon();
-    const { data, error } = await editor.auth.getUser();
-    if (error || !data.user) throw new Error('No se pudo obtener el usuario editor');
-    idEditor = data.user.id;
   });
 
   afterEach(() => {
@@ -56,21 +39,17 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre taxonomías (integrac
 
   // El editor no puede borrar artículos: limpia el admin demo. Después, las taxonomías
   // que hayan quedado (la categoría tiene FK restrict).
-  afterAll(async () => {
-    if (articulosCreados.length > 0) await admin.from('articulos').delete().in('id', articulosCreados);
-    if (categoriasCreadas.length > 0) await admin.from('categorias').delete().in('id', categoriasCreadas);
-    if (etiquetasCreadas.length > 0) await admin.from('etiquetas').delete().in('id', etiquetasCreadas);
-  });
+  afterAll(() => creados.limpiar(admin));
 
   async function nuevaCategoria(nombre: string) {
     const creada = await crearTaxonomia(editor, 'categoria', { nombre: `${nombre} ${sufijo}` });
-    categoriasCreadas.push(creada.id);
+    creados.categorias.push(creada.id);
     return creada;
   }
 
   async function nuevaEtiqueta(nombre: string) {
     const creada = await crearTaxonomia(editor, 'etiqueta', { nombre: `${nombre} ${sufijo}` });
-    etiquetasCreadas.push(creada.id);
+    creados.etiquetas.push(creada.id);
     return creada;
   }
 
@@ -81,7 +60,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre taxonomías (integrac
       .select('id, version')
       .single();
     if (error) throw new Error(`No se pudo crear el borrador de prueba: ${error.message}`);
-    articulosCreados.push(data.id);
+    creados.articulos.push(data.id);
     return data;
   }
 
@@ -110,7 +89,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre taxonomías (integrac
         nombre: `H3 Equipo Etiqueta ${sufijo}`,
         descripcion: 'Descripción de la etiqueta.',
       });
-      etiquetasCreadas.push(creada.id);
+      creados.etiquetas.push(creada.id);
 
       expect(creada).toMatchObject({
         slug: `h3-equipo-etiqueta-${sufijo}`,

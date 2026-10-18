@@ -1,19 +1,15 @@
 // Operaciones del equipo sobre categorías y etiquetas (contracts/db.md).
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
-import type { Database } from '../tipos';
+import { TABLA_TAXONOMIA, type Taxonomia, type TipoTaxonomia } from '../tipos-dominio';
 
-type TipoTaxonomia = 'categoria' | 'etiqueta';
-const TABLA = { categoria: 'categorias', etiqueta: 'etiquetas' } as const;
-
-export type Taxonomia = Database['public']['Tables']['categorias']['Row'];
 export type NuevaTaxonomia = { nombre: string; slug?: string; descripcion?: string | null };
 export type CambiosTaxonomia = Partial<NuevaTaxonomia>;
 
 /** El slug lo genera la base si no viene (a10_asignar_slug). */
 export async function crearTaxonomia(c: ClienteBlog, tipo: TipoTaxonomia, datos: NuevaTaxonomia): Promise<Taxonomia> {
   const { data, error } = await c
-    .from(TABLA[tipo])
+    .from(TABLA_TAXONOMIA[tipo])
     .insert({ ...datos, slug: datos.slug ?? '' })
     .select()
     .single();
@@ -27,7 +23,7 @@ export async function actualizarTaxonomia(
   id: string,
   cambios: CambiosTaxonomia,
 ): Promise<Taxonomia> {
-  const { data, error } = await c.from(TABLA[tipo]).update(cambios).eq('id', id).select().maybeSingle();
+  const { data, error } = await c.from(TABLA_TAXONOMIA[tipo]).update(cambios).eq('id', id).select().maybeSingle();
   if (error) throw traducirError(error);
   if (!data) throw new ErrorDominio('no_encontrado', 'La taxonomía no existe');
   return data;
@@ -35,7 +31,7 @@ export async function actualizarTaxonomia(
 
 /** Una categoría con artículos lanza categoria_en_uso con el conteo en `detalle` (RF-016). */
 export async function eliminarTaxonomia(c: ClienteBlog, tipo: TipoTaxonomia, id: string): Promise<void> {
-  const { data, error } = await c.from(TABLA[tipo]).delete().eq('id', id).select('id');
+  const { data, error } = await c.from(TABLA_TAXONOMIA[tipo]).delete().eq('id', id).select('id');
   if (error) throw traducirError(error);
   if (data.length === 0) throw new ErrorDominio('no_encontrado', 'La taxonomía no existe');
 }

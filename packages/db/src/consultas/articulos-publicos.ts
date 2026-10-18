@@ -3,7 +3,7 @@
 import type { ClienteBlog } from '../cliente';
 import { traducirError } from '../errores';
 import type { TipoEntidad } from '../tipos-dominio';
-import { aAutor, aContenido, aFechaPublicacion, aImagen, aSeo } from './mapeo';
+import { aAutor, aContenido, aEtiquetas, aFechaPublicacion, aImagen, aSeo } from './mapeo';
 import type { ArticuloPublico } from './tipos-publicos';
 
 export type { ArticuloPublico, AutorPublico, ReferenciaTaxonomia } from './tipos-publicos';
@@ -40,7 +40,7 @@ export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Pr
     contenido: aContenido(data.contenido),
     publicado_en: aFechaPublicacion(data.publicado_en),
     autor: aAutor(data.autor),
-    etiquetas: etiquetas.flatMap(({ etiqueta }) => (etiqueta ? [etiqueta] : [])),
+    etiquetas: aEtiquetas(etiquetas),
     seo: aSeo(data),
   };
 }

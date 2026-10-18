@@ -58,6 +58,8 @@ function codigoDe(error: ErrorPostgrest): CodigoError {
       return 'sin_permiso';
     case '23505':
       return /\(slug\)/.test(error.details) ? 'slug_duplicado' : 'desconocido';
+    case '23503': // FK: la referencia no existe (o se borró en una carrera); la tabla queda en `detalle`
+      return 'no_encontrado';
     case '23514':
       return /contenido/.test(error.message) ? 'contenido_invalido' : 'desconocido';
     case 'PGRST116':
