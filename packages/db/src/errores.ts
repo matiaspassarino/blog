@@ -1,3 +1,4 @@
+import type { ErrorBloque } from '@blog/bloques';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 export type CodigoError =
@@ -20,12 +21,19 @@ export class ErrorDominio extends Error {
   readonly codigo: CodigoError;
   /** `detail` del error de la base (por ejemplo, el conteo de `categoria_en_uso`). */
   readonly detalle: string | undefined;
+  /** Solo con `contenido_invalido`: los errores de la validación de bloques. */
+  readonly errores: ErrorBloque[] | undefined;
 
-  constructor(codigo: CodigoError, mensaje: string, opciones?: { detalle?: string; cause?: unknown }) {
+  constructor(
+    codigo: CodigoError,
+    mensaje: string,
+    opciones?: { detalle?: string; errores?: ErrorBloque[]; cause?: unknown },
+  ) {
     super(mensaje, { cause: opciones?.cause });
     this.name = 'ErrorDominio';
     this.codigo = codigo;
     this.detalle = opciones?.detalle;
+    this.errores = opciones?.errores;
   }
 }
 

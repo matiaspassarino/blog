@@ -2,3 +2,13 @@
 export type { Database, Json } from './tipos';
 export { crearClientePublico, type ClienteBlog } from './cliente';
 export { ErrorDominio, traducirError, type CodigoError, type ErrorPostgrest } from './errores';
+export {
+  crearArticulo,
+  actualizarArticulo,
+  eliminarArticulo,
+  previsualizarSlug,
+  type Articulo,
+  type NuevoArticulo,
+  type CambiosArticulo,
+  type TipoEntidad,
+} from './consultas/equipo-articulos';

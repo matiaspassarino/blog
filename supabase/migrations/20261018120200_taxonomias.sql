@@ -6,7 +6,7 @@
 create table public.categorias (
   id uuid primary key default gen_random_uuid(),
   nombre text not null check (char_length(btrim(nombre)) between 1 and 60),
-  slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  slug text not null default '' unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'), -- lo genera a10_asignar_slug
   descripcion text check (char_length(descripcion) <= 300),
   creado_en timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
@@ -15,7 +15,7 @@ create table public.categorias (
 create table public.etiquetas (
   id uuid primary key default gen_random_uuid(),
   nombre text not null check (char_length(btrim(nombre)) between 1 and 60),
-  slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  slug text not null default '' unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'), -- lo genera a10_asignar_slug
   descripcion text check (char_length(descripcion) <= 300),
   creado_en timestamptz not null default now(),
   actualizado_en timestamptz not null default now()

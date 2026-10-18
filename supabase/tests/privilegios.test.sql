@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(92);
+select plan(103);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -315,6 +315,51 @@ select is_empty($$select 1 from public.redirecciones where slug_anterior = 'arti
   'matriz: el admin no ve redirecciones de artículos inexistentes');
 select throws_ok($$insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id) values ('categoria', 'x', gen_random_uuid())$$,
   '42501', null, 'matriz: el admin no escribe redirecciones');
+
+-- ===========================================================================
+-- H1 (T033): artículos, previsualizar_slug y storage `medios`
+-- ===========================================================================
+select pruebas.como_postgres();
+select table_privs_are('public', 'articulos', 'anon', array['SELECT'],
+  'anon solo tiene select sobre articulos');
+select table_privs_are('public', 'articulos', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+  'authenticated tiene select, insert, update y delete sobre articulos');
+select function_privs_are('public', 'previsualizar_slug', array['text', 'tipo_entidad'], 'anon', array[]::text[],
+  'anon no puede ejecutar previsualizar_slug');
+select function_privs_are('public', 'previsualizar_slug', array['text', 'tipo_entidad'], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar previsualizar_slug');
+select is(
+  (select array_agg(policyname::text order by policyname) from pg_policies
+    where schemaname = 'storage' and tablename = 'objects' and policyname like 'medios%'),
+  array['medios_delete_equipo', 'medios_insert_equipo', 'medios_select', 'medios_update_equipo'],
+  'storage.objects tiene exactamente las políticas de medios'
+);
+
+-- Matriz: crear artículos (como autor)
+select pruebas.como_anon();
+select throws_ok($$insert into public.articulos (titulo) values ('Matriz anon')$$,
+  '42501', null, 'matriz: el visitante no crea artículos');
+select pruebas.como('editor@prueba.local');
+select lives_ok($$insert into public.articulos (titulo, slug) values ('Matriz editor', 'matriz-editor')$$,
+  'matriz: el editor crea artículos');
+select pruebas.como('admin@prueba.local');
+select lives_ok($$insert into public.articulos (titulo, slug) values ('Matriz admin', 'matriz-admin')$$,
+  'matriz: el admin crea artículos');
+select pruebas.como('desactivado@prueba.local');
+select throws_ok($$insert into public.articulos (titulo) values ('Matriz desactivado')$$,
+  '42501', null, 'matriz: un miembro inactivo no crea artículos');
+
+-- Matriz: eliminar definitivamente (solo admin; el editor solo archiva)
+select pruebas.como('editor@prueba.local');
+delete from public.articulos where slug = 'matriz-editor';
+select pruebas.como_postgres();
+select isnt_empty($$select 1 from public.articulos where slug = 'matriz-editor'$$,
+  'matriz: el editor no elimina artículos');
+select pruebas.como('admin@prueba.local');
+delete from public.articulos where slug = 'matriz-editor';
+select pruebas.como_postgres();
+select is_empty($$select 1 from public.articulos where slug = 'matriz-editor'$$,
+  'matriz: el admin elimina artículos');
 
 select pruebas.como_postgres();
 select * from finish();

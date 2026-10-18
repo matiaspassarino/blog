@@ -1,16 +1,6 @@
-// Esquema único de bloques (constitucion.md §VI).
-// La unión discriminada Zod se define en la spec 001-modelo-de-contenido.
-export const TIPOS_BLOQUE = [
-  'parrafo',
-  'titulo',
-  'imagen',
-  'cita',
-  'lista',
-  'galeria',
-  'cta',
-  'separador',
-  'codigo',
-  'video',
-] as const;
-
-export type TipoBloque = (typeof TIPOS_BLOQUE)[number];
+// Esquema único de bloques (constitucion.md §VI): lo comparten admin, web y db.
+export { TIPOS_BLOQUE, type TipoBloque } from './tipos-bloque';
+export { esquemaImagen, type Imagen } from './imagen';
+export { esquemaBloque, esquemaContenido, type Bloque, type BloqueDe, type Contenido } from './esquema';
+export { validarContenido, type ErrorBloque } from './validar';
+export { textoPlano, crearBloque } from './utilidades';

@@ -23,13 +23,39 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "categorias": {
+            "articulos": {
+                  Row: {
+                    "actualizado_en": string,"autor_id": string,"categoria_id": string | null,"contenido": NonNullable<Json>,"creado_en": string,"descripcion_seo": string | null,"estado": Database["public"]['Enums']["estado_articulo"],"extracto": string | null,"id": string,"imagen_destacada": Json | null,"programado_para": string | null,"publicado_en": string | null,"slug": string,"titulo": string,"titulo_seo": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actualizado_en"?: string,"autor_id"?: string,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo": string,"titulo_seo"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "actualizado_en"?: string,"autor_id"?: string,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo"?: string,"titulo_seo"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "articulos_autor_id_fkey"
+      columns: ["autor_id"]
+isOneToOne: false
+      referencedRelation: "perfiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "articulos_categoria_id_fkey"
+      columns: ["categoria_id"]
+isOneToOne: false
+      referencedRelation: "categorias"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"categorias": {
                   Row: {
                     "actualizado_en": string,"creado_en": string,"descripcion": string | null,"id": string,"nombre": string,"slug": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre": string,"slug": string
+                    "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre": string,"slug"?: string
                   }
                   Update: {
                     "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre"?: string,"slug"?: string
@@ -43,7 +69,7 @@ export type Database = {
                   }
                   ComputedFields: never
                   Insert: {
-                    "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre": string,"slug": string
+                    "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre": string,"slug"?: string
                   }
                   Update: {
                     "actualizado_en"?: string,"creado_en"?: string,"descripcion"?: string | null,"id"?: string,"nombre"?: string,"slug"?: string
@@ -85,7 +111,9 @@ export type Database = {
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "previsualizar_slug":
+{ Args: { "texto": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
+                           }
           }
           Enums: {
             "estado_articulo": "borrador"|"programado"|"publicado"|"archivado","rol_miembro": "admin"|"editor","tipo_entidad": "articulo"|"categoria"|"etiqueta"

@@ -78,21 +78,26 @@ as $$
 $$;
 
 -- Check liviano: las reglas completas viven en esquemaImagen (@blog/bloques).
+-- coalesce: un check que evalúa a NULL se considera cumplido, así que una clave
+-- ausente tiene que dar false.
 create function privado.imagen_valida(imagen jsonb)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select jsonb_typeof(imagen) = 'object'
-    and jsonb_typeof(imagen -> 'ruta') = 'string'
-    and btrim(imagen ->> 'ruta') <> ''
-    and jsonb_typeof(imagen -> 'ancho') = 'number' and (imagen ->> 'ancho')::numeric > 0
-    and jsonb_typeof(imagen -> 'alto') = 'number' and (imagen ->> 'alto')::numeric > 0
-    and (
-      (jsonb_typeof(imagen -> 'alt') = 'string' and btrim(imagen ->> 'alt') <> '')
-      or (imagen -> 'decorativa') = 'true'::jsonb
-    )
+  select coalesce(
+    jsonb_typeof(imagen) = 'object'
+      and jsonb_typeof(imagen -> 'ruta') = 'string'
+      and btrim(imagen ->> 'ruta') <> ''
+      and jsonb_typeof(imagen -> 'ancho') = 'number' and (imagen ->> 'ancho')::numeric > 0
+      and jsonb_typeof(imagen -> 'alto') = 'number' and (imagen ->> 'alto')::numeric > 0
+      and (
+        (jsonb_typeof(imagen -> 'alt') = 'string' and btrim(imagen ->> 'alt') <> '')
+        or (imagen -> 'decorativa') = 'true'::jsonb
+      ),
+    false
+  )
 $$;
 
 -- Defensa en la base (D8): arreglo de ≤ 200 objetos con id y tipo conocido.
@@ -102,16 +107,19 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select jsonb_typeof(contenido) = 'array'
-    and jsonb_array_length(contenido) <= 200
-    and not exists (
-      select 1
-      from jsonb_array_elements(contenido) as b(bloque)
-      where jsonb_typeof(b.bloque) <> 'object'
-         or jsonb_typeof(b.bloque -> 'id') <> 'string'
-         or jsonb_typeof(b.bloque -> 'tipo') <> 'string'
-         or not ((b.bloque ->> 'tipo') = any (privado.tipos_bloque()))
-    )
+  select coalesce(
+    jsonb_typeof(contenido) = 'array'
+      and jsonb_array_length(contenido) <= 200
+      and not exists (
+        select 1
+        from jsonb_array_elements(contenido) as b(bloque)
+        where jsonb_typeof(b.bloque) is distinct from 'object'
+           or jsonb_typeof(b.bloque -> 'id') is distinct from 'string'
+           or jsonb_typeof(b.bloque -> 'tipo') is distinct from 'string'
+           or not coalesce((b.bloque ->> 'tipo') = any (privado.tipos_bloque()), false)
+      ),
+    false
+  )
 $$;
 
 create function privado.fijar_actualizado_en()

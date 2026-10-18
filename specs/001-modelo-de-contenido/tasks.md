@@ -207,10 +207,10 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 1
 
-- [ ] T027 [P] [H1] Crear `packages/bloques/src/imagen.ts` con `esquemaImagen`, `{ ruta: string min 1, ancho: int > 0, alto: int > 0, alt?: string 1–200, decorativa: boolean default false }`, más un `superRefine` que exige `alt` si no es decorativa.
-- [ ] T028 [H1] Crear `packages/bloques/src/esquema.ts`, con `esquemaBloque` (`z.discriminatedUnion('tipo', [...])` sobre la base `{ id: z.uuid(), tipo }`) y `esquemaContenido` (`z.array(esquemaBloque).max(200)`), siguiendo [contracts/bloques.md](contracts/bloques.md#tipos-de-bloque). Reutiliza `esquemaImagen` y `TIPOS_BLOQUE` del `index.ts` existente. Debe pasar T021. Depende de T027.
-- [ ] T029 [H1] Crear `packages/bloques/src/validar.ts` (`validarContenido` y `ErrorBloque`, que convierte `issues` de Zod a `{ indice, campo, mensaje }`) y `packages/bloques/src/utilidades.ts` (`textoPlano` y `crearBloque`). Actualizar `packages/bloques/src/index.ts` para reexportar todo según [contracts/bloques.md](contracts/bloques.md#exportaciones). Deben pasar T020, T022 y T023.
-- [ ] T030 [H1] Crear `supabase/migrations/20261018120300_articulos.sql` ([data-model.md](data-model.md#articulos)):
+- [X] T027 [P] [H1] Crear `packages/bloques/src/imagen.ts` con `esquemaImagen`, `{ ruta: string min 1, ancho: int > 0, alto: int > 0, alt?: string 1–200, decorativa: boolean default false }`, más un `superRefine` que exige `alt` si no es decorativa.
+- [X] T028 [H1] Crear `packages/bloques/src/esquema.ts`, con `esquemaBloque` (`z.discriminatedUnion('tipo', [...])` sobre la base `{ id: z.uuid(), tipo }`) y `esquemaContenido` (`z.array(esquemaBloque).max(200)`), siguiendo [contracts/bloques.md](contracts/bloques.md#tipos-de-bloque). Reutiliza `esquemaImagen` y `TIPOS_BLOQUE` del `index.ts` existente. Debe pasar T021. Depende de T027.
+- [X] T029 [H1] Crear `packages/bloques/src/validar.ts` (`validarContenido` y `ErrorBloque`, que convierte `issues` de Zod a `{ indice, campo, mensaje }`) y `packages/bloques/src/utilidades.ts` (`textoPlano` y `crearBloque`). Actualizar `packages/bloques/src/index.ts` para reexportar todo según [contracts/bloques.md](contracts/bloques.md#exportaciones). Deben pasar T020, T022 y T023.
+- [X] T030 [H1] Crear `supabase/migrations/20261018120300_articulos.sql` ([data-model.md](data-model.md#articulos)):
   - **Antes, corregir `20261018120000_fundacion.sql`**. Está permitido porque la rama no se mergeó (ver Notas). Son dos errores que detectó escritor-tests: un `check` que da NULL se considera cumplido.
     - `privado.imagen_valida` devuelve NULL (no false) si falta `ruta`, `ancho`, `alto` o `alt`: envolver la expresión en `coalesce(..., false)`.
     - `privado.contenido_valido` acepta bloques sin `id` o sin `tipo` (`jsonb_typeof(null) <> 'string'` da NULL): usar `is distinct from` y `coalesce`.
@@ -242,15 +242,15 @@ description: "Lista de tareas: modelo de contenido del blog"
     - `articulos_delete_admin`: using `A`
   - **Grants**: `select` a `anon, authenticated`; `insert, update, delete` a `authenticated`.
   - **RPC** `public.previsualizar_slug(texto text, tipo public.tipo_entidad)`, `stable`, **`security definer`** (necesita `slugificar`, que `authenticated` no puede ejecutar por D20), con `set search_path = ''`, `case` estático, sin SQL dinámico y con chequeo `privado.es_equipo()`. `revoke execute ... from public` y `grant execute` solo a `authenticated`.
-- [ ] T031 [P] [H1] Crear `supabase/migrations/20261018120310_storage.sql`: `insert into storage.buckets (id, name, public) values ('medios','medios', true) on conflict do nothing`, con las políticas `medios_select` (select to anon, authenticated using `bucket_id = 'medios'`), `medios_insert_equipo` (insert, with check), `medios_update_equipo` (update, using y with check) y `medios_delete_equipo` (delete, using). Las tres de escritura van `to authenticated` con la condición `bucket_id = 'medios' and (select privado.es_equipo())`. Nota: `storage.protect_delete()` bloquea los DELETE directos en SQL; la Storage API habilita `storage.allow_delete_query`.
-- [ ] T032 [H1] Crear `packages/db/src/consultas/equipo-articulos.ts`:
+- [X] T031 [P] [H1] Crear `supabase/migrations/20261018120310_storage.sql`: `insert into storage.buckets (id, name, public) values ('medios','medios', true) on conflict do nothing`, con las políticas `medios_select` (select to anon, authenticated using `bucket_id = 'medios'`), `medios_insert_equipo` (insert, with check), `medios_update_equipo` (update, using y with check) y `medios_delete_equipo` (delete, using). Las tres de escritura van `to authenticated` con la condición `bucket_id = 'medios' and (select privado.es_equipo())`. Nota: `storage.protect_delete()` bloquea los DELETE directos en SQL; la Storage API habilita `storage.allow_delete_query`.
+- [X] T032 [H1] Crear `packages/db/src/consultas/equipo-articulos.ts`:
   - `crearArticulo(c, datos)`: valida con `validarContenido` antes de llamar a la base;
   - `actualizarArticulo(c, id, version, cambios)`: `update ... eq('id', id).eq('version', version)`; si responde 0 filas, distingue entre `no_encontrado` y `conflicto_version`;
   - `eliminarArticulo(c, id)`;
   - `previsualizarSlug(c, texto, tipo)`;
   - un reintento único ante `slug_duplicado`.
   Reexportar en `packages/db/src/index.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T024, T025 y T026.
-- [ ] T033 [H1] Agregar a `supabase/tests/privilegios.test.sql` los objetos de H1: `articulos`, `previsualizar_slug` (sin acceso de anon) y las políticas de `storage.objects`.
+- [X] T033 [H1] Agregar a `supabase/tests/privilegios.test.sql` los objetos de H1: `articulos`, `previsualizar_slug` (sin acceso de anon) y las políticas de `storage.objects`.
 
 **Checkpoint**: La Historia 1 está completa y es testeable por sí sola: `pnpm test:db` y `pnpm test` en verde para H1.
 
