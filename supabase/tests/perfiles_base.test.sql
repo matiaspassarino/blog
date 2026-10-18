@@ -5,7 +5,7 @@ begin;
 \ir helpers/pruebas.psql
 select plan(21);
 
-select pruebas.crear_usuario('ana@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Ana Admin"}');
+select pruebas.crear_usuario('ana@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Ana Prueba"}');
 select pruebas.crear_usuario('eva@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Eva Editora"}');
 select pruebas.crear_usuario('sinrol@prueba.local', '{"provider":"email"}', '{}');
 select pruebas.crear_usuario('blanco@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"   "}');
@@ -34,7 +34,7 @@ select results_eq(
 );
 select is(
   (select p.nombre from public.perfiles p join auth.users u on u.id = p.id where u.email = 'ana@prueba.local'),
-  'Ana Admin',
+  'Ana Prueba',
   'el nombre se toma de raw_user_meta_data->>nombre'
 );
 select is(
@@ -98,11 +98,11 @@ select results_eq(
 
 -- Un miembro activo no edita el perfil de otro.
 update public.perfiles set nombre = 'Pisado por Eva'
-  where id = (select p.id from public.perfiles p where p.nombre = 'Ana Admin');
+  where id = (select p.id from public.perfiles p where p.nombre = 'Ana Prueba');
 select pruebas.como_postgres();
 select is(
   (select p.nombre from public.perfiles p join auth.users u on u.id = p.id where u.email = 'ana@prueba.local'),
-  'Ana Admin',
+  'Ana Prueba',
   'un miembro activo no edita el perfil de otro'
 );
 

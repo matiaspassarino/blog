@@ -1,3 +1,4 @@
 // Punto único de acceso a datos (constitucion.md §III.2).
-// Los clientes y consultas se agregan en la spec 001-modelo-de-contenido.
-export type { Database } from './tipos';
+export type { Database, Json } from './tipos';
+export { crearClientePublico, type ClienteBlog } from './cliente';
+export { ErrorDominio, traducirError, type CodigoError, type ErrorPostgrest } from './errores';

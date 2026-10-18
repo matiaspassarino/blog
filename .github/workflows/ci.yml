@@ -28,15 +28,25 @@ jobs:
       - run: pnpm build
 
   base-de-datos:
-    name: pgTAP
+    name: pgTAP e integración
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
-      - run: supabase db start
+      - run: supabase start
       - run: supabase test db
+      - run: pnpm install --frozen-lockfile
+      - name: Tests de integración de @blog/db
+        run: pnpm --filter @blog/db test
+        env:
+          CI: 'true'
 
   e2e:
     name: Playwright

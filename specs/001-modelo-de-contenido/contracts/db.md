@@ -14,7 +14,7 @@ El cliente con sesión para `apps/admin` (`@supabase/ssr`) se agrega en la spec 
 ## Errores de dominio
 
 ```ts
-export class ErrorDominio extends Error { codigo: CodigoError }
+export class ErrorDominio extends Error { codigo: CodigoError; detalle?: string; cause: ErrorPostgrest }
 export type CodigoError =
   | 'conflicto_version'      // RF-008
   | 'estado_invalido'        // RF-009 (transición no permitida)
@@ -25,7 +25,8 @@ export type CodigoError =
   | 'sin_permiso'            // RLS / trigger de perfil
   | 'contenido_invalido'     // check de contenido / validación Zod
   | 'slug_duplicado'         // 23505 tras reintento
-  | 'no_encontrado';
+  | 'no_encontrado'
+  | 'desconocido';           // cualquier otro error (se conserva en `cause`)
 export function traducirError(error: PostgrestError): ErrorDominio; // mapea códigos y mensajes de Postgres
 ```
 

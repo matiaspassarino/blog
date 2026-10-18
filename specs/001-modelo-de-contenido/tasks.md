@@ -33,12 +33,12 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 **Propósito**: Dependencias, configuración y entorno de tests.
 
-- [ ] T001 Agregar `zod@4.6.7` como dependencia de `packages/bloques/package.json` (`pnpm --filter @blog/bloques add zod@4.6.7`). Si `minimumReleaseAge` lo bloquea, elegir la versión 4.6.x anterior y **no** agregar exclusiones.
-- [ ] T002 Agregar `@supabase/supabase-js@2.118.0` y `@blog/bloques: workspace:*` a `packages/db/package.json`.
-- [ ] T003 [P] En `supabase/config.toml`, poner `enable_signup = false` en `[auth]` (línea ~177) **y** en `[auth.email]` (línea ~222) (research D3, B3).
-- [ ] T004 [P] Crear `packages/db/vitest.config.ts` con `globalSetup` en `packages/db/src/pruebas/entorno.ts`. Ese setup lee la URL y las claves de `supabase status -o env` (o de las variables `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`). Si no están disponibles, marca la suite de integración como saltada con un aviso (si `CI=true`, en cambio, falla).
-- [ ] T005 [P] Crear `packages/db/src/pruebas/clientes.ts` con `clienteAnon()` y `clienteComo(email, contrasenia)`, que inician sesión con los usuarios demo de [quickstart.md](quickstart.md#usuarios-de-demo). Solo se usa en tests; agregar `src/pruebas/**` a `ignore` de producción en `knip.json`.
-- [ ] T006 [P] En `.github/workflows/ci.yml`, job `base-de-datos`: después de `supabase test db`, agregar los pasos `pnpm install --frozen-lockfile` y `pnpm --filter @blog/db test` con Supabase levantado, para que corran los tests de integración.
+- [X] T001 Agregar `zod@4.6.7` como dependencia de `packages/bloques/package.json` (`pnpm --filter @blog/bloques add zod@4.6.7`). Si `minimumReleaseAge` lo bloquea, elegir la versión 4.6.x anterior y **no** agregar exclusiones.
+- [X] T002 Agregar `@supabase/supabase-js@2.118.0` y `@blog/bloques: workspace:*` a `packages/db/package.json`.
+- [X] T003 [P] En `supabase/config.toml`, poner `enable_signup = false` en `[auth]` (línea ~177) **y** en `[auth.email]` (línea ~222) (research D3, B3).
+- [X] T004 [P] Crear `packages/db/vitest.config.ts` con `globalSetup` en `packages/db/src/pruebas/entorno.ts`. Ese setup lee la URL y las claves de `supabase status -o env` (o de las variables `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`). Si no están disponibles, marca la suite de integración como saltada con un aviso (si `CI=true`, en cambio, falla).
+- [X] T005 [P] Crear `packages/db/src/pruebas/clientes.ts` con `clienteAnon()` y `clienteComo(email, contrasenia)`, que inician sesión con los usuarios demo de [quickstart.md](quickstart.md#usuarios-de-demo). Solo se usa en tests; agregar `src/pruebas/**` a `ignore` de producción en `knip.json`.
+- [X] T006 [P] En `.github/workflows/ci.yml`, job `base-de-datos`: después de `supabase test db`, agregar los pasos `pnpm install --frozen-lockfile` y `pnpm --filter @blog/db test` con Supabase levantado, para que corran los tests de integración.
 
 ---
 
@@ -81,7 +81,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación
 
-- [ ] T012 Crear `supabase/migrations/20261018120000_fundacion.sql` (research D20, D10, D8 y [data-model.md](data-model.md#privilegios-d20)), en este orden:
+- [X] T012 Crear `supabase/migrations/20261018120000_fundacion.sql` (research D20, D10, D8 y [data-model.md](data-model.md#privilegios-d20)), en este orden:
   1. `alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;` y `... revoke execute on functions from public, anon, authenticated;`
   2. `create extension if not exists unaccent with schema extensions;`, lo mismo para `pg_net`, y `create extension if not exists pg_cron;`. **No** revocar `net.*`: los grants los otorga `supabase_admin` y `postgres` no puede revocarlos (verificado; el revoke solo emite un WARNING). La mitigación es que ninguna función invocable por clientes llame a `net.http_*` ni ejecute SQL dinámico siendo definer, y que `net` no esté en los esquemas expuestos por la API (research D14). Lo verifica T008.
   3. `create schema privado; revoke all on schema privado from public; grant usage on schema privado to anon, authenticated;` Los default privileges por esquema **no pueden** quitar el `EXECUTE` que `PUBLIC` recibe por defecto (verificado por escritor-tests), así que: `alter default privileges for role postgres revoke execute on functions from public;` (global) y, **al final de cada migración** que cree funciones en `privado`, `revoke execute on all functions in schema privado from public, anon, authenticated;` seguido de los `grant` explícitos.
@@ -94,7 +94,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   10. `privado.fijar_actualizado_en()`, una función de trigger que asigna `new.actualizado_en = now()`.
   11. `privado.asignar_slug()`, **`security definer`** (corre como el rol del editor y necesita llamar a `slugificar` y consultar unicidad), una función de trigger genérica que recibe la columna de origen como `tg_argv[0]`. Si `new.slug` es null o vacío, toma la origen; normaliza con `slugificar`; si existe otra fila con ese slug en `tg_table_name`, agrega `-2`, `-3`… Usa `format('%I', tg_table_name)` **solo** contra `public.articulos`, `public.categorias` o `public.etiquetas`, validado con un `case`.
   12. Los `grant execute` sobre `privado.es_cliente`, `tipos_bloque`, `contenido_valido` e `imagen_valida` a `anon, authenticated`. Las funciones se crean con el owner `postgres`.
-- [ ] T013 Crear `supabase/migrations/20261018120100_perfiles.sql` ([data-model.md](data-model.md#perfiles)):
+- [X] T013 Crear `supabase/migrations/20261018120100_perfiles.sql` ([data-model.md](data-model.md#perfiles)):
   - **Tabla** `public.perfiles` con estas columnas:
     - `id uuid primary key references auth.users(id) on delete restrict`
     - `nombre text not null check (char_length(btrim(nombre)) between 1 and 80)`
@@ -113,7 +113,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - **Trigger** `a90_actualizado_en`.
   - **RLS**: `alter table ... enable row level security` y las políticas `perfiles_select_equipo` (select to authenticated using `E`) y `perfiles_update_propio` (update to authenticated, using y with check `id = (select auth.uid()) and (select privado.es_equipo())`).
   - **Grants**: `grant select, update on public.perfiles to authenticated`.
-- [ ] T014 Crear `supabase/migrations/20261018120200_taxonomias.sql` ([data-model.md](data-model.md#categorias-y-etiquetas-misma-forma)):
+- [X] T014 Crear `supabase/migrations/20261018120200_taxonomias.sql` ([data-model.md](data-model.md#categorias-y-etiquetas-misma-forma)):
   - **Tablas** `public.categorias` y `public.etiquetas`, con estas columnas:
     - `id uuid primary key default gen_random_uuid()`
     - `nombre text not null check (char_length(btrim(nombre)) between 1 and 60)`
@@ -136,13 +136,13 @@ description: "Lista de tareas: modelo de contenido del blog"
   - **Grants**:
     - `select` sobre las tres tablas a `anon, authenticated`.
     - `insert, update, delete` sobre `categorias` y `etiquetas` a `authenticated`.
-- [ ] T015 Escribir en `supabase/seed.sql` la sección **usuarios**:
+- [X] T015 Escribir en `supabase/seed.sql` la sección **usuarios**:
   - Insertar en `auth.users` (y en `auth.identities` con `provider = 'email'`) a `admin@demo.local`, `editora@demo.local` y `editor@demo.local`, con las contraseñas de [quickstart.md](quickstart.md#usuarios-de-demo) hasheadas con `extensions.crypt(..., extensions.gen_salt('bf'))`, `email_confirmed_at = now()`, `raw_app_meta_data = '{"provider":"email","providers":["email"],"rol":"admin|editor"}'` y `raw_user_meta_data` con `nombre` (`Ana Admin`, `Eva Editora`, `Edu Editor`).
   - Encabezado: "-- Solo para entornos locales y de demo".
-- [ ] T016 Ejecutar `pnpm db:reset && pnpm db:tipos` y commitear `packages/db/src/tipos.ts`.
-- [ ] T017 [P] Crear `packages/db/src/cliente.ts`, con `export type ClienteBlog = SupabaseClient<Database>` y `crearClientePublico(url, claveAnon)` (`auth: { persistSession: false }`).
-- [ ] T018 [P] Crear `packages/db/src/errores.ts`, con `ErrorDominio`, `CodigoError` y `traducirError` según [contracts/db.md](contracts/db.md#errores-de-dominio). Debe pasar T011.
-- [ ] T019 Actualizar `packages/db/src/index.ts` para que reexporte `cliente`, `errores` y los tipos `Database`. Ejecutar `pnpm test:db` y `pnpm --filter @blog/db test`: T007 a T011 tienen que pasar.
+- [X] T016 Ejecutar `pnpm db:reset && pnpm db:tipos` y commitear `packages/db/src/tipos.ts`.
+- [X] T017 [P] Crear `packages/db/src/cliente.ts`, con `export type ClienteBlog = SupabaseClient<Database>` y `crearClientePublico(url, claveAnon)` (`auth: { persistSession: false }`).
+- [X] T018 [P] Crear `packages/db/src/errores.ts`, con `ErrorDominio`, `CodigoError` y `traducirError` según [contracts/db.md](contracts/db.md#errores-de-dominio). Debe pasar T011.
+- [X] T019 Actualizar `packages/db/src/index.ts` para que reexporte `cliente`, `errores` y los tipos `Database`. Ejecutar `pnpm test:db` y `pnpm --filter @blog/db test`: T007 a T011 tienen que pasar.
 
 **Checkpoint**: Base lista. Hay privilegios cerrados, perfiles con alta controlada y taxonomías con slugs.
 

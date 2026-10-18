@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ErrorDominio, traducirError, type CodigoError } from "./errores";
+import {
+  ErrorDominio,
+  traducirError,
+  type CodigoError,
+  type ErrorPostgrest,
+} from "./errores";
 
-// TODO(T002): cuando se instale @supabase/supabase-js, reemplazar este tipo local
-// por `PostgrestError` (y construirlo con `new PostgrestError({...})` dentro de
-// `errorPostgrest`). Mientras tanto se usa la misma forma: { code, message, details, hint }.
-type ErrorPostgrest = {
-  code: string;
-  message: string;
-  details: string;
-  hint: string;
-};
 
 function errorPostgrest(
   code: string,
@@ -27,8 +23,7 @@ function errorDeDominio(mensaje: string, detalle = ""): ErrorPostgrest {
 }
 
 function traducir(error: ErrorPostgrest): ErrorDominio {
-  // El cast se elimina cuando el tipo local pase a ser PostgrestError (T002).
-  return traducirError(error as Parameters<typeof traducirError>[0]);
+  return traducirError(error);
 }
 
 describe("traducirError", () => {

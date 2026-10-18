@@ -1,0 +1,104 @@
+-- Perfiles del equipo, roles y RLS base.
+-- Spec 001 · research D2, D3, D4 · data-model "perfiles".
+-- La gestión de roles (perfiles_update_admin, proteger_perfil, garantizar_admin)
+-- llega en 20261018120900_equipo.sql (H6).
+
+create table public.perfiles (
+  id uuid primary key references auth.users (id) on delete restrict,
+  nombre text not null check (char_length(btrim(nombre)) between 1 and 80),
+  biografia text check (char_length(biografia) <= 500),
+  avatar jsonb check (avatar is null or privado.imagen_valida(avatar)),
+  rol public.rol_miembro not null default 'editor',
+  activo boolean not null default true,
+  creado_en timestamptz not null default now(),
+  actualizado_en timestamptz not null default now()
+);
+
+create trigger a90_actualizado_en
+  before update on public.perfiles
+  for each row execute function privado.fijar_actualizado_en();
+
+-- ---------------------------------------------------------------------------
+-- Auxiliares de autorización (D2). Las políticas las invocan como
+-- (select privado.es_equipo()) para evaluarlas una vez por consulta.
+-- ---------------------------------------------------------------------------
+create function privado.es_equipo()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles
+    where id = (select auth.uid()) and activo
+  )
+$$;
+
+create function privado.es_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles
+    where id = (select auth.uid()) and activo and rol = 'admin'
+  )
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Alta automática (D3). raw_app_meta_data solo lo escribe el servidor: una
+-- cuenta sin rol asignado por el servidor nace inactiva.
+-- ---------------------------------------------------------------------------
+create function privado.crear_perfil()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.perfiles (id, nombre, rol, activo)
+  values (
+    new.id,
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'nombre'), ''), split_part(new.email, '@', 1)),
+    coalesce((new.raw_app_meta_data ->> 'rol')::public.rol_miembro, 'editor'),
+    coalesce(new.raw_app_meta_data ? 'rol', false)
+  );
+  return new;
+end
+$$;
+
+create trigger crear_perfil
+  after insert on auth.users
+  for each row execute function privado.crear_perfil();
+
+-- ---------------------------------------------------------------------------
+-- RLS
+-- ---------------------------------------------------------------------------
+alter table public.perfiles enable row level security;
+
+create policy perfiles_select_equipo on public.perfiles
+  for select to authenticated
+  using ((select privado.es_equipo()));
+
+create policy perfiles_update_propio on public.perfiles
+  for update to authenticated
+  using (id = (select auth.uid()) and (select privado.es_equipo()))
+  with check (id = (select auth.uid()) and (select privado.es_equipo()));
+
+grant select, update on public.perfiles to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Privilegios de funciones
+-- ---------------------------------------------------------------------------
+revoke execute on all functions in schema privado from public, anon, authenticated;
+grant execute on function
+  privado.es_cliente(),
+  privado.tipos_bloque(),
+  privado.contenido_valido(jsonb),
+  privado.imagen_valida(jsonb),
+  privado.es_equipo()
+  to anon, authenticated;
+grant execute on function privado.es_admin() to authenticated;

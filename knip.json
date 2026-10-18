@@ -1,11 +1,20 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
-    ".": { "entry": ["e2e/**/*.spec.ts"] },
+    ".": {
+      "entry": [
+        "e2e/**/*.spec.ts"
+      ]
+    },
     "apps/web": {},
     "apps/admin": {},
     "packages/*": {}
   },
-  "ignore": ["packages/db/src/tipos.ts"],
-  "ignoreBinaries": ["supabase"]
+  "ignore": [
+    "packages/db/src/tipos.ts",
+    "packages/db/src/pruebas/**"
+  ],
+  "ignoreBinaries": [
+    "supabase"
+  ]
 }
