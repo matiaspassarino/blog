@@ -3,7 +3,7 @@
 -- perfiles y bloqueo de edición para miembros desactivados (B4).
 begin;
 \ir helpers/pruebas.psql
-select plan(26);
+select plan(31);
 
 select pruebas.crear_usuario('ana@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Ana Prueba"}');
 select pruebas.crear_usuario('eva@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Eva Editora"}');
@@ -141,6 +141,30 @@ select isnt(
   '2000-01-01'::timestamptz,
   'creado_en es inmutable para los clientes'
 );
+
+-- Validación del MVP: casos faltantes de A-B1 (A-M8) y alta (A-M5)
+select pruebas.como('ana@prueba.local');
+select throws_ok($$update public.perfiles set rol = 'editor' where id = auth.uid()$$,
+  'P0001', 'sin_permiso', 'A-M8: un admin no puede cambiar su propio rol');
+select throws_ok(
+  $$insert into public.perfiles (id, nombre) values (auth.uid(), 'x')
+    on conflict (id) do update set rol = 'admin'$$,
+  '42501', null, 'A-M8: un upsert sobre perfiles se rechaza (sin grant de insert)');
+select pruebas.como('eva@prueba.local');
+create temporary table id_eva on commit drop as select auth.uid() as id;
+update public.perfiles set id = gen_random_uuid() where id = auth.uid();
+select pruebas.como_postgres();
+select isnt_empty($$select 1 from public.perfiles where id = (select id from id_eva)$$,
+  'A-M8: el id de un perfil es inmutable para los clientes');
+select pruebas.crear_usuario('rolnulo@prueba.local', '{"provider":"email","rol":null}', '{}');
+select is(
+  (select p.activo from public.perfiles p join auth.users u on u.id = p.id where u.email = 'rolnulo@prueba.local'),
+  false, 'A-M5: {"rol": null} crea un perfil inactivo');
+select pruebas.crear_usuario('largo@prueba.local', '{"provider":"email","rol":"editor"}',
+  jsonb_build_object('nombre', repeat('n', 120)));
+select is(
+  (select char_length(p.nombre) from public.perfiles p join auth.users u on u.id = p.id where u.email = 'largo@prueba.local'),
+  80, 'A-M5: un nombre de más de 80 caracteres se recorta en el alta');
 
 select pruebas.como_postgres();
 select * from finish();

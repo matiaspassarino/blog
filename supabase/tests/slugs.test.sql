@@ -2,7 +2,7 @@
 -- privado.slugificar, trigger a10_asignar_slug en categorias y etiquetas,
 -- unicidad de nombres sin distinguir mayúsculas y check de formato del slug.
 begin;
-select plan(29);
+select plan(30);
 
 -- ---------------------------------------------------------------------------
 -- privado.slugificar(text)
@@ -114,5 +114,7 @@ select is_empty($$
     and prosrc ilike '%execute %'
 $$, 'asignar_slug ya no usa SQL dinámico');
 
+select throws_ok($$select privado.slug_disponible(null, 'Hola')$$,
+  '22004', 'tipo_requerido', 'A-M6: slug_disponible rechaza un tipo nulo (no queda en bucle)');
 select * from finish();
 rollback;

@@ -49,7 +49,9 @@ Las reglas viven en Postgres (Supabase) mediante RLS, triggers y checks, de modo
 
 | Necesidad | Existente a reutilizar | Nuevo a crear | Justificación si es nuevo |
 |---|---|---|---|
-| Lista de tipos de bloque | `packages/bloques/src/index.ts` → `TIPOS_BLOQUE` | — | Se conserva; el esquema se construye sobre esa lista |
+| Lista de tipos de bloque | `TIPOS_BLOQUE` (antes en `index.ts`) | `packages/bloques/src/tipos-bloque.ts` | Se movió a un módulo propio para evitar imports circulares; `index.ts` lo reexporta y un chequeo de tipos exige que el esquema cubra exactamente esa lista |
+| Tipos de dominio (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`) | — | `packages/db/src/tipos-dominio.ts` | Los comparten las consultas de artículos, taxonomías y redirecciones |
+| Config ESLint y Prettier | — | `packages/config/{eslint,prettier}.config.js` | La exige §III; la usan los paquetes y `apps/admin` (reglas comunes) |
 | Tipos de la base | `packages/db/src/tipos.ts` (generado) | — | Se regenera con `pnpm db:tipos` |
 | Esquema de imagen | — | `packages/bloques/src/imagen.ts` | Lo usan los bloques `imagen` y `galeria`, la imagen destacada y el avatar |
 | Normalización de slug | — | `privado.slugificar()` (SQL) | No existe; implementación única en la base (D10) |
@@ -89,7 +91,7 @@ También se incorporaron los hallazgos menores. La revisión sobre el código se
 8. `20261018120600_etiquetado.sql` (H3): `articulos_etiquetas`, `asignar_etiquetas`, categoría en uso y redirecciones de taxonomías.
 9. `20261018120700_programacion.sql` (H4): `publicar_programados` y los jobs de cron.
 10. `20261018120800_busqueda.sql` (H5): `es_sin_tildes`, `busqueda`, `bloques_a_texto` y `buscar_articulos`.
-11. `20261018120900_equipo.sql` (H6): `perfiles_update_admin`, `proteger_perfil`, `garantizar_admin` y la notificación de autor.
+11. `20261018120900_equipo.sql` (H6): `perfiles_update_admin`, la ampliación de `proteger_perfil` (`create or replace`; ya existe desde la validación del MVP), `garantizar_admin` y la notificación de autor.
 
 **Otros cambios**:
 - **Tablas, índices y políticas**: ver [data-model.md](data-model.md). Cada política tiene su test en `supabase/tests/`.
@@ -155,7 +157,8 @@ specs/001-modelo-de-contenido/
 ```text
 packages/
 ├── bloques/src/
-│   ├── index.ts            # reexporta (TIPOS_BLOQUE ya existe)
+│   ├── index.ts            # reexporta todo
+│   ├── tipos-bloque.ts     # TIPOS_BLOQUE
 │   ├── imagen.ts           # esquemaImagen
 │   ├── esquema.ts          # esquemaBloque, esquemaContenido
 │   ├── validar.ts          # validarContenido → ErrorBloque[]

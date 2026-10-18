@@ -149,6 +149,10 @@ declare
   sufijo int := 1;
   ocupado boolean;
 begin
+  -- Sin tipo, el case da null y el bucle nunca terminaría (validación A-M6).
+  if tipo is null then
+    raise exception using errcode = '22004', message = 'tipo_requerido';
+  end if;
   if base = '' then
     base := 'sin-titulo';
   end if;
@@ -168,6 +172,21 @@ begin
     candidato := base || '-' || sufijo;
   end loop;
   return candidato;
+end
+$$;
+
+-- El id es inmutable para todos los roles (validación A-M1): cambiarlo dejaría
+-- redirecciones huérfanas (entidad_id es polimórfica, sin FK).
+create function privado.impedir_cambio_id()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.id is distinct from old.id then
+    raise exception using errcode = 'P0001', message = 'sin_permiso', detail = 'id';
+  end if;
+  return new;
 end
 $$;
 
@@ -203,11 +222,17 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- 6. Privilegios de funciones
+-- Las funciones nuevas nacen sin execute para PUBLIC (default global del punto
+-- 1), así que cada migración solo concede las suyas (validación C-M1);
+-- privilegios.test.sql verifica el resultado.
+-- service_role (tareas del servidor con la clave secreta) necesita las mismas
+-- funciones que usan los checks y triggers invoker (validación A-M7).
 -- ---------------------------------------------------------------------------
 revoke execute on all functions in schema privado from public, anon, authenticated;
+grant usage on schema privado to service_role;
 grant execute on function
   privado.es_cliente(),
   privado.tipos_bloque(),
   privado.contenido_valido(jsonb),
   privado.imagen_valida(jsonb)
-  to anon, authenticated;
+  to anon, authenticated, service_role;

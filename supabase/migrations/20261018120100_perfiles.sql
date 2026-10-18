@@ -1,7 +1,8 @@
 -- Perfiles del equipo, roles y RLS base.
 -- Spec 001 · research D2, D3, D4 · data-model "perfiles".
--- La gestión de roles (perfiles_update_admin, proteger_perfil, garantizar_admin)
--- llega en 20261018120900_equipo.sql (H6).
+-- proteger_perfil ya impide que un cliente cambie rol o activo; H6
+-- (20261018120900_equipo.sql) agrega perfiles_update_admin y garantizar_admin
+-- y la amplía con create or replace para que el admin sí pueda.
 
 create table public.perfiles (
   id uuid primary key references auth.users (id) on delete restrict,
@@ -62,9 +63,10 @@ begin
   insert into public.perfiles (id, nombre, rol, activo)
   values (
     new.id,
-    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'nombre'), ''), split_part(new.email, '@', 1)),
+    left(coalesce(nullif(btrim(new.raw_user_meta_data ->> 'nombre'), ''), split_part(new.email, '@', 1)), 80),
     coalesce((new.raw_app_meta_data ->> 'rol')::public.rol_miembro, 'editor'),
-    coalesce(new.raw_app_meta_data ? 'rol', false)
+    -- {"rol": null} no cuenta como rol asignado por el servidor (validación A-M5).
+    (new.raw_app_meta_data ->> 'rol') is not null
   );
   return new;
 end
@@ -119,14 +121,7 @@ create policy perfiles_update_propio on public.perfiles
 grant select, update on public.perfiles to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Privilegios de funciones
+-- Privilegios de funciones nuevas (las demás de privado quedan sin execute)
 -- ---------------------------------------------------------------------------
-revoke execute on all functions in schema privado from public, anon, authenticated;
-grant execute on function
-  privado.es_cliente(),
-  privado.tipos_bloque(),
-  privado.contenido_valido(jsonb),
-  privado.imagen_valida(jsonb),
-  privado.es_equipo()
-  to anon, authenticated;
-grant execute on function privado.es_admin() to authenticated;
+grant execute on function privado.es_equipo() to anon, authenticated, service_role;
+grant execute on function privado.es_admin() to authenticated, service_role;

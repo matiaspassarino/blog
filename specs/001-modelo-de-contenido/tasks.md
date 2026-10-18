@@ -312,6 +312,7 @@ description: "Lista de tareas: modelo de contenido del blog"
     - `estado not in ('programado','publicado') or (categoria_id is not null and jsonb_typeof(contenido) = 'array' and jsonb_array_length(contenido) > 0)`
     - `estado <> 'programado' or programado_para is not null`
     - `estado <> 'publicado' or publicado_en is not null`
+  - **`create or replace` de `privado.campos_sistema_articulo()`** para quitar el congelamiento temporal de `estado` y `programado_para` en el update (validación A-M2). A partir de acá los controla `a40`.
   - **Trigger** `a40_validar_estado` (before ins/upd):
     - **insert**: si `privado.es_cliente()`, el estado ya viene forzado a `borrador` por `a20`; si no (seed o sistema), cualquier estado es válido y solo se aplican los requisitos y los checks;
     - **update**: la matriz de [data-model.md](data-model.md#máquina-de-estados) para todos los roles;

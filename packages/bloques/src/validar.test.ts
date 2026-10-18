@@ -91,7 +91,9 @@ describe('validarContenido', () => {
     });
 
     it('informa el campo id cuando un bloque no tiene un id uuid', () => {
-      expect(errores([{ ...parrafo(), id: 'bloque-1' }])).toEqual([expect.objectContaining({ indice: 0, campo: 'id' })]);
+      expect(errores([{ ...parrafo(), id: 'bloque-1' }])).toEqual([
+        expect.objectContaining({ indice: 0, campo: 'id' }),
+      ]);
     });
 
     it('informa cada elemento que no es un objeto con su índice', () => {

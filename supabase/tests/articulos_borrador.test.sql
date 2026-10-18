@@ -5,7 +5,7 @@
 -- No depende del seed: crea sus propios usuarios @prueba.local.
 begin;
 \ir helpers/pruebas.psql
-select plan(40);
+select plan(45);
 
 select pruebas.crear_usuario('h1-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editor"}');
 select pruebas.crear_usuario('h1-editora@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editora"}');
@@ -303,6 +303,39 @@ select pruebas.como('h1-admin@prueba.local');
 select isnt_empty(
   $$select 1 from public.articulos where id = 'a1000000-0000-4000-8000-000000000001'$$,
   'un admin ve los borradores'
+);
+
+-- ---------------------------------------------------------------------------
+-- Validación del MVP: id inmutable (A-M1) y campos del sistema (A-M2)
+-- ---------------------------------------------------------------------------
+select pruebas.como('h1-editor@prueba.local');
+insert into public.articulos (titulo, slug, programado_para, actualizado_en)
+  values ('Campos sistema', 'campos-sistema', now() + interval '30 days', '1999-01-01');
+select results_eq(
+  $$select programado_para is null, actualizado_en > '2000-01-01'::timestamptz
+    from public.articulos where slug = 'campos-sistema'$$,
+  $$values (true, true)$$,
+  'A-M2: en el insert del cliente se fuerzan programado_para = null y actualizado_en = now()'
+);
+select throws_ok(
+  $$update public.articulos set id = gen_random_uuid() where slug = 'campos-sistema'$$,
+  'P0001', 'sin_permiso', 'A-M1: el id de un artículo es inmutable'
+);
+update public.articulos
+  set estado = 'publicado', version = (select version from public.articulos where slug = 'campos-sistema')
+  where slug = 'campos-sistema';
+select is((select estado::text from public.articulos where slug = 'campos-sistema'), 'borrador',
+  'A-M2: hasta H2 el cliente no cambia el estado');
+select pruebas.como_postgres();
+insert into public.categorias (nombre) values ('Categoría id fijo');
+select throws_ok(
+  $$update public.categorias set id = gen_random_uuid() where nombre = 'Categoría id fijo'$$,
+  'P0001', 'sin_permiso', 'A-M1: el id de una categoría es inmutable (también para postgres)'
+);
+insert into public.etiquetas (nombre) values ('Etiqueta id fijo');
+select throws_ok(
+  $$update public.etiquetas set id = gen_random_uuid() where nombre = 'Etiqueta id fijo'$$,
+  'P0001', 'sin_permiso', 'A-M1: el id de una etiqueta es inmutable'
 );
 
 select pruebas.como_postgres();

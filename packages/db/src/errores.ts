@@ -53,9 +53,7 @@ const CODIGOS_DE_LA_BASE = new Set<CodigoError>([
 function codigoDe(error: ErrorPostgrest): CodigoError {
   switch (error.code) {
     case 'P0001':
-      return CODIGOS_DE_LA_BASE.has(error.message as CodigoError)
-        ? (error.message as CodigoError)
-        : 'desconocido';
+      return CODIGOS_DE_LA_BASE.has(error.message as CodigoError) ? (error.message as CodigoError) : 'desconocido';
     case '42501':
       return 'sin_permiso';
     case '23505':

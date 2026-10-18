@@ -1,14 +1,14 @@
 // Operaciones del equipo sobre artículos (contracts/db.md, "Operaciones del equipo").
-import { validarContenido } from '@blog/bloques';
+import { esquemaImagen, validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
-import type { Database } from '../tipos';
+import type { Database, Json } from '../tipos';
+import type { TipoEntidad } from '../tipos-dominio';
 
 type Tablas = Database['public']['Tables'];
 type Insercion = Tablas['articulos']['Insert'];
 
 export type Articulo = Tablas['articulos']['Row'];
-export type TipoEntidad = Database['public']['Enums']['tipo_entidad'];
 
 /** El autor es el usuario actual (default auth.uid()) y el slug lo genera la base si no viene. */
 export type NuevoArticulo = Pick<Insercion, 'titulo'> &
@@ -23,19 +23,54 @@ export type NuevoArticulo = Pick<Insercion, 'titulo'> &
 export type CambiosArticulo = Partial<
   Pick<
     Insercion,
-    'titulo' | 'slug' | 'extracto' | 'titulo_seo' | 'descripcion_seo' | 'imagen_destacada' | 'contenido' | 'categoria_id'
+    | 'titulo'
+    | 'slug'
+    | 'extracto'
+    | 'titulo_seo'
+    | 'descripcion_seo'
+    | 'imagen_destacada'
+    | 'contenido'
+    | 'categoria_id'
   >
 >;
 
-/** Valida el contenido con @blog/bloques antes de llegar a la base (constitución §VI.4). */
-function exigirContenidoValido(contenido: unknown) {
-  if (contenido === undefined) return;
-  const validacion = validarContenido(contenido);
-  if (!validacion.ok) {
-    throw new ErrorDominio('contenido_invalido', 'El contenido tiene bloques inválidos', {
-      errores: validacion.errores,
-    });
+type CamposValidables = Pick<CambiosArticulo, 'contenido' | 'imagen_destacada'>;
+
+/**
+ * Valida contenido e imagen destacada con @blog/bloques antes de llegar a la base
+ * (constitución §VI.4) y devuelve los valores parseados, con sus valores por defecto.
+ * Los errores de la imagen destacada usan `indice: -1` y `campo: 'imagen_destacada.…'`.
+ */
+function validarCampos(datos: CamposValidables): CamposValidables {
+  const errores: ErrorBloque[] = [];
+  const validados: CamposValidables = {};
+
+  if (datos.contenido !== undefined) {
+    const validacion = validarContenido(datos.contenido);
+    if (validacion.ok) validados.contenido = validacion.contenido satisfies Contenido as NonNullable<Json>;
+    else errores.push(...validacion.errores);
   }
+
+  if (datos.imagen_destacada !== undefined && datos.imagen_destacada !== null) {
+    const imagen = esquemaImagen.safeParse(datos.imagen_destacada);
+    if (imagen.success) validados.imagen_destacada = imagen.data as Json;
+    else {
+      errores.push(
+        ...imagen.error.issues.map((problema) => ({
+          indice: -1,
+          campo: ['imagen_destacada', ...problema.path.map(String)].join('.'),
+          mensaje: problema.message,
+        })),
+      );
+    }
+  } else if (datos.imagen_destacada === null) {
+    validados.imagen_destacada = null;
+  }
+
+  if (errores.length > 0) {
+    throw new ErrorDominio('contenido_invalido', 'El artículo tiene campos inválidos', { errores });
+  }
+  return validados;
 }
 
 /** Reintenta una vez si dos escrituras simultáneas calcularon el mismo slug (research D23). */
@@ -49,11 +84,11 @@ async function conReintentoDeSlug<T>(operacion: () => Promise<T>): Promise<T> {
 }
 
 export async function crearArticulo(c: ClienteBlog, datos: NuevoArticulo): Promise<Articulo> {
-  exigirContenidoValido(datos.contenido);
+  const validados = validarCampos(datos);
   return conReintentoDeSlug(async () => {
     const { data, error } = await c
       .from('articulos')
-      .insert({ ...datos, slug: datos.slug ?? '' })
+      .insert({ ...datos, ...validados, slug: datos.slug ?? '' })
       .select()
       .single();
     if (error) throw traducirError(error);
@@ -68,11 +103,11 @@ export async function actualizarArticulo(
   version: number,
   cambios: CambiosArticulo,
 ): Promise<Articulo> {
-  exigirContenidoValido(cambios.contenido);
+  const validados = validarCampos(cambios);
   const actualizado = await conReintentoDeSlug(async () => {
     const { data, error } = await c
       .from('articulos')
-      .update({ ...cambios, version })
+      .update({ ...cambios, ...validados, version })
       .eq('id', id)
       .eq('version', version)
       .select()

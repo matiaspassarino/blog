@@ -4,6 +4,13 @@
   "minTokens": 60,
   "reporters": ["console"],
   "pattern": "{apps,packages}/**/*.{ts,tsx,astro,css}",
-  "ignore": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/.astro/**", "**/.vercel/**", "packages/db/src/tipos.ts"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/.astro/**",
+    "**/.vercel/**",
+    "packages/db/src/tipos.ts"
+  ],
   "gitignore": true
 }

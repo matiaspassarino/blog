@@ -78,3 +78,15 @@ export function rutasAfectadas(cambio: CambioPublico): string[]; // función pur
 ```
 
 Ver [revalidacion.md](revalidacion.md).
+
+## Exports adicionales (implementados en H1)
+
+```ts
+export type { Database, Json } from './tipos';                      // generado
+export type ErrorPostgrest = Pick<PostgrestError, 'code' | 'message' | 'details' | 'hint'>;
+export type Articulo = Database['public']['Tables']['articulos']['Row'];
+export type NuevoArticulo;  export type CambiosArticulo;           // ver equipo-articulos.ts
+export type TipoEntidad; export type EstadoArticulo; export type RolMiembro; // tipos-dominio.ts
+```
+
+La validación previa también cubre `imagen_destacada` con `esquemaImagen`. Sus errores van en `ErrorDominio.errores` con `indice: -1` y `campo: 'imagen_destacada.…'`. Se persisten los valores **parseados**, con sus valores por defecto aplicados.

@@ -103,7 +103,8 @@ Entorno verificado: Postgres 17.11 local (Supabase CLI 2.121), con estas extensi
 
 ## D15. Imágenes y Storage
 - **Decisión**:
-  - Bucket público `medios`, con lectura pública y escritura, modificación y borrado solo para `privado.es_equipo()`.
+  - Bucket público `medios`: los archivos se sirven por URL pública (no pasa por RLS). Listar, subir, modificar y borrar es solo para `privado.es_equipo()`, porque listar revelaría imágenes de borradores (validación A-M4). Solo imágenes (`jpeg`, `png`, `webp`, `avif`, `gif`) de hasta 5 MB (A-M3).
+  - `service_role` tiene `usage` sobre `privado` y `execute` sobre las funciones que usan los checks y triggers, así que las tareas del servidor con la clave secreta pueden escribir contenido (A-M7).
   - Las imágenes, tanto la destacada como las de los bloques, comparten el sub-esquema Zod `esquemaImagen`: `{ ruta, ancho, alto, alt, decorativa }`, donde `alt` es obligatorio salvo que `decorativa = true`.
   - En la tabla, la imagen destacada es `imagen_destacada jsonb`, con un `check` liviano (que tenga `ruta` y que tenga `alt` o sea decorativa).
 - **Razón**: Reutiliza el mismo esquema (§VIII). Las dimensiones son obligatorias para evitar CLS (§IV.6).

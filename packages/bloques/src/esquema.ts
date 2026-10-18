@@ -11,9 +11,7 @@ const texto = (campo: string, min: number, max: number) =>
     .max(max, `${campo} admite hasta ${max} caracteres`);
 
 const urlHttps = (campo: string) =>
-  z
-    .string({ error: `${campo} debe ser texto` })
-    .regex(/^https:\/\/[^\s/]+\.\S+$/, `${campo} debe ser una URL https`);
+  z.string({ error: `${campo} debe ser texto` }).regex(/^https:\/\/[^\s/]+\.\S+$/, `${campo} debe ser una URL https`);
 
 const base = { id: z.uuid({ error: 'El bloque necesita un id uuid' }) };
 

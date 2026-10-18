@@ -109,6 +109,22 @@ El diff no toca `apps/` ni `packages/ui`.
 ### Menores nuevos
 - **C-M8.** `apps/admin` declara `eslint ^9` (sin fijar) y no extiende `@blog/config/eslint`, así que las reglas comunes no aplican ahí.
 
-## Acciones pendientes (menores, no bloquean)
-- [ ] A-M1 a A-M9: id inmutable, campos del sistema, bucket `medios` (tamaño, tipos MIME y listado), `crear_perfil`, `tipo` null, `service_role`, tests faltantes de A-B1, comentarios.
-- [ ] C-M1 a C-M8: grants por migración, `imagen_destacada` con Zod y contenido parseado, docs y `TipoEntidad`, tests TS, comentarios, knip en `pruebas/`, Prettier y CI, ESLint en admin.
+## Acciones (menores): ✅ resueltas
+- [x] A-M1: `privado.impedir_cambio_id` (`a05_id_inmutable`) en artículos, categorías y etiquetas.
+- [x] A-M2: el insert del cliente fuerza `programado_para = null` y `actualizado_en = now()`; `estado` queda congelado hasta H2 (anotado en T040).
+- [x] A-M3/A-M4: `medios` acepta solo imágenes de hasta 5 MB; el listado es solo del equipo (los archivos se sirven por URL pública).
+- [x] A-M5: `crear_perfil` recorta el nombre a 80 caracteres y `{"rol": null}` crea un perfil inactivo.
+- [x] A-M6: `slug_disponible` rechaza un `tipo` nulo (`tipo_requerido`).
+- [x] A-M7: `service_role` tiene `usage` sobre `privado` y las funciones de los checks y triggers.
+- [x] A-M8: tests de un admin que cambia su propio rol, del `id` inmutable y del upsert rechazado.
+- [x] A-M9: comentarios y plan alineados (`proteger_perfil` ya existe; H6 la amplía).
+- [x] C-M1: cada migración concede solo sus funciones nuevas.
+- [x] C-M2: la imagen destacada se valida con `esquemaImagen` y se persisten los valores parseados.
+- [x] C-M3: `tipos-dominio.ts` (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`); plan y contrato actualizados.
+- [x] C-M4: tests TS del camino feliz, la imagen destacada, `eliminarArticulo`, `previsualizarSlug` sin permiso y el reintento por slug duplicado (unitario).
+- [x] C-M5: comentarios corregidos.
+- [x] C-M6: knip analiza `pruebas/` (ya no lo ignora); se quitó `claveServicio`.
+- [x] C-M7: Prettier compartido en `@blog/config`, código formateado y `formato:verificar` en el CI; `proyecto` en `entorno.ts`.
+- [x] C-M8: `apps/admin` fija `eslint 9.39.5` y aplica las reglas comunes.
+
+Verificación final: `formato:verificar`, `lint`, `typecheck`, `test`, `calidad`, `build`, `test:db`, `test:e2e` y `supabase db lint`, todo ✓.

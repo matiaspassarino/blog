@@ -24,6 +24,9 @@ create table public.etiquetas (
 create unique index categorias_nombre_unico on public.categorias (lower(nombre));
 create unique index etiquetas_nombre_unico on public.etiquetas (lower(nombre));
 
+create trigger a05_id_inmutable
+  before update on public.categorias
+  for each row execute function privado.impedir_cambio_id();
 create trigger a10_asignar_slug
   before insert or update on public.categorias
   for each row execute function privado.asignar_slug('nombre');
@@ -31,6 +34,9 @@ create trigger a90_actualizado_en
   before update on public.categorias
   for each row execute function privado.fijar_actualizado_en();
 
+create trigger a05_id_inmutable
+  before update on public.etiquetas
+  for each row execute function privado.impedir_cambio_id();
 create trigger a10_asignar_slug
   before insert or update on public.etiquetas
   for each row execute function privado.asignar_slug('nombre');

@@ -2,7 +2,7 @@
 -- evalúa a NULL se considera cumplido, así que deben devolver false (no NULL).
 begin;
 \ir helpers/pruebas.psql
-select plan(10);
+select plan(12);
 
 select is(privado.imagen_valida('{"ruta":"a.jpg","ancho":1,"alto":1}'), false,
   'imagen_valida es false (no NULL) si falta alt y no es decorativa');
@@ -30,6 +30,22 @@ select throws_ok(
   '23514', null,
   'perfiles.avatar rechaza una imagen sin alt (RF-004)'
 );
+
+-- A-M7: service_role (tareas del servidor) puede escribir perfiles y artículos:
+-- los triggers y checks invoker usan funciones de privado.
+select pruebas.como_postgres();
+create temporary table id_avatar on commit drop as
+  select id from auth.users where email = 'avatar@prueba.local';
+grant select on id_avatar to service_role;
+set local role service_role;
+select lives_ok(
+  $$update public.perfiles set nombre = 'Avatar Servidor' where id = (select id from id_avatar)$$,
+  'A-M7: service_role actualiza perfiles');
+select lives_ok(
+  $$insert into public.articulos (titulo, autor_id, contenido)
+    values ('Servidor', (select id from id_avatar), '[{"id":"x","tipo":"separador"}]')$$,
+  'A-M7: service_role crea artículos (pasa el check de contenido)');
+reset role;
 
 select * from finish();
 rollback;

@@ -4,8 +4,8 @@ import type { ErrorBloque } from '@blog/bloques';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio } from '../errores';
-import { clienteComo, sinSupabase } from '../pruebas/clientes';
-import { actualizarArticulo, crearArticulo, previsualizarSlug } from './equipo-articulos';
+import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { actualizarArticulo, crearArticulo, eliminarArticulo, previsualizarSlug } from './equipo-articulos';
 
 type NuevoArticulo = Parameters<typeof crearArticulo>[1];
 type CambiosArticulo = Parameters<typeof actualizarArticulo>[3];
@@ -65,7 +65,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
     if (creados.length > 0) await admin.from('articulos').delete().in('id', creados);
   });
 
-  // slug vacío: lo genera a10_asignar_slug (la columna es not null sin default).
+  // slug vacío: lo genera a10_asignar_slug (la columna tiene default '').
   async function crearBorrador(titulo: string) {
     const { data, error } = await editor
       .from('articulos')
@@ -160,7 +160,49 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
     });
   });
 
+  describe('crearArticulo (camino feliz y validación de imagen)', () => {
+    it('crea un borrador del usuario actual y persiste el contenido parseado (con valores por defecto)', async () => {
+      const imagen = (n: number) => ({ ruta: `medios/g${n}.jpg`, ancho: 800, alto: 600, alt: `Foto ${n}` });
+      const articulo = await crearArticulo(editor, {
+        titulo: 'H1 integración: camino feliz',
+        contenido: [{ id: crypto.randomUUID(), tipo: 'galeria', imagenes: [imagen(1), imagen(2)] }],
+      });
+      creados.push(articulo.id);
+
+      expect(articulo).toMatchObject({ estado: 'borrador', autor_id: idEditor, version: 1 });
+      expect(articulo.contenido).toEqual([expect.objectContaining({ tipo: 'galeria', columnas: 3 })]);
+    });
+
+    it('rechaza una imagen destacada sin alt con contenido_invalido, sin llamar a la base', async () => {
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+      const error = await rechazoDe(
+        crearArticulo(editor, {
+          titulo: 'H1 integración: imagen destacada sin alt',
+          imagen_destacada: { ruta: 'medios/portada.jpg', ancho: 1600, alto: 900 },
+        }),
+      );
+
+      expect(error.codigo).toBe('contenido_invalido');
+      expect(error.errores).toEqual([expect.objectContaining({ indice: -1, campo: 'imagen_destacada.alt' })]);
+      expect(espiaFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('eliminarArticulo', () => {
+    it('un editor no puede eliminar (no_encontrado) y un admin sí', async () => {
+      const articulo = await crearBorrador('H1 integración: eliminar');
+
+      expect((await rechazoDe(eliminarArticulo(editor, articulo.id))).codigo).toBe('no_encontrado');
+      await expect(eliminarArticulo(admin, articulo.id)).resolves.toBeUndefined();
+    });
+  });
+
   describe('previsualizarSlug', () => {
+    it('un visitante no puede previsualizar (sin_permiso)', async () => {
+      const error = await rechazoDe(previsualizarSlug(clienteAnon(), 'Algo', 'articulo'));
+      expect(error.codigo).toBe('sin_permiso');
+    });
+
     it("RF-005: previsualizarSlug('Año de Diseño', 'articulo') devuelve ano-de-diseno", async () => {
       await expect(previsualizarSlug(editor, 'Año de Diseño', 'articulo')).resolves.toBe('ano-de-diseno');
     });

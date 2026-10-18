@@ -131,7 +131,9 @@ describe('esquemaBloque', () => {
   describe('cita: texto ≤ 1.000, autor y fuente https opcionales', () => {
     it('acepta una cita completa con fuente https y texto de 1.000 caracteres', () => {
       expect(
-        esValido(bloque('cita', { texto: texto(1000), autor: 'Dieter Rams', fuente: 'https://ejemplo.com/entrevista' })),
+        esValido(
+          bloque('cita', { texto: texto(1000), autor: 'Dieter Rams', fuente: 'https://ejemplo.com/entrevista' }),
+        ),
       ).toBe(true);
     });
 
@@ -222,9 +224,9 @@ describe('esquemaBloque', () => {
     );
 
     it('acepta una etiqueta de 40 caracteres, texto y las variantes primaria y secundaria', () => {
-      expect(esValido(bloque('cta', { etiquetaBoton: texto(40), texto: 'Respondemos en 24 h.', variante: 'primaria' }))).toBe(
-        true,
-      );
+      expect(
+        esValido(bloque('cta', { etiquetaBoton: texto(40), texto: 'Respondemos en 24 h.', variante: 'primaria' })),
+      ).toBe(true);
       expect(esValido(bloque('cta', { variante: 'secundaria' }))).toBe(true);
     });
 

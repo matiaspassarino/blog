@@ -106,8 +106,9 @@ Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 
 | Nombre | Momento | Responsabilidad |
 |---|---|---|
+| `a05_id_inmutable` | before upd | `id` inmutable para todos los roles (`privado.impedir_cambio_id`, también en categorías y etiquetas) |
 | `a10_asignar_slug` | before ins/upd | Genera o normaliza el slug y le agrega un sufijo único |
-| `a20_campos_sistema` | before ins/upd | Solo para el cliente (`privado.es_cliente()`). En el insert fuerza `version = 1`, `publicado_en = null`, `estado = 'borrador'` y `creado_en = now()`. En el update conserva `autor_id`, `creado_en` y `publicado_en` |
+| `a20_campos_sistema` | before ins/upd | Solo para el cliente (`privado.es_cliente()`). En el insert fuerza `version = 1`, `publicado_en = null`, `estado = 'borrador'`, `programado_para = null`, `creado_en` y `actualizado_en = now()`. En el update conserva `autor_id`, `creado_en` y `publicado_en` (y, hasta H2, `estado` y `programado_para`) |
 | `a30_controlar_version` | before upd | Con `pg_trigger_depth() > 1` conserva la versión. En otro caso exige que `new.version = old.version` (si no, `conflicto_version`) y la incrementa |
 | `a40_validar_estado` | before ins/upd | En el update aplica la matriz de transiciones (`estado_invalido`); en el insert, el cliente ya viene forzado a borrador y el sistema o seed puede insertar en cualquier estado y los requisitos de publicación (`requisitos_publicacion` con `detail`). Exige `programado_para > now()` al entrar a programado o al cambiar la fecha (`fecha_no_futura`). Si queda publicado sin `publicado_en`, lo asigna: `now()` si la hace un cliente, `programado_para` si la hace el cron. Nunca pisa un valor existente. Limpia `programado_para` al salir de programado |
 | `a50_calcular_busqueda` | before ins/upd | Recalcula siempre: A título; B extracto, categoría y etiquetas; C `bloques_a_texto` |
@@ -232,7 +233,7 @@ Todas las tablas tienen RLS. `E` = `(select privado.es_equipo())`, `A` = `(selec
 | `articulos_etiquetas` | `ae_select_publico` | anon | select | `exists (select 1 from articulos a where a.id = articulo_id and PUB(a))` |
 | | `ae_select_equipo` | authenticated | select | la misma condición `or E` |
 | `redirecciones` | `redirecciones_select` | anon, authenticated | select | `tipo_entidad <> 'articulo' or exists (select 1 from articulos a where a.id = entidad_id)` (hereda la RLS) |
-| `storage.objects` | `medios_select` | anon, authenticated | select | `bucket_id = 'medios'` |
+| `storage.objects` | `medios_select` | authenticated | select (listar) | `bucket_id = 'medios' and E`. Los archivos se sirven por URL pública. Bucket limitado a imágenes de hasta 5 MB |
 | | `medios_insert_equipo` / `medios_update_equipo` / `medios_delete_equipo` | authenticated | insert / update / delete | `bucket_id = 'medios' and E` |
 
 Cada política tiene al menos un test pgTAP positivo y uno negativo.

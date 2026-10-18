@@ -44,11 +44,17 @@ begin
     new.version := 1;
     new.publicado_en := null;
     new.estado := 'borrador';
+    new.programado_para := null;
     new.creado_en := now();
+    new.actualizado_en := now();
   else
     new.autor_id := old.autor_id;
     new.creado_en := old.creado_en;
     new.publicado_en := old.publicado_en;
+    -- Hasta H2 (a40_validar_estado) el estado no se cambia por el cliente
+    -- (validación A-M2). T040 reemplaza esta función con create or replace.
+    new.estado := old.estado;
+    new.programado_para := old.programado_para;
   end if;
   return new;
 end
@@ -76,6 +82,9 @@ end
 $$;
 
 -- Orden alfabético de los triggers (D21).
+create trigger a05_id_inmutable
+  before update on public.articulos
+  for each row execute function privado.impedir_cambio_id();
 create trigger a10_asignar_slug
   before insert or update on public.articulos
   for each row execute function privado.asignar_slug('titulo');
@@ -140,15 +149,3 @@ $$;
 revoke execute on function public.previsualizar_slug(text, public.tipo_entidad) from public, anon, authenticated;
 grant execute on function public.previsualizar_slug(text, public.tipo_entidad) to authenticated;
 
--- ---------------------------------------------------------------------------
--- Privilegios de funciones de privado
--- ---------------------------------------------------------------------------
-revoke execute on all functions in schema privado from public, anon, authenticated;
-grant execute on function
-  privado.es_cliente(),
-  privado.tipos_bloque(),
-  privado.contenido_valido(jsonb),
-  privado.imagen_valida(jsonb),
-  privado.es_equipo()
-  to anon, authenticated;
-grant execute on function privado.es_admin() to authenticated;

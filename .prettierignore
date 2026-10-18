@@ -3,3 +3,8 @@ packages/db/src/tipos.ts
 .specify/
 .claude/
 specs/
+*.md
+supabase/
+.github/
+apps/web/.vscode/
+apps/admin/next-env.d.ts

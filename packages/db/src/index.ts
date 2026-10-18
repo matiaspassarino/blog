@@ -10,5 +10,5 @@ export {
   type Articulo,
   type NuevoArticulo,
   type CambiosArticulo,
-  type TipoEntidad,
 } from './consultas/equipo-articulos';
+export type { TipoEntidad, EstadoArticulo, RolMiembro } from './tipos-dominio';
