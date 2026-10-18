@@ -7,8 +7,9 @@
 | 1 | `09f05cc` | ❌ CAMBIOS REQUERIDOS (4 bloqueantes) |
 | 2 | `cb91af2` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 | 3 · H2 | `68a0622` | ❌ **CAMBIOS REQUERIDOS** (1 bloqueante) |
+| 4 · H2 | `e835a6a` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 
-**Resultado global vigente**: ❌ **CAMBIOS REQUERIDOS** (ronda 3, Historia 2). Ver la sección "Ronda 3" al final.
+**Resultado global vigente**: ✅ **APROBADO** (ronda 4, Historia 2). Ver la sección "Ronda 4" al final.
 
 ---
 
@@ -138,7 +139,7 @@ Verificación final: `formato:verificar`, `lint`, `typecheck`, `test`, `calidad`
 
 | Comando | Resultado |
 |---|---|
-| `formato:verificar` · `lint` · `typecheck` · `test` (48 en `@blog/db`) · `calidad` · `test:db` (13 archivos) · `test:e2e` | ✓ |
+| `formato:verificar` · `lint` · `typecheck` · `test` (48 en `@blog/db`) · `calidad` · `test:db` (12 archivos; antes se informó 13 por error) · `test:e2e` | ✓ |
 | `supabase db advisors --local` | 1 hallazgo: `security_definer_view` sobre `autores_publicos`. **Riesgo aceptado** (D5, plan "Seguimiento de complejidad") |
 
 ## arquitecto-db: CAMBIOS REQUERIDOS
@@ -184,6 +185,40 @@ Los cambios en `apps/` y `packages/ui` son solo de formato y ESLint, sin regresi
 - **SEO de la landing:** falta canonical, OG, Twitter y JSON-LD `Organization`, y el viewport no tiene `initial-scale=1`.
 
 ## Acciones (ronda 3)
-- [ ] **A3-B1** `registrar_redireccion` genérica de verdad (filtro en el `WHEN` del trigger) + test con `categorias`
-- [ ] A3-M1 · A3-M2 · A3-M3
-- [ ] C3-M1 a C3-M6 (prioridad: C3-M2, antes de T048)
+- [x] **A3-B1** `registrar_redireccion` genérica de verdad (filtro en el `WHEN` del trigger) + test con `categorias`
+- [x] A3-M1 · A3-M2 · A3-M3
+- [x] C3-M1 a C3-M6 (prioridad: C3-M2, antes de T048)
+
+---
+
+# Ronda 4 (`e835a6a`, Historia 2): ✅ APROBADO
+
+## Verificaciones automáticas
+`formato:verificar` · `lint` · `typecheck` · `test` (49 en `@blog/db`) · `calidad` · `build` · `test:db` (12 archivos, 381 aserciones) · `test:e2e` · `supabase db lint`: todo ✓.
+
+## arquitecto-db: APROBADO
+- **A3-B1 cerrado, verificado en vivo.** Probado con triggers temporales con la forma que pide T048, sobre categorías y etiquetas, como editor. Registra la redirección, `resolver_redireccion` resuelve y no se forman cadenas.
+- **A3-M1, A3-M2, A3-M3 y C3-M2 cerrados.** `mensaje_articulo` es invoker, sin `execute` para clientes, y el mensaje es equivalente al anterior.
+- Borrar una entidad libera su slug anterior. Solo una redirección huérfana insertada a mano (sin pasar por los triggers) lo bloquea para siempre, y ningún cliente puede crearla.
+
+### Menores
+- **A4-M1.** `asignar_slug` recalcula el slug en **cada** update. Si una fila tiene como slug el `slug_anterior` de otra entidad (posible por una carrera de concurrencia), cualquier edición le cambia la URL sin aviso (reproducido: `r4-drift` → `r4-drift-2`; §IV.5). → Recalcular solo en el insert o cuando cambia el slug, con un test.
+- **A4-M2.** El paso 5 de T048 pide las etiquetas de **antes y después**, pero `mensaje_articulo` solo ve las actuales. → Reescribir T048: `drop function` + recrearla con un 4.º parámetro `etiqueta_ids_extra uuid[] default '{}'` (si se agrega como sobrecarga, las llamadas de 3 argumentos se vuelven ambiguas). Recrear también las funciones que la llaman.
+- Cosmético: T048 nombra `z30_borrar_redirecciones` y en artículos es `z20`.
+- `.lte('publicado_en', new Date())` usa el reloj de la app: un desfase de segundos es aceptable (ver también C4-M4).
+
+## consistencia-codigo: APROBADO
+- C3-M1 a C3-M6 resueltos. Sin duplicación nueva (jscpd 0 %, knip 0).
+
+### Menores
+- **C4-M1.** `aImagen`, `aContenido` y `aAutor` reciben `unknown`, así que el cast queda a ciegas. → Tiparlos con `Json` y el tipo del embebido.
+- **C4-M2.** `AutorPublico` y `ReferenciaTaxonomia` viven en `mapeo.ts`. → Moverlos a un módulo de tipos antes de T049.
+- **C4-M3.** El cast de `publicado_en` está fuera de `mapeo.ts`. → Unificar el criterio antes de T049.
+- **C4-M4.** Comentar el reloj de la app frente a `now()` de la base, o filtrar en TS solo `estado`.
+
+## revisor-ux-ui: sin cambios desde la ronda 3 (APROBADO)
+
+## Acciones (ronda 4, menores)
+- [ ] A4-M1 slug estable ante updates que no lo tocan + test
+- [ ] A4-M2 reescribir T048 (`mensaje_articulo` con etiquetas anteriores, sin sobrecarga) · nombre `z20`
+- [ ] C4-M1 a C4-M4
