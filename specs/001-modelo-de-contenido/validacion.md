@@ -9,8 +9,9 @@
 | 3 · H2 | `68a0622` | ❌ **CAMBIOS REQUERIDOS** (1 bloqueante) |
 | 4 · H2 | `e835a6a` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 | 5 · H3 | `2796004` | ❌ **CAMBIOS REQUERIDOS** (3 bloqueantes) |
+| 6 · H3 | `70992a3` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 
-**Resultado global vigente**: ❌ **CAMBIOS REQUERIDOS** (ronda 5, Historia 3). Ver la sección "Ronda 5" al final.
+**Resultado global vigente**: ✅ **APROBADO** (ronda 6, Historia 3: se cierran las historias P1). Ver la sección "Ronda 6" al final.
 
 ---
 
@@ -278,3 +279,45 @@ Corrección del informe: jscpd encuentra **3 clones (1,44 %)** en los tests nuev
 - [x] **C5-B2**: `Categoria`, `Etiqueta`, `Taxonomia`, `TipoTaxonomia` y `TABLA_TAXONOMIA` en `tipos-dominio.ts`; `EntradaSitemap.tipo` es `TipoEntidad`.
 - [x] A5-M1: reemplazo por diferencia. A5-M2: validación de la entrada, con 6 tests. A5-M3: 23503 → `no_encontrado`, con test. A5-M4: resuelto por A5-B1. A5-M5: corregida la contradicción en tasks.
 - [x] C5-M1: contrato actualizado. C5-M2: `taxonomiaPorSlug` y tipos de retorno. C5-M3: etiquetas ordenadas, testeado con dos. C5-M4: `insertarTaxonomia` y `TaxonomiaDePrueba` en `listados.test.ts`. C5-M5 y los riesgos de H5, anotados en T058.
+
+---
+
+# Ronda 6 (`70992a3`, Historia 3): ✅ APROBADO
+
+## Verificaciones automáticas
+`formato:verificar` · `lint` · `typecheck` · `test` (82 en `@blog/db`) · `calidad` (jscpd **0 clones**, knip 0) · `build` · `test:db` (14 archivos) · `test:e2e` · `supabase db lint`: todo ✓.
+
+## arquitecto-db: APROBADO
+- **A5-B1 verificado vía PostgREST:** `/rpc/entradas_sitemap` devolvió 2.002 entradas, contra 1.000 del endpoint de tabla, y no incluye borradores ni programados. Con 2.000 artículos y 10.000 relaciones tarda unos 30–37 ms y pesa unos 200 KB.
+- **A5-M1:** el deadlock desapareció (probado en dos sesiones, en los dos órdenes). La semántica no cambió: una sola subida de versión y una sola notificación, con la unión de etiquetas.
+- **A5-M2 y A5-M3:** los casos válidos funcionan (100 etiquetas, duplicados, el conjunto vacío). Privilegios sin regresiones.
+
+### Menores
+- **A6-M1.** T058, tal como está escrita, **vuelve a traer un deadlock** (reproducido): el borrado de etiqueta bloquea etiqueta → `articulos_etiquetas` → artículo, y `asignar_etiquetas` bloquea artículo → `articulos_etiquetas` → etiqueta. → Que `asignar_etiquetas` bloquee **primero** las etiquetas (`for key share`, en orden por id) y después el artículo. Conviene hacerlo ya en H3 y actualizar la línea de tasks que dice "H5 no modifica `asignar_etiquetas`".
+- **A6-M2.** T058 se contradice sobre la carga inicial: `update … set titulo = titulo` sube `version` y mueve `actualizado_en`. → Desactivar `a30` y `a90` en la migración durante la carga, con test. Además, testear el cambio de `fijar_actualizado_en` en cada tabla que lo usa.
+- **A6-M3.** Carrera en la validación de existencia de etiquetas: termina en un 23503 crudo, aunque `traducirError` lo mapea. Se resuelve con A6-M1.
+- **A6-M4.** Falta `entradas_sitemap()` en la tabla de funciones de `data-model.md`.
+- Bordes opcionales:
+  - 101 copias del mismo id se rechazan, porque se cuentan los duplicados;
+  - un arreglo bidimensional da `desconocido`.
+- No hay un test automático que cubra el corte de `max_rows` vía PostgREST (se verificó a mano). Lo mínimo sería un test de integración con más de 1.000 filas.
+
+## consistencia-codigo: APROBADO
+- C5-B1, C5-B2 y C5-M1 a C5-M5 resueltos. `pruebas/` no se filtra a las apps. `index.ts` y el contrato coinciden.
+
+### Menores
+- **C6-M1.** La tabla "Reutilización" del plan está desactualizada: faltan los tipos nuevos de `tipos-dominio.ts` y `pruebas/{afirmaciones,datos}.ts`.
+- **C6-M2.** El contrato tiene que aclarar que `TABLA_TAXONOMIA` es interno (no se exporta).
+- **C6-M3.** En `listados.test.ts`, `TaxonomiaDePrueba` y `Creado` repiten tipos que se pueden derivar (`Pick` y `ReturnType`).
+- **C6-M4.** `equipo-articulos.test.ts` todavía limpia a mano en lugar de usar `registroDePrueba()`.
+- **C6-M5.** La lectura de las llamadas del espía de `fetch` se repite en dos suites. → Un helper si aparece un tercer uso.
+
+## revisor-ux-ui: sin cambios de UI desde la ronda 3 (APROBADO)
+
+## Aclaración
+La observación de que "la base no tiene artículos" es lo esperado: hoy el seed solo carga los usuarios demo, y los artículos de demo llegan en T066 (cierre).
+
+## Acciones (ronda 6, menores; prioridad: A6-M1 antes de H5)
+- [ ] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks
+- [ ] A6-M2 T058, carga inicial sin `version` ni `actualizado_en`
+- [ ] A6-M4 · C6-M1 a C6-M5 · bordes opcionales
