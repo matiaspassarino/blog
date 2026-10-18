@@ -117,8 +117,9 @@ create trigger a40_validar_estado
 
 -- ---------------------------------------------------------------------------
 -- Redirecciones por cambio de slug (RF-012, research D11). Genérica: tg_argv[0]
--- es el tipo de entidad; los artículos solo registran si alguna vez fueron
--- públicos. Las taxonomías la usan desde H3.
+-- es el tipo de entidad. Las condiciones van en el WHEN de cada trigger, porque
+-- PL/pgSQL prepara la expresión completa y fallaría con columnas que la tabla
+-- no tiene (validación A3-B1). Las taxonomías la usan desde H3.
 -- ---------------------------------------------------------------------------
 create function privado.registrar_redireccion()
 returns trigger
@@ -129,15 +130,12 @@ as $$
 declare
   tipo public.tipo_entidad := tg_argv[0]::public.tipo_entidad;
 begin
-  if new.slug is distinct from old.slug
-     and (tipo <> 'articulo' or old.publicado_en is not null) then
-    insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id)
-    values (tipo, old.slug, new.id)
-    on conflict (tipo_entidad, slug_anterior)
-      do update set entidad_id = excluded.entidad_id, creado_en = now();
-    -- Volver a un slug anterior: deja de ser redirección (sin cadenas).
-    delete from public.redirecciones where tipo_entidad = tipo and slug_anterior = new.slug;
-  end if;
+  insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id)
+  values (tipo, old.slug, new.id)
+  on conflict (tipo_entidad, slug_anterior)
+    do update set entidad_id = excluded.entidad_id, creado_en = now();
+  -- Volver a un slug anterior: deja de ser redirección (sin cadenas).
+  delete from public.redirecciones where tipo_entidad = tipo and slug_anterior = new.slug;
   return null;
 end
 $$;
@@ -155,9 +153,11 @@ begin
 end
 $$;
 
+-- Solo los artículos que alguna vez fueron públicos tienen URL indexada.
 create trigger z10_registrar_redireccion
   after update on public.articulos
-  for each row execute function privado.registrar_redireccion('articulo');
+  for each row when (old.slug is distinct from new.slug and old.publicado_en is not null)
+  execute function privado.registrar_redireccion('articulo');
 create trigger z20_borrar_redirecciones
   after delete on public.articulos
   for each row execute function privado.borrar_redirecciones('articulo');

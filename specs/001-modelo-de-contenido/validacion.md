@@ -6,8 +6,9 @@
 |---|---|---|
 | 1 | `09f05cc` | ❌ CAMBIOS REQUERIDOS (4 bloqueantes) |
 | 2 | `cb91af2` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
+| 3 · H2 | `68a0622` | ❌ **CAMBIOS REQUERIDOS** (1 bloqueante) |
 
-**Resultado global vigente**: ✅ **APROBADO**. Ver la sección "Ronda 2" al final.
+**Resultado global vigente**: ❌ **CAMBIOS REQUERIDOS** (ronda 3, Historia 2). Ver la sección "Ronda 3" al final.
 
 ---
 
@@ -128,3 +129,61 @@ El diff no toca `apps/` ni `packages/ui`.
 - [x] C-M8: `apps/admin` fija `eslint 9.39.5` y aplica las reglas comunes.
 
 Verificación final: `formato:verificar`, `lint`, `typecheck`, `test`, `calidad`, `build`, `test:db`, `test:e2e` y `supabase db lint`, todo ✓.
+
+---
+
+# Ronda 3 (`68a0622`, Historia 2 · T034–T044): ❌ CAMBIOS REQUERIDOS
+
+## Verificaciones automáticas
+
+| Comando | Resultado |
+|---|---|
+| `formato:verificar` · `lint` · `typecheck` · `test` (48 en `@blog/db`) · `calidad` · `test:db` (13 archivos) · `test:e2e` | ✓ |
+| `supabase db advisors --local` | 1 hallazgo: `security_definer_view` sobre `autores_publicos`. **Riesgo aceptado** (D5, plan "Seguimiento de complejidad") |
+
+## arquitecto-db: CAMBIOS REQUERIDOS
+
+### Bloqueante
+- **A3-B1. `privado.registrar_redireccion` no es genérica.** Aplicada a `categorias` da `record "old" has no field "publicado_en"`: PL/pgSQL prepara la expresión completa y el `or` no hace cortocircuito. El arquitecto lo reprodujo y la validación también. T048 depende de esto (§IV.5).
+  → Sacar el filtro de la función y ponerlo en el `WHEN` de cada trigger (`old.slug is distinct from new.slug and old.publicado_en is not null` en artículos; solo el cambio de slug en taxonomías). Agregar un test con un trigger sobre `categorias`.
+
+### Menores
+- **A3-M1.** `slug_disponible` no tiene en cuenta `redirecciones`: un artículo nuevo puede ocupar el slug anterior de otro y romper una URL indexada (§IV.5). → Considerar ocupado el `slug_anterior` de otra entidad del mismo tipo, con test.
+- **A3-M2.** Falta el test de notificación cuando cambia la categoría de un publicado: tienen que viajar la vieja y la nueva, sin repetidos.
+- **A3-M3.** `obtenerArticuloPublicado` depende solo de la RLS: con una sesión del equipo devuelve borradores (con `autor: null`). → Filtrar de forma explícita `estado = publicado` y `publicado_en <= now()`.
+
+### Observaciones
+- La máquina de estados es correcta para los clientes. El sistema (postgres o `service_role`) puede publicar con fecha futura sin que se notifique: documentar que `service_role` no escribe contenido.
+- Las redirecciones no filtran datos y no forman cadenas. La firma HMAC cubre exactamente los bytes que se encolan y el secreto no aparece en la cola ni en los warnings.
+- Riesgos aceptados por el contrato: un aviso se puede reenviar dentro de la ventana de 5 minutos, y `pg_net` no reintenta.
+- Desde H5, `to_jsonb` en z90 va a serializar `busqueda`. Alternativa: copiar las filas a variables y anular esa columna.
+- Si se renombra una categoría, no se revalidan las páginas de sus artículos (tema para la spec web).
+
+## consistencia-codigo: APROBADO
+
+### Menores
+- **C3-M1.** Hay que corregir el texto de data-model sobre `es_publico`: el predicado inline es una decisión de no dar `execute` a los clientes, no una imposibilidad.
+- **C3-M2.** `notificar_cambio_articulo` y `notificar_borrado_articulo` arman el mismo mensaje y T048 los tiene que tocar a los dos. → Extraer `privado.mensaje_articulo(...)` antes de H3 y usar `slugs_afectados` también en el borrado.
+- **C3-M3.** `ArticuloPublico`: `categoria` y `autor` son `| null`, y `ReferenciaTaxonomia` no figura en el contrato. → Documentar en `contracts/db.md` o estrechar los tipos.
+- **C3-M4.** Los casts al leer filas se justifican por D8. → Centralizar el mapeo fila → dominio antes de T049 y T059.
+- **C3-M5.** En `articulos-publicos.test.ts` hay un comentario desactualizado ("Hasta T040…").
+- **C3-M6.** `resolver_redireccion` se tipa como `Returns: string`: comentar el `data ?? null`.
+
+## revisor-ux-ui: APROBADO
+
+Los cambios en `apps/` y `packages/ui` son solo de formato y ESLint, sin regresiones.
+
+### Para la primera spec de UI (no bloquea esta spec)
+- **Contraste de tokens:**
+  - `acento` (2.52:1) no sirve para texto ni para UI.
+  - `exito` (3.59:1) y `error` sobre `superficie` (4.34:1) fallan con texto chico.
+  - `marca` sobre `superficie` queda justo, en 4.49:1.
+  - `borde` (1.31:1) no sirve para controles.
+- **Faltan tokens** de espaciado, breakpoints, anillo de foco y la regla de `prefers-reduced-motion` (§VII.1).
+- **Las fuentes** Inter e Inter Tight no se cargan.
+- **SEO de la landing:** falta canonical, OG, Twitter y JSON-LD `Organization`, y el viewport no tiene `initial-scale=1`.
+
+## Acciones (ronda 3)
+- [ ] **A3-B1** `registrar_redireccion` genérica de verdad (filtro en el `WHEN` del trigger) + test con `categorias`
+- [ ] A3-M1 · A3-M2 · A3-M3
+- [ ] C3-M1 a C3-M6 (prioridad: C3-M2, antes de T048)

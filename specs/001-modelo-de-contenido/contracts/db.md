@@ -43,7 +43,11 @@ resolverRedireccion(c, tipo: 'articulo'|'categoria'|'etiqueta', slug): Promise<s
 listarParaSitemap(c): Promise<{ tipo; slug; actualizadoEn }[]>                              // RSEO-004
 ```
 
-- `ArticuloPublico` = artículo + `categoria` + `etiquetas[]` + `autor: AutorPublico` + `seo: { titulo; descripcion }`, con el respaldo de RF-006 ya resuelto.
+- `ArticuloPublico` = `{ id, titulo, slug, extracto, imagen_destacada, contenido, publicado_en, actualizado_en, categoria, etiquetas, autor, seo }`. Es un subconjunto de columnas (sin `estado`, `autor_id` ni los campos SEO crudos), con el respaldo de RF-006 ya resuelto en `seo: { titulo; descripcion }`.
+  - `categoria: ReferenciaTaxonomia | null` y `autor: AutorPublico | null`, por lo que tipan los embebidos de PostgREST. En un publicado siempre vienen (por el check de requisitos y la vista).
+  - `ReferenciaTaxonomia = { nombre; slug }` y `AutorPublico = { nombre; biografia; avatar }`.
+  - `obtenerArticuloPublicado` filtra publicado de forma **explícita**, además de la RLS: con una sesión del equipo tampoco devuelve borradores (validación A3-M3).
+- **`service_role` no escribe contenido editorial**: puede (A-M7), pero el sistema no está diseñado para eso. Si publicara con `publicado_en` futuro, el artículo se haría visible sin notificación. Los únicos escritores del sistema son el seed y el cron.
 - `Pagina<T>` = `{ items: T[]; total: number; pagina: number; porPagina: number; totalPaginas: number }`. `porPagina` vale 12 por defecto (RF-017).
 - Cada consulta hace **una sola ida** a la base, con relaciones embebidas (sin N+1).
 

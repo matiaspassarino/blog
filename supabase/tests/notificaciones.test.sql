@@ -8,7 +8,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo h2-not-).
 begin;
 \ir helpers/pruebas.psql
-select plan(36);
+select plan(37);
 
 -- Sin secretos de revalidación al empezar, aunque el entorno los tenga configurados.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -17,7 +17,7 @@ select pruebas.crear_usuario('h2-not-editor@prueba.local', '{"provider":"email",
 select pruebas.crear_usuario('h2-not-admin@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Hache Dos Not Admin"}');
 
 delete from public.articulos where slug like 'h2-not-%';
-delete from public.categorias where slug like 'h2-not-%' or lower(nombre) in (lower('H2 Not Categoría'), lower('H2 Not Nueva'));
+delete from public.categorias where slug like 'h2-not-%' or lower(nombre) in (lower('H2 Not Categoría'), lower('H2 Not Nueva'), lower('H2 Not Categoría B'));
 delete from public.etiquetas where slug like 'h2-not-%' or lower(nombre) = lower('H2 Not Etiqueta');
 insert into public.categorias (nombre, slug) values ('H2 Not Categoría', 'h2-not-categoria');
 
@@ -67,6 +67,7 @@ begin
      set estado = coalesce((cambios ->> 'estado')::public.estado_articulo, estado),
          titulo = coalesce(cambios ->> 'titulo', titulo),
          slug = coalesce(cambios ->> 'slug', slug),
+         categoria_id = coalesce((cambios ->> 'categoria_id')::uuid, categoria_id),
          version = (select a.version from public.articulos a where a.id = articulo)
    where id = articulo;
 end
@@ -163,6 +164,22 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- Validación ronda 3 (A3-M2): cambiar la categoría de un publicado lleva la
+-- vieja y la nueva, sin repetidos
+-- ---------------------------------------------------------------------------
+insert into public.categorias (nombre, slug) values ('H2 Not Categoría B', 'h2-not-categoria-b');
+select pruebas.marcar_cola();
+select pruebas.como('h2-not-editor@prueba.local');
+select pruebas.editar('a2300000-0000-4000-8000-000000000004',
+  jsonb_build_object('categoria_id', (select id from public.categorias where slug = 'h2-not-categoria-b')));
+select pruebas.como_postgres();
+select is(
+  (select array_agg(c order by c) from pruebas.cola_nueva(), jsonb_array_elements_text(cuerpo -> 'categorias') c),
+  array['h2-not-categoria', 'h2-not-categoria-b'],
+  'contrato: al cambiar la categoría de un publicado, categorias lleva la vieja y la nueva'
+);
+
+-- ---------------------------------------------------------------------------
 -- No se encola: updates que solo cambian version o actualizado_en
 -- ---------------------------------------------------------------------------
 select pruebas.marcar_cola();
@@ -171,7 +188,8 @@ select pruebas.editar('a2300000-0000-4000-8000-000000000004', '{}');
 select pruebas.como_postgres();
 select is_empty($$select 1 from pruebas.cola_nueva()$$,
   'contrato: un update de un publicado que solo cambia version (y actualizado_en) no encola');
-select is((select version from public.articulos where id = 'a2300000-0000-4000-8000-000000000004'), 4,
+-- 5: publicar no aplica (ya publicado); título, slug y categoría suben la versión; luego este update.
+select is((select version from public.articulos where id = 'a2300000-0000-4000-8000-000000000004'), 5,
   'control: ese update sí ocurrió (la versión subió)');
 
 select pruebas.marcar_cola();

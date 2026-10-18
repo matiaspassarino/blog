@@ -4,7 +4,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo h2-redir-).
 begin;
 \ir helpers/pruebas.psql
-select plan(23);
+select plan(27);
 
 select pruebas.crear_usuario('h2-redir-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Dos Redir Editor"}');
 select pruebas.crear_usuario('h2-redir-admin@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Hache Dos Redir Admin"}');
@@ -178,6 +178,44 @@ select is_empty($$select 1 from public.articulos where id = 'a2100000-0000-4000-
 select is_empty(
   $$select 1 from public.redirecciones where entidad_id = 'a2100000-0000-4000-8000-000000000001'$$,
   'borrar el artículo borra sus redirecciones');
+
+-- ---------------------------------------------------------------------------
+-- Validación ronda 3
+-- A3-B1: registrar_redireccion es genérica (se usa con categorías en H3)
+-- A3-M1: un slug anterior sigue reservado para su entidad
+-- ---------------------------------------------------------------------------
+select pruebas.como_postgres();
+create trigger prueba_redireccion_categoria
+  after update on public.categorias
+  for each row when (old.slug is distinct from new.slug)
+  execute function privado.registrar_redireccion('categoria');
+insert into public.categorias (nombre, slug) values ('H2 Redir Cat Generica', 'h2-redir-cat-generica');
+select lives_ok(
+  $$update public.categorias set slug = 'h2-redir-cat-generica-nueva' where slug = 'h2-redir-cat-generica'$$,
+  'A3-B1: registrar_redireccion funciona sobre categorias');
+select isnt_empty(
+  $$select 1 from public.redirecciones where tipo_entidad = 'categoria' and slug_anterior = 'h2-redir-cat-generica'$$,
+  'A3-B1: el cambio de slug de una categoría registra la redirección');
+drop trigger prueba_redireccion_categoria on public.categorias;
+
+insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
+values ('H2 redir slug ocupado', 'h2-redir-slug-ocupado',
+        '[{"id": "x", "tipo": "separador"}]',
+        (select id from public.categorias where slug = 'h2-redir-cat-generica-nueva'),
+        (select id from auth.users where email = 'h2-redir-editor@prueba.local'),
+        'publicado', now() - interval '1 day');
+update public.articulos set slug = 'h2-redir-slug-ocupado-movido' where slug = 'h2-redir-slug-ocupado';
+insert into public.articulos (titulo, autor_id)
+values ('H2 redir slug ocupado', (select id from auth.users where email = 'h2-redir-editor@prueba.local'));
+select is(
+  (select slug from public.articulos where titulo = 'H2 redir slug ocupado' and estado = 'borrador'),
+  'h2-redir-slug-ocupado-2',
+  'A3-M1: un artículo nuevo no ocupa el slug anterior de otro (sigue siendo su 301)');
+update public.articulos set slug = 'h2-redir-slug-ocupado' where slug = 'h2-redir-slug-ocupado-movido';
+select is(
+  (select slug from public.articulos where titulo = 'H2 redir slug ocupado' and estado = 'publicado'),
+  'h2-redir-slug-ocupado',
+  'A3-M1: una entidad puede volver a su propio slug anterior');
 
 select pruebas.como_postgres();
 select * from finish();

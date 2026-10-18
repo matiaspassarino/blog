@@ -167,6 +167,11 @@ begin
       when 'etiqueta' then exists (
         select 1 from public.etiquetas where slug = candidato and id is distinct from excluir)
     end;
+    -- El slug anterior de otra entidad sigue reservado para su 301 (validación A3-M1).
+    ocupado := ocupado or exists (
+      select 1 from public.redirecciones r
+      where r.tipo_entidad = tipo and r.slug_anterior = candidato and r.entidad_id is distinct from excluir
+    );
     exit when not ocupado;
     sufijo := sufijo + 1;
     candidato := base || '-' || sufijo;

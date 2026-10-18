@@ -4,9 +4,9 @@ import type { Contenido, Imagen } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { traducirError } from '../errores';
 import type { TipoEntidad } from '../tipos-dominio';
+import { aAutor, aContenido, aImagen, aSeo, type AutorPublico, type ReferenciaTaxonomia } from './mapeo';
 
-export type AutorPublico = { nombre: string; biografia: string | null; avatar: Imagen | null };
-export type ReferenciaTaxonomia = { nombre: string; slug: string };
+export type { AutorPublico, ReferenciaTaxonomia };
 
 export type ArticuloPublico = {
   id: string;
@@ -30,29 +30,29 @@ const COLUMNAS_PUBLICAS = `
   autor:autores_publicos!autor_id(nombre, biografia, avatar)
 `;
 
-/** Respaldo de RF-006: sin campos SEO propios se usan el título y el extracto. */
-function aSeo(fila: {
-  titulo: string;
-  extracto: string | null;
-  titulo_seo: string | null;
-  descripcion_seo: string | null;
-}) {
-  return { titulo: fila.titulo_seo ?? fila.titulo, descripcion: fila.descripcion_seo ?? fila.extracto };
-}
-
-/** Artículo publicado por slug, o null si no existe o no es visible (RLS: solo publicados). */
+/**
+ * Artículo publicado por slug, o null. El filtro de publicado es explícito además
+ * de la RLS: con una sesión del equipo no devuelve borradores (validación A3-M3).
+ */
 export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Promise<ArticuloPublico | null> {
-  const { data, error } = await c.from('articulos').select(COLUMNAS_PUBLICAS).eq('slug', slug).maybeSingle();
+  const { data, error } = await c
+    .from('articulos')
+    .select(COLUMNAS_PUBLICAS)
+    .eq('slug', slug)
+    .eq('estado', 'publicado')
+    .lte('publicado_en', new Date().toISOString())
+    .maybeSingle();
   if (error) throw traducirError(error);
   if (!data) return null;
 
   const { titulo_seo: _tituloSeo, descripcion_seo: _descripcionSeo, ...resto } = data;
   return {
     ...resto,
-    imagen_destacada: data.imagen_destacada as Imagen | null,
-    contenido: data.contenido as Contenido,
+    imagen_destacada: aImagen(data.imagen_destacada),
+    contenido: aContenido(data.contenido),
+    // No es null: lo garantizan el filtro de publicado y el check articulos_publicado_con_fecha.
     publicado_en: data.publicado_en as string,
-    autor: data.autor as AutorPublico | null,
+    autor: aAutor(data.autor),
     // articulos_etiquetas llega en H3: T051 agrega el embebido real.
     etiquetas: [],
     seo: aSeo(data),
@@ -63,5 +63,6 @@ export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Pr
 export async function resolverRedireccion(c: ClienteBlog, tipo: TipoEntidad, slug: string): Promise<string | null> {
   const { data, error } = await c.rpc('resolver_redireccion', { tipo, slug });
   if (error) throw traducirError(error);
+  // El tipo generado dice string, pero la función devuelve null si no hay redirección.
   return data ?? null;
 }

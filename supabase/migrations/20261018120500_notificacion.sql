@@ -55,6 +55,29 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Artículos
 -- ---------------------------------------------------------------------------
+
+-- Mensaje único para cambios y borrados (validación C3-M2): H3 agrega acá las
+-- etiquetas una sola vez.
+create function privado.mensaje_articulo(id uuid, slugs jsonb, categoria_ids uuid[])
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'tipo', 'articulo',
+    'id', id,
+    'slugs', slugs,
+    'categorias', (
+      select coalesce(jsonb_agg(distinct c.slug), '[]'::jsonb)
+      from public.categorias c
+      where c.id = any (categoria_ids)
+    ),
+    -- articulos_etiquetas llega en H3 (T048 completa este campo).
+    'etiquetas', '[]'::jsonb
+  )
+$$;
+
 create function privado.notificar_cambio_articulo()
 returns trigger
 language plpgsql
@@ -75,17 +98,10 @@ begin
     return null;
   end if;
 
-  perform privado.notificar_cambio_publico(jsonb_build_object(
-    'tipo', 'articulo',
-    'id', new.id,
-    'slugs', privado.slugs_afectados(new.slug, case when tg_op = 'UPDATE' then old.slug end),
-    'categorias', (
-      select coalesce(jsonb_agg(distinct c.slug), '[]'::jsonb)
-      from public.categorias c
-      where c.id = new.categoria_id or (tg_op = 'UPDATE' and c.id = old.categoria_id)
-    ),
-    -- articulos_etiquetas llega en H3 (T048 completa este campo).
-    'etiquetas', '[]'::jsonb
+  perform privado.notificar_cambio_publico(privado.mensaje_articulo(
+    new.id,
+    privado.slugs_afectados(new.slug, case when tg_op = 'UPDATE' then old.slug end),
+    array[new.categoria_id, case when tg_op = 'UPDATE' then old.categoria_id end]
   ));
   return null;
 end
@@ -100,15 +116,9 @@ set search_path = ''
 as $$
 begin
   if privado.es_publico(old.estado, old.publicado_en) then
-    perform privado.notificar_cambio_publico(jsonb_build_object(
-      'tipo', 'articulo',
-      'id', old.id,
-      'slugs', jsonb_build_array(old.slug),
-      'categorias', (
-        select coalesce(jsonb_agg(c.slug), '[]'::jsonb) from public.categorias c where c.id = old.categoria_id
-      ),
-      'etiquetas', '[]'::jsonb
-    ));
+    perform privado.notificar_cambio_publico(
+      privado.mensaje_articulo(old.id, privado.slugs_afectados(null, old.slug), array[old.categoria_id])
+    );
   end if;
   return old;
 end

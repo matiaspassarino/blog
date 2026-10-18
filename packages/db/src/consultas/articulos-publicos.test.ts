@@ -76,8 +76,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       .select('id, slug, version, estado')
       .single();
     if (errorPublicar) throw new Error(`No se pudo publicar el artículo de prueba: ${errorPublicar.message}`);
-    // Hasta T040 el cliente no puede cambiar el estado (a20 lo congela).
-    if (publicado.estado !== 'publicado') throw new Error('El artículo de prueba no quedó publicado (falta T040)');
+    if (publicado.estado !== 'publicado') throw new Error('El artículo de prueba no quedó publicado');
     return publicado;
   }
 
@@ -127,6 +126,12 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       const borrador = await crearArticulo('borrador', { publicar: false });
 
       await expect(obtenerArticuloPublicado(anon, borrador.slug)).resolves.toBeNull();
+    });
+
+    it('A3-M3: con una sesión del equipo tampoco devuelve borradores (filtro explícito, no solo RLS)', async () => {
+      const borrador = await crearArticulo('borrador-equipo', { publicar: false });
+
+      await expect(obtenerArticuloPublicado(admin, borrador.slug)).resolves.toBeNull();
     });
 
     it('devuelve null para un slug inexistente', async () => {
