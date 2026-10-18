@@ -55,6 +55,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"articulos_etiquetas": {
+                  Row: {
+                    "articulo_id": string,"etiqueta_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "articulo_id": string,"etiqueta_id": string
+                  }
+                  Update: {
+                    "articulo_id"?: string,"etiqueta_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "articulos_etiquetas_articulo_id_fkey"
+      columns: ["articulo_id"]
+isOneToOne: false
+      referencedRelation: "articulos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "articulos_etiquetas_etiqueta_id_fkey"
+      columns: ["etiqueta_id"]
+isOneToOne: false
+      referencedRelation: "etiquetas"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"categorias": {
                   Row: {
                     "actualizado_en": string,"creado_en": string,"descripcion": string | null,"id": string,"nombre": string,"slug": string
@@ -131,7 +157,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "previsualizar_slug":
+            "asignar_etiquetas":
+{ Args: { "articulo_id": string,"etiqueta_ids": (string)[],"version": number }; Returns: number
+                           },
+"previsualizar_slug":
 { Args: { "texto": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
                            },
 "resolver_redireccion":

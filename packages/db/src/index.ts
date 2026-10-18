@@ -20,3 +20,23 @@ export {
   type ReferenciaTaxonomia,
 } from './consultas/articulos-publicos';
 export { rutasAfectadas, type CambioPublico } from './rutas-afectadas';
+export type { ResumenArticulo } from './consultas/tipos-publicos';
+export type { Pagina, OpcionesPagina } from './paginacion';
+export {
+  listarArticulosPublicados,
+  listarPorCategoria,
+  listarPorEtiqueta,
+  listarParaSitemap,
+  type Categoria,
+  type Etiqueta,
+  type EntradaSitemap,
+} from './consultas/listados';
+export {
+  crearTaxonomia,
+  actualizarTaxonomia,
+  eliminarTaxonomia,
+  asignarEtiquetas,
+  type Taxonomia,
+  type NuevaTaxonomia,
+  type CambiosTaxonomia,
+} from './consultas/equipo-taxonomias';

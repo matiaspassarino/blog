@@ -18,3 +18,14 @@ export type ArticuloPublico = {
   autor: AutorPublico | null;
   seo: { titulo: string; descripcion: string | null };
 };
+
+/** Artículo en listados, búsqueda y portadas (contracts/db.md). */
+export type ResumenArticulo = {
+  id: string;
+  titulo: string;
+  slug: string;
+  extracto: string | null;
+  imagen_destacada: Imagen | null;
+  publicado_en: string;
+  categoria: ReferenciaTaxonomia | null;
+};

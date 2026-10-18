@@ -381,7 +381,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 3
 
-- [ ] T048 [H3] Crear `supabase/migrations/20261018120600_etiquetado.sql`:
+- [X] T048 [H3] Crear `supabase/migrations/20261018120600_etiquetado.sql`:
   - **Tabla** `public.articulos_etiquetas`, con estas columnas y reglas:
     - `articulo_id uuid references public.articulos(id) on delete cascade`
     - `etiqueta_id uuid references public.etiquetas(id) on delete cascade`
@@ -411,10 +411,10 @@ description: "Lista de tareas: modelo de contenido del blog"
     2. Volver a crear (`create or replace`) `privado.notificar_cambio_articulo` y `privado.notificar_borrado_articulo` en la misma migración. PL/pgSQL no registra dependencias: el `drop` no falla, pero las rompería recién al ejecutarse.
     3. `n10` sigue llamando antes del cascade.
   - Nombres: en las taxonomías el borrado de redirecciones es `z30_borrar_redirecciones`, porque `z20` queda para `z20_recalcular_articulos` (H5). En artículos es `z20_borrar_redirecciones`. No hay triggers por fila en `articulos_etiquetas`. Actualizar también la tabla de privilegios y la de RLS en [data-model.md](data-model.md).
-- [ ] T049 [P] [H3] Crear `packages/db/src/consultas/listados.ts`, con `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta` y `listarParaSitemap`, según [contracts/db.md](contracts/db.md#consultas-públicas-visitante). Usa `count: 'exact'` y `range()`, y un tipo `Pagina<T>` compartido en `packages/db/src/paginacion.ts` (`pagina` empieza en 1 y `totalPaginas = ceil(total / porPagina)`). El orden es `publicado_en desc, id desc` (estable con fechas iguales). `ResumenArticulo` se agrega en `tipos-publicos.ts` y sus casts en `mapeo.ts`. Los listados por taxonomía pueden hacer **hasta 2 peticiones** (taxonomía y artículos) y el sitemap hasta 3: es una cantidad constante, sin N+1 (contrato). Debe pasar T046.
-- [ ] T050 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.ts`, con `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia` y `asignarEtiquetas` (vía `rpc('asignar_etiquetas')`). Debe pasar T047.
-- [ ] T051 [H3] Agregar el embebido de `etiquetas` en `obtenerArticuloPublicado` (`packages/db/src/consultas/articulos-publicos.ts`). **Actualizar `articulos-publicos.test.ts` (T039)** para que asigne etiquetas y verifique el embebido real, en lugar de `etiquetas: []` (hoy ninguna tarea lo pedía). Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T045 a T047 y T039 completo.
-- [ ] T052 [H3] Agregar a `supabase/tests/privilegios.test.sql`: `articulos_etiquetas` (anon y authenticated solo `select`: sin insert ni delete) y `asignar_etiquetas` (solo `authenticated`, `security definer`).
+- [X] T049 [P] [H3] Crear `packages/db/src/consultas/listados.ts`, con `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta` y `listarParaSitemap`, según [contracts/db.md](contracts/db.md#consultas-públicas-visitante). Usa `count: 'exact'` y `range()`, y un tipo `Pagina<T>` compartido en `packages/db/src/paginacion.ts` (`pagina` empieza en 1 y `totalPaginas = ceil(total / porPagina)`). El orden es `publicado_en desc, id desc` (estable con fechas iguales). `ResumenArticulo` se agrega en `tipos-publicos.ts` y sus casts en `mapeo.ts`. Los listados por taxonomía pueden hacer **hasta 2 peticiones** (taxonomía y artículos) y el sitemap hasta 3: es una cantidad constante, sin N+1 (contrato). Debe pasar T046.
+- [X] T050 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.ts`, con `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia` y `asignarEtiquetas` (vía `rpc('asignar_etiquetas')`). Debe pasar T047.
+- [X] T051 [H3] Agregar el embebido de `etiquetas` en `obtenerArticuloPublicado` (`packages/db/src/consultas/articulos-publicos.ts`). **Actualizar `articulos-publicos.test.ts` (T039)** para que asigne etiquetas y verifique el embebido real, en lugar de `etiquetas: []` (hoy ninguna tarea lo pedía). Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T045 a T047 y T039 completo.
+- [X] T052 [H3] Agregar a `supabase/tests/privilegios.test.sql`: `articulos_etiquetas` (anon y authenticated solo `select`: sin insert ni delete) y `asignar_etiquetas` (solo `authenticated`, `security definer`).
 
 **Checkpoint**: Las historias P1 están completas y el blog es navegable a nivel de datos.
 

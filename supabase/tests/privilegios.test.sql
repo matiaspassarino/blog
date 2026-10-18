@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(112);
+select plan(118);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -383,6 +383,24 @@ select function_privs_are('privado', 'notificar_cambio_publico', array['jsonb'],
   'authenticated no puede ejecutar privado.notificar_cambio_publico');
 select function_privs_are('privado', 'es_publico', array['estado_articulo', 'timestamptz'], 'anon', array[]::text[],
   'anon no puede ejecutar privado.es_publico');
+
+-- ===========================================================================
+-- H3 (T052): articulos_etiquetas (solo lectura) y asignar_etiquetas
+-- ===========================================================================
+select pruebas.como_postgres();
+select table_privs_are('public', 'articulos_etiquetas', 'anon', array['SELECT'],
+  'anon solo tiene select sobre articulos_etiquetas');
+select table_privs_are('public', 'articulos_etiquetas', 'authenticated', array['SELECT'],
+  'authenticated solo tiene select sobre articulos_etiquetas (escribe solo vía asignar_etiquetas)');
+select function_privs_are('public', 'asignar_etiquetas', array['uuid', 'uuid[]', 'integer'], 'anon', array[]::text[],
+  'anon no puede ejecutar asignar_etiquetas');
+select function_privs_are('public', 'asignar_etiquetas', array['uuid', 'uuid[]', 'integer'], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar asignar_etiquetas');
+select is(
+  (select prosecdef from pg_proc where oid = 'public.asignar_etiquetas(uuid, uuid[], integer)'::regprocedure),
+  true, 'asignar_etiquetas es security definer (con chequeo es_equipo)');
+select function_privs_are('privado', 'mensaje_articulo', array['uuid', 'jsonb', 'uuid[]', 'uuid[]'], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.mensaje_articulo');
 
 select pruebas.como_postgres();
 select * from finish();

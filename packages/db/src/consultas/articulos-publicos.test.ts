@@ -13,6 +13,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   let admin: ClienteBlog;
   let anon: ClienteBlog;
   let categoria: { id: string; nombre: string; slug: string };
+  let etiqueta: { id: string; nombre: string; slug: string };
   let perfilAdmin: { nombre: string; biografia: string | null; avatar: unknown };
   const creados: string[] = [];
 
@@ -36,6 +37,14 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
       .single();
     if (error) throw new Error(`No se pudo crear la categoría de prueba: ${error.message}`);
     categoria = data;
+
+    const { data: etiquetaCreada, error: errorEtiqueta } = await admin
+      .from('etiquetas')
+      .insert({ nombre: `H2 públicos etiqueta ${sufijo}`, slug: `h2-publicos-etiqueta-${sufijo}` })
+      .select('id, nombre, slug')
+      .single();
+    if (errorEtiqueta) throw new Error(`No se pudo crear la etiqueta de prueba: ${errorEtiqueta.message}`);
+    etiqueta = etiquetaCreada;
   });
 
   afterEach(() => {
@@ -46,6 +55,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   afterAll(async () => {
     if (creados.length > 0) await admin.from('articulos').delete().in('id', creados);
     if (categoria) await admin.from('categorias').delete().eq('id', categoria.id);
+    if (etiqueta) await admin.from('etiquetas').delete().eq('id', etiqueta.id);
   });
 
   /** Crea un borrador con categoría y un bloque (requisitos de RF-010) y, si se pide, lo publica. */
@@ -83,6 +93,12 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   describe('obtenerArticuloPublicado', () => {
     it('H2-E1/H2-E2: devuelve el artículo con categoría, etiquetas, autor público y SEO de respaldo (RF-006)', async () => {
       const creado = await crearArticulo('completo');
+      const { error } = await admin.rpc('asignar_etiquetas', {
+        articulo_id: creado.id,
+        etiqueta_ids: [etiqueta.id],
+        version: creado.version,
+      });
+      if (error) throw new Error(`No se pudieron asignar las etiquetas: ${error.message}`);
 
       const articulo = await obtenerArticuloPublicado(anon, creado.slug);
 
@@ -93,9 +109,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
         extracto: 'Extracto de completo.',
         contenido,
         categoria: { nombre: categoria.nombre, slug: categoria.slug },
-        // articulos_etiquetas se crea en H3: en H2 se devuelve []. T051 agrega el embebido real
-        // y este test pasa a verificar las etiquetas asignadas.
-        etiquetas: [],
+        etiquetas: [{ nombre: etiqueta.nombre, slug: etiqueta.slug }],
         seo: { titulo: 'H2 públicos: completo', descripcion: 'Extracto de completo.' },
       });
       expect(articulo?.autor).toEqual(perfilAdmin);

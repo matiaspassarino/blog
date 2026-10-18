@@ -12,6 +12,7 @@ const COLUMNAS_PUBLICAS = `
   id, titulo, slug, extracto, titulo_seo, descripcion_seo, imagen_destacada, contenido,
   publicado_en, actualizado_en,
   categoria:categorias(nombre, slug),
+  etiquetas:articulos_etiquetas(etiqueta:etiquetas(nombre, slug)),
   autor:autores_publicos!autor_id(nombre, biografia, avatar)
 `;
 
@@ -32,15 +33,14 @@ export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Pr
   if (error) throw traducirError(error);
   if (!data) return null;
 
-  const { titulo_seo: _tituloSeo, descripcion_seo: _descripcionSeo, ...resto } = data;
+  const { titulo_seo: _tituloSeo, descripcion_seo: _descripcionSeo, etiquetas, ...resto } = data;
   return {
     ...resto,
     imagen_destacada: aImagen(data.imagen_destacada),
     contenido: aContenido(data.contenido),
     publicado_en: aFechaPublicacion(data.publicado_en),
     autor: aAutor(data.autor),
-    // articulos_etiquetas llega en H3: T051 agrega el embebido real.
-    etiquetas: [],
+    etiquetas: etiquetas.flatMap(({ etiqueta }) => (etiqueta ? [etiqueta] : [])),
     seo: aSeo(data),
   };
 }

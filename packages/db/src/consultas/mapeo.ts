@@ -3,7 +3,7 @@
 // base tiene un check liviano; no se revalida en cada lectura.
 import type { Contenido, Imagen } from '@blog/bloques';
 import type { Json } from '../tipos';
-import type { AutorPublico } from './tipos-publicos';
+import type { AutorPublico, ReferenciaTaxonomia, ResumenArticulo } from './tipos-publicos';
 
 type FilaSeo = { titulo: string; extracto: string | null; titulo_seo: string | null; descripcion_seo: string | null };
 type AutorEmbebido = { nombre: string | null; biografia: string | null; avatar: Json | null } | null;
@@ -18,3 +18,25 @@ export const aContenido = (valor: Json) => valor as Contenido;
 export const aAutor = (valor: AutorEmbebido) => valor as AutorPublico | null;
 /** Un publicado siempre tiene fecha: lo garantizan el filtro de estado y el check articulos_publicado_con_fecha. */
 export const aFechaPublicacion = (valor: string | null) => valor as string;
+
+type FilaResumen = {
+  id: string;
+  titulo: string;
+  slug: string;
+  extracto: string | null;
+  imagen_destacada: Json | null;
+  publicado_en: string | null;
+  categoria: ReferenciaTaxonomia | null;
+};
+
+export function aResumen(fila: FilaResumen): ResumenArticulo {
+  return {
+    id: fila.id,
+    titulo: fila.titulo,
+    slug: fila.slug,
+    extracto: fila.extracto,
+    imagen_destacada: aImagen(fila.imagen_destacada),
+    publicado_en: aFechaPublicacion(fila.publicado_en),
+    categoria: fila.categoria,
+  };
+}
