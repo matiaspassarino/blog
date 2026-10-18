@@ -248,4 +248,4 @@ Cada política tiene al menos un test pgTAP positivo y uno negativo.
 - `url_web_revalidacion`: en Linux local, `http://172.17.0.1:4321` (gateway de Docker; `host.docker.internal` no resuelve sin `extra_hosts`). Se verifica en el quickstart.
 - `secreto_revalidacion`: el mismo valor que `SECRETO_REVALIDACION`.
 
-Solo `postgres` puede leer `vault.decrypted_secrets` y `net.http_request_queue`, donde el secreto queda en texto plano hasta que se envía (hay un test que lo verifica).
+Solo `postgres` (y `service_role`) pueden leer `vault.decrypted_secrets`. `net.http_request_queue` es legible por PUBLIC (no se puede revocar), así que el secreto **no** se envía: viajan solo la marca de tiempo y la firma HMAC (D14). Hay un test que verifica que el secreto no aparece en la cola.

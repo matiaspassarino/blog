@@ -264,7 +264,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 2 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T034 [P] [H2] Crear `supabase/tests/articulos_publicacion.test.sql` (H2-E1, H2-E3, H2-E5, RF-009, RF-010). Debe verificar:
+- [X] T034 [P] [H2] Crear `supabase/tests/articulos_publicacion.test.sql` (H2-E1, H2-E3, H2-E5, RF-009, RF-010). Debe verificar:
   - **la matriz completa**: las 7 transiciones permitidas pasan y todas las demás combinaciones lanzan `estado_invalido`;
   - publicar sin categoría lanza `requisitos_publicacion` con `detail = 'categoria'`;
   - publicar con contenido vacío lanza `requisitos_publicacion` con `detail = 'contenido'`;
@@ -275,7 +275,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - archivar lo oculta para anon y lo mantiene visible para el equipo;
   - publicado → borrador lo oculta;
   - los checks `estado <> 'publicado' or publicado_en is not null` y `estado <> 'programado' or programado_para is not null` se aplican.
-- [ ] T035 [P] [H2] Crear `supabase/tests/redirecciones.test.sql` (H2-E4, D11, D24). Debe verificar:
+- [X] T035 [P] [H2] Crear `supabase/tests/redirecciones.test.sql` (H2-E4, D11, D24). Debe verificar:
   - cambiar el slug de un artículo publicado crea `redirecciones(articulo, slug_viejo)`;
   - cambiar el slug de un borrador nunca publicado **no** la crea;
   - cambiar el `titulo` de un publicado **no** cambia el slug ni crea una redirección (caso borde de la spec);
@@ -285,21 +285,21 @@ description: "Lista de tareas: modelo de contenido del blog"
   - si el artículo se despublicó, devuelve **null** para anon y el slug para el equipo;
   - borrar el artículo borra sus redirecciones;
   - anon no puede insertar en `redirecciones`.
-- [ ] T036 [P] [H2] Crear `supabase/tests/autores_publicos.test.sql` (H2-E2, D5, B1). Debe verificar:
+- [X] T036 [P] [H2] Crear `supabase/tests/autores_publicos.test.sql` (H2-E2, D5, B1). Debe verificar:
   - la vista devuelve exactamente `id, nombre, biografia, avatar` (`columns_are`);
   - incluye solo autores con algún artículo `publicado` y `publicado_en <= now()`;
   - `insert`, `update` y `delete` sobre la vista **fallan** como `anon` y como `authenticated` (`throws_ok`);
   - anon sigue sin poder leer `perfiles`.
-- [ ] T037 [P] [H2] Crear `supabase/tests/notificaciones.test.sql` (RF-013, contracts/revalidacion.md). Dentro de la transacción, crear los secretos con `vault.create_secret('http://prueba.local','url_web_revalidacion')` y `vault.create_secret('secreto','secreto_revalidacion')`, y contar las filas nuevas de `net.http_request_queue`. Debe verificar:
+- [X] T037 [P] [H2] Crear `supabase/tests/notificaciones.test.sql` (RF-013, contracts/revalidacion.md). Dentro de la transacción, crear los secretos con `vault.create_secret('http://prueba.local','url_web_revalidacion')` y `vault.create_secret('secreto','secreto_revalidacion')`, y contar las filas nuevas de `net.http_request_queue`. Debe verificar:
   - **se encola** un mensaje al publicar, al editar el título de un publicado, al archivar, al cambiar el slug (con los slugs viejo y nuevo en el body) y al borrar un publicado (en H2 con `etiquetas: []`; T045 verifica las etiquetas reales);
   - **no se encola** nada al editar un borrador o un programado, ni con un update que solo cambia `version` o `actualizado_en`;
   - sin secretos en Vault, no se encola nada y la transacción no falla;
-  - el header `Authorization` es `Bearer secreto`;
-  - solo `postgres` puede leer `net.http_request_queue` y `vault.decrypted_secrets`.
-- [ ] T038 [P] [H2] Crear `packages/db/src/rutas-afectadas.test.ts`, con las rutas exactas de [contracts/revalidacion.md](contracts/revalidacion.md#rutas-que-calcula-rutasafectadas-blogdb):
+  - la petición **no** lleva `Authorization`: lleva `X-Blog-Marca-Tiempo` y `X-Blog-Firma = sha256=HMAC-SHA256(secreto, marca.cuerpo)`, y el test recalcula la firma;
+  - el secreto no aparece en ninguna fila de `net.http_request_queue` (decisión HMAC, D14), y anon/authenticated no leen `vault.decrypted_secrets`.
+- [X] T038 [P] [H2] Crear `packages/db/src/rutas-afectadas.test.ts`, con las rutas exactas de [contracts/revalidacion.md](contracts/revalidacion.md#rutas-que-calcula-rutasafectadas-blogdb):
   - para un artículo con dos slugs, una categoría y dos etiquetas: `/blog/{slug}` ×2, `/blog`, `/blog/pagina/1` a `5`, `/blog/categoria/{c}`, `/blog/etiqueta/{e}` ×2, `/`, `/sitemap.xml` y `/rss.xml`, sin duplicados;
   - los casos `categoria`, `etiqueta` y `autor`.
-- [ ] T039 [P] [H2] Crear `packages/db/src/consultas/articulos-publicos.test.ts`, de integración como anon:
+- [X] T039 [P] [H2] Crear `packages/db/src/consultas/articulos-publicos.test.ts`, de integración como anon:
   - `obtenerArticuloPublicado` devuelve el artículo con `categoria`, `etiquetas[]`, un `autor` que contiene solo `nombre/biografia/avatar` y un `seo` con respaldo (sin `titulo_seo`, se usa `titulo`; sin `descripcion_seo`, se usa `extracto`);
   - devuelve `null` para un borrador;
   - `resolverRedireccion` funciona;
@@ -317,7 +317,8 @@ description: "Lista de tareas: modelo de contenido del blog"
     - **insert**: si `privado.es_cliente()`, el estado ya viene forzado a `borrador` por `a20`; si no (seed o sistema), cualquier estado es válido y solo se aplican los requisitos y los checks;
     - **update**: la matriz de [data-model.md](data-model.md#máquina-de-estados) para todos los roles;
     - los requisitos, con `detail` `categoria` o `contenido`;
-    - `fecha_no_futura` solo al entrar a `programado` o al cambiar `programado_para` estando programado;
+    - `fecha_no_futura` solo **para clientes** (`privado.es_cliente()`), al entrar a `programado` o al cambiar `programado_para` estando programado. El sistema y el seed pueden insertar programados con fecha futura sin chequeo;
+    - **Actualizar `supabase/tests/articulos_borrador.test.sql`**: la aserción "A-M2: hasta H2 el cliente no cambia el estado" deja de valer. Reemplazarla por una que verifique que publicar un borrador sin categoría lanza `requisitos_publicacion` (`throws_ok`), porque si no aborta el archivo.
     - si queda `estado = 'publicado'` con `new.publicado_en` nulo: `publicado_en := case when privado.es_cliente() then now() else coalesce(new.programado_para, now()) end`. Si ya tiene valor (republicación, ya preservado por `a20`, o valor que trae el seed), no se toca;
     - `programado_para := null` al salir de `programado`.
   - **Triggers** `z10_registrar_redireccion` (after upd: `new.slug is distinct from old.slug and old.publicado_en is not null`; `insert ... on conflict (tipo_entidad, slug_anterior) do update set entidad_id = excluded.entidad_id, creado_en = now()`; `delete from redirecciones where tipo_entidad = 'articulo' and slug_anterior = new.slug`) y `z20_borrar_redirecciones` (after delete). Ambos son definer.
@@ -325,7 +326,8 @@ description: "Lista de tareas: modelo de contenido del blog"
   - **RPC** `public.resolver_redireccion(tipo public.tipo_entidad, slug text)`, invoker y `stable`, que hace join contra la tabla de la entidad. `grant execute` a `anon, authenticated`.
   - **Vista** `public.autores_publicos`, exactamente como en [data-model.md](data-model.md#vista-autores_publicos), con `security_barrier`, `revoke all` y `grant select`.
 - [ ] T041 [H2] Crear `supabase/migrations/20261018120500_notificacion.sql` (research D14):
-  - `privado.notificar_cambio_publico(cuerpo jsonb)`, definer y owner `postgres`: lee `url_web_revalidacion` y `secreto_revalidacion` de `vault.decrypted_secrets`; si falta alguno, `return`; si no, `perform net.http_post(url || '/api/revalidar', cuerpo || jsonb_build_object('ocurrido_en', now()), headers => jsonb_build_object('Authorization','Bearer '||secreto,'Content-Type','application/json'))`, todo envuelto en `exception when others then raise warning`.
+  - `privado.notificar_cambio_publico(cuerpo jsonb)`, definer y owner `postgres`: lee `url_web_revalidacion` y `secreto_revalidacion` de `vault.decrypted_secrets`; si falta alguno, `return`; si no: `marca := extract(epoch from now())::bigint::text`, `cuerpo_final := cuerpo || jsonb_build_object('ocurrido_en', now())`, `firma := 'sha256=' || encode(extensions.hmac(marca || '.' || cuerpo_final::text, secreto, 'sha256'), 'hex')` y `perform net.http_post(url || '/api/revalidar', cuerpo_final, headers => jsonb_build_object('Content-Type','application/json','X-Blog-Marca-Tiempo',marca,'X-Blog-Firma',firma))`. **No** enviar el secreto (D14). Verificar que la serialización que firma (`cuerpo_final::text`) es idéntica a los bytes que encola `pg_net`; T037 lo comprueba. Todo envuelto en `exception when others then raise warning` (una URL malformada hace fallar a `http_post`).
+  - `slugs`, según el contrato: `[slug]` si no cambió y `[actual, anterior]` si cambió. `categorias`: la unión **sin repetidos** de la de antes y la de después.
   - En `articulos`:
     - `z90_notificar_cambio` (after ins/upd): solo si `old` o `new` es público; ignora los updates cuyo `to_jsonb(new) - '{busqueda,version,actualizado_en}'` es igual al de `old`; arma el body con `tipo`, `id`, `slugs` (el viejo y el nuevo), `categorias` (los slugs de antes y después) y `etiquetas: []` (la tabla `articulos_etiquetas` se crea en H3 y T048 completa este campo; **no** referenciarla acá, porque PL/pgSQL fallaría al ejecutar).
     - `n10_notificar_borrado` (before delete): solo si estaba publicado, con `etiquetas: []` hasta T048.
@@ -333,7 +335,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - `revoke execute` de todas estas funciones a `public`.
 - [ ] T042 [P] [H2] Crear `packages/db/src/rutas-afectadas.ts`, con `CambioPublico` y `rutasAfectadas()` como función pura y sin duplicados. Debe pasar T038.
 - [ ] T043 [H2] Crear `packages/db/src/consultas/articulos-publicos.ts`:
-  - `obtenerArticuloPublicado(c, slug)`: un único `select` con `categoria:categorias(nombre,slug)`, `etiquetas:articulos_etiquetas(etiqueta:etiquetas(nombre,slug))` y `autor:autores_publicos!autor_id(nombre,biografia,avatar)`. Verificar que PostgREST embebe la vista; si no puede, hacer una segunda consulta dentro de la misma función y documentarlo.
+  - `obtenerArticuloPublicado(c, slug)`: un único `select` con `categoria:categorias(nombre,slug)`, `etiquetas:articulos_etiquetas(etiqueta:etiquetas(nombre,slug))` y `autor:autores_publicos!autor_id(nombre,biografia,avatar)`. PostgREST **sí** embebe la vista (verificado por escritor-tests). T039 exige una sola petición, así que **no** hay plan alternativo con una segunda consulta.
   - Una función `aSeo()` que aplica el respaldo de RF-006.
   - `resolverRedireccion(c, tipo, slug)`.
   Reexportar. `articulos_etiquetas` se crea en H3, así que en esta tarea `etiquetas` se devuelve como `[]` y el embebido real se agrega en T051. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T034 a T039.

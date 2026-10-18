@@ -6,9 +6,15 @@ Lo emite la base (D14) y lo consume `apps/web` en `POST /api/revalidar`. El endp
 
 ```http
 POST {url_web_revalidacion}/api/revalidar
-Authorization: Bearer {secreto_revalidacion}
 Content-Type: application/json
+X-Blog-Marca-Tiempo: {segundos desde epoch}
+X-Blog-Firma: sha256={hex(HMAC-SHA256(secreto_revalidacion, marca + "." + cuerpo))}
 ```
+
+**El secreto nunca viaja ni se guarda en la cola de `pg_net`**: Supabase le da a PUBLIC acceso a `net.http_request_queue` y no se puede revocar (research D14). El endpoint:
+1. Recalcula la firma sobre los **bytes exactos** del cuerpo recibido y la compara en tiempo constante.
+2. Rechaza la petición (401) si la marca de tiempo tiene más de 5 minutos de diferencia con la hora actual (anti-replay).
+3. Es idempotente, así que un reenvío dentro de la ventana no tiene efectos adversos.
 
 ```json
 {
