@@ -1,7 +1,17 @@
 # Validación: 001-modelo-de-contenido
 
-**Fecha**: 2026-10-18 · **Commit**: `09f05cc` · **Alcance**: MVP (F1 + F2 + H1, T001–T033)
-**Resultado global**: ❌ **CAMBIOS REQUERIDOS** (4 bloqueantes)
+**Fecha**: 2026-10-18 · **Alcance**: MVP (F1 + F2 + H1, T001–T033)
+
+| Ronda | Commit | Resultado |
+|---|---|---|
+| 1 | `09f05cc` | ❌ CAMBIOS REQUERIDOS (4 bloqueantes) |
+| 2 | `cb91af2` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
+
+**Resultado global vigente**: ✅ **APROBADO**. Ver la sección "Ronda 2" al final.
+
+---
+
+# Ronda 1 (`09f05cc`)
 
 ## Verificaciones automáticas
 
@@ -62,11 +72,43 @@ El diff no toca `apps/` ni `packages/ui`.
 ## Acciones
 
 **Bloqueantes (antes de seguir con H2):**
-- [ ] A-B1 Protección mínima de `rol`/`activo`/`id`/`creado_en` en perfiles + tests
-- [ ] C-B1 ESLint compartido y `lint` en `packages/bloques` y `packages/db`
-- [ ] C-B2 `pruebas/clientes.ts` reutiliza `crearClientePublico`
-- [ ] C-B3 `privado.slug_disponible` como fuente única del sufijo de slug
+- [x] A-B1 Protección mínima de `rol`/`activo`/`id`/`creado_en` en perfiles + tests
+- [x] C-B1 ESLint compartido y `lint` en `packages/bloques` y `packages/db`
+- [x] C-B2 `pruebas/clientes.ts` reutiliza `crearClientePublico`
+- [x] C-B3 `privado.slug_disponible` como fuente única del sufijo de slug
 
 **Menores (en la misma pasada, o como tareas):**
 - [ ] A-M1 id inmutable · A-M2 campos del sistema · A-M3/A-M4 bucket `medios` · A-M5 `crear_perfil`
 - [ ] C-M1 grants por migración · C-M2 imagen destacada y contenido parseado · C-M3 docs y `TipoEntidad` · C-M4 tests TS · C-M5 comentarios · C-M6 knip · C-M7 Prettier
+
+---
+
+# Ronda 2 (`cb91af2`): ✅ APROBADO
+
+## Verificaciones automáticas
+
+| Comando | Resultado |
+|---|---|
+| `lint` (ahora incluye `@blog/bloques` y `@blog/db`: 22 archivos, 0 errores) | ✓ |
+| `typecheck` · `test` · `calidad` · `build` · `test:db` · `test:e2e` | ✓ |
+
+## arquitecto-db: APROBADO
+- **A-B1 cerrado, verificado en vivo.** Un editor o un admin que intenta cambiar su propio `rol` o `activo` recibe `sin_permiso`. Sobre filas ajenas: el update sin permiso afecta 0 filas, el upsert da `permission denied` y el delete da `permission denied`. `id` y `creado_en` son inmutables. El seed y `postgres` siguen funcionando.
+- **C-B3 sin regresiones.** `slug_disponible` no es ejecutable por clientes y `excluir` funciona en los updates. Ante una carrera de escrituras, la unicidad la frena el índice y el 23505 se traduce a `slug_duplicado`.
+- **H6** puede ampliar `proteger_perfil` con `create or replace`: se conservan el OID y el ACL. `garantizar_admin` es imprescindible.
+
+### Menores nuevos
+- **A-M6.** En `slug_disponible`, con `tipo = null` el bucle no termina (lo corta el `statement_timeout` de 8 s). → Validar que no sea null (`tipo_requerido`) o declarar `previsualizar_slug` como `strict`, con test.
+- **A-M7.** `proteger_perfil` (invoker) falla para `service_role` (`permission denied for schema privado`). Pasa lo mismo en `articulos`. → `grant usage` + `execute es_cliente` a `service_role`, o documentar que `service_role` no escribe contenido. Con test.
+- **A-M8.** Faltan tests de A-B1 para: el admin que cambia su propio `rol`, que `id` es inmutable y que el upsert se rechaza.
+- **A-M9.** El comentario de `20261018120100_perfiles.sql` y `plan.md` siguen diciendo que `proteger_perfil` llega en H6.
+
+## consistencia-codigo: APROBADO
+- **C-B1, C-B2 y C-B3 resueltos.** ESLint compartido en `@blog/config`, `createClient` en un único lugar y una sola fuente del sufijo de slug. Sin duplicación nueva.
+
+### Menores nuevos
+- **C-M8.** `apps/admin` declara `eslint ^9` (sin fijar) y no extiende `@blog/config/eslint`, así que las reglas comunes no aplican ahí.
+
+## Acciones pendientes (menores, no bloquean)
+- [ ] A-M1 a A-M9: id inmutable, campos del sistema, bucket `medios` (tamaño, tipos MIME y listado), `crear_perfil`, `tipo` null, `service_role`, tests faltantes de A-B1, comentarios.
+- [ ] C-M1 a C-M8: grants por migración, `imagen_destacada` con Zod y contenido parseado, docs y `TipoEntidad`, tests TS, comentarios, knip en `pruebas/`, Prettier y CI, ESLint en admin.
