@@ -39,6 +39,12 @@ export type Database = {
       foreignKeyName: "articulos_autor_id_fkey"
       columns: ["autor_id"]
 isOneToOne: false
+      referencedRelation: "autores_publicos"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "articulos_autor_id_fkey"
+      columns: ["autor_id"]
+isOneToOne: false
       referencedRelation: "perfiles"
       referencedColumns: ["id"]
     },{
@@ -108,11 +114,28 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "autores_publicos": {
+                  Row: {
+                    "avatar": Json | null,"biografia": string | null,"id": string | null,"nombre": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                           "avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null
+                         }
+                        Update: {
+                           "avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null
+                         }
+                        Relationships: [
+                    
+                  ]
+                }
           }
           Functions: {
             "previsualizar_slug":
 { Args: { "texto": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
+                           },
+"resolver_redireccion":
+{ Args: { "slug": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
                            }
           }
           Enums: {

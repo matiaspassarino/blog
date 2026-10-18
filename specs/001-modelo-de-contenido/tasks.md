@@ -307,7 +307,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 2
 
-- [ ] T040 [H2] Crear `supabase/migrations/20261018120400_estados_y_publicacion.sql`:
+- [X] T040 [H2] Crear `supabase/migrations/20261018120400_estados_y_publicacion.sql`:
   - **Checks** en `articulos`:
     - `estado not in ('programado','publicado') or (categoria_id is not null and jsonb_typeof(contenido) = 'array' and jsonb_array_length(contenido) > 0)`
     - `estado <> 'programado' or programado_para is not null`
@@ -325,7 +325,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - **Política** `redirecciones_select`, reemplazada por `tipo_entidad <> 'articulo' or exists (select 1 from public.articulos a where a.id = entidad_id)`.
   - **RPC** `public.resolver_redireccion(tipo public.tipo_entidad, slug text)`, invoker y `stable`, que hace join contra la tabla de la entidad. `grant execute` a `anon, authenticated`.
   - **Vista** `public.autores_publicos`, exactamente como en [data-model.md](data-model.md#vista-autores_publicos), con `security_barrier`, `revoke all` y `grant select`.
-- [ ] T041 [H2] Crear `supabase/migrations/20261018120500_notificacion.sql` (research D14):
+- [X] T041 [H2] Crear `supabase/migrations/20261018120500_notificacion.sql` (research D14):
   - `privado.notificar_cambio_publico(cuerpo jsonb)`, definer y owner `postgres`: lee `url_web_revalidacion` y `secreto_revalidacion` de `vault.decrypted_secrets`; si falta alguno, `return`; si no: `marca := extract(epoch from now())::bigint::text`, `cuerpo_final := cuerpo || jsonb_build_object('ocurrido_en', now())`, `firma := 'sha256=' || encode(extensions.hmac(marca || '.' || cuerpo_final::text, secreto, 'sha256'), 'hex')` y `perform net.http_post(url || '/api/revalidar', cuerpo_final, headers => jsonb_build_object('Content-Type','application/json','X-Blog-Marca-Tiempo',marca,'X-Blog-Firma',firma))`. **No** enviar el secreto (D14). Verificar que la serialización que firma (`cuerpo_final::text`) es idéntica a los bytes que encola `pg_net`; T037 lo comprueba. Todo envuelto en `exception when others then raise warning` (una URL malformada hace fallar a `http_post`).
   - `slugs`, según el contrato: `[slug]` si no cambió y `[actual, anterior]` si cambió. `categorias`: la unión **sin repetidos** de la de antes y la de después.
   - En `articulos`:
@@ -333,13 +333,13 @@ description: "Lista de tareas: modelo de contenido del blog"
     - `n10_notificar_borrado` (before delete): solo si estaba publicado, con `etiquetas: []` hasta T048.
   - En `categorias` y `etiquetas`: `z90_notificar_cambio` (after ins/upd/del) con `tipo` y `slugs`.
   - `revoke execute` de todas estas funciones a `public`.
-- [ ] T042 [P] [H2] Crear `packages/db/src/rutas-afectadas.ts`, con `CambioPublico` y `rutasAfectadas()` como función pura y sin duplicados. Debe pasar T038.
-- [ ] T043 [H2] Crear `packages/db/src/consultas/articulos-publicos.ts`:
+- [X] T042 [P] [H2] Crear `packages/db/src/rutas-afectadas.ts`, con `CambioPublico` y `rutasAfectadas()` como función pura y sin duplicados. Debe pasar T038.
+- [X] T043 [H2] Crear `packages/db/src/consultas/articulos-publicos.ts`:
   - `obtenerArticuloPublicado(c, slug)`: un único `select` con `categoria:categorias(nombre,slug)`, `etiquetas:articulos_etiquetas(etiqueta:etiquetas(nombre,slug))` y `autor:autores_publicos!autor_id(nombre,biografia,avatar)`. PostgREST **sí** embebe la vista (verificado por escritor-tests). T039 exige una sola petición, así que **no** hay plan alternativo con una segunda consulta.
   - Una función `aSeo()` que aplica el respaldo de RF-006.
   - `resolverRedireccion(c, tipo, slug)`.
   Reexportar. `articulos_etiquetas` se crea en H3, así que en esta tarea `etiquetas` se devuelve como `[]` y el embebido real se agrega en T051. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T034 a T039.
-- [ ] T044 [H2] Agregar a `supabase/tests/privilegios.test.sql`: `autores_publicos` (solo `select`), `resolver_redireccion` y que `privado.notificar_cambio_publico` no sea ejecutable por `anon` ni `authenticated`.
+- [X] T044 [H2] Agregar a `supabase/tests/privilegios.test.sql`: `autores_publicos` (solo `select`), `resolver_redireccion` y que `privado.notificar_cambio_publico` no sea ejecutable por `anon` ni `authenticated`.
 
 **Checkpoint**: Las historias 1 y 2 funcionan por separado: se puede publicar y el visitante solo ve lo publicado.
 

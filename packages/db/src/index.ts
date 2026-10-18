@@ -12,3 +12,11 @@ export {
   type CambiosArticulo,
 } from './consultas/equipo-articulos';
 export type { TipoEntidad, EstadoArticulo, RolMiembro } from './tipos-dominio';
+export {
+  obtenerArticuloPublicado,
+  resolverRedireccion,
+  type ArticuloPublico,
+  type AutorPublico,
+  type ReferenciaTaxonomia,
+} from './consultas/articulos-publicos';
+export { rutasAfectadas, type CambioPublico } from './rutas-afectadas';

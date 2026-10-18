@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(105);
+select plan(112);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -364,6 +364,25 @@ delete from public.articulos where slug = 'matriz-editor';
 select pruebas.como_postgres();
 select is_empty($$select 1 from public.articulos where slug = 'matriz-editor'$$,
   'matriz: el admin elimina artículos');
+
+-- ===========================================================================
+-- H2 (T044): autores_publicos, resolver_redireccion y funciones de notificación
+-- ===========================================================================
+select pruebas.como_postgres();
+select table_privs_are('public', 'autores_publicos', 'anon', array['SELECT'],
+  'anon solo tiene select sobre autores_publicos');
+select table_privs_are('public', 'autores_publicos', 'authenticated', array['SELECT'],
+  'authenticated solo tiene select sobre autores_publicos');
+select function_privs_are('public', 'resolver_redireccion', array['tipo_entidad', 'text'], 'anon', array['EXECUTE'],
+  'anon puede ejecutar resolver_redireccion');
+select function_privs_are('public', 'resolver_redireccion', array['tipo_entidad', 'text'], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar resolver_redireccion');
+select function_privs_are('privado', 'notificar_cambio_publico', array['jsonb'], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.notificar_cambio_publico');
+select function_privs_are('privado', 'notificar_cambio_publico', array['jsonb'], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.notificar_cambio_publico');
+select function_privs_are('privado', 'es_publico', array['estado_articulo', 'timestamptz'], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.es_publico');
 
 select pruebas.como_postgres();
 select * from finish();

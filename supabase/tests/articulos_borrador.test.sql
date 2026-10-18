@@ -321,11 +321,12 @@ select throws_ok(
   $$update public.articulos set id = gen_random_uuid() where slug = 'campos-sistema'$$,
   'P0001', 'sin_permiso', 'A-M1: el id de un artículo es inmutable'
 );
-update public.articulos
-  set estado = 'publicado', version = (select version from public.articulos where slug = 'campos-sistema')
-  where slug = 'campos-sistema';
-select is((select estado::text from public.articulos where slug = 'campos-sistema'), 'borrador',
-  'A-M2: hasta H2 el cliente no cambia el estado');
+-- Desde H2 (T040) el estado lo controla a40: publicar sin categoría se rechaza.
+select throws_ok(
+  $$update public.articulos
+      set estado = 'publicado', version = (select version from public.articulos where slug = 'campos-sistema')
+      where slug = 'campos-sistema'$$,
+  'P0001', 'requisitos_publicacion', 'publicar un borrador sin categoría lanza requisitos_publicacion');
 select pruebas.como_postgres();
 insert into public.categorias (nombre) values ('Categoría id fijo');
 select throws_ok(
