@@ -397,12 +397,16 @@ description: "Lista de tareas: modelo de contenido del blog"
     2. `select version from public.articulos where id = $1 for update`. Si no existe, lanza `no_encontrado`; si `version <> $3`, lanza `conflicto_version`.
     3. `delete from public.articulos_etiquetas where articulo_id = $1` y `insert` de `unnest($2)` (sin repetidos).
     4. **Un único** `update public.articulos set version = $3 where id = $1`. `a30` lo incrementa y `a50` recalcula la búsqueda leyendo las etiquetas nuevas.
-    5. Si el artículo está publicado, emitir **una** notificación con las etiquetas de antes y de después.
+    5. Si el artículo está publicado, emitir **una** notificación con `privado.mensaje_articulo(..., etiqueta_ids_extra => <etiquetas anteriores>)`. Las anteriores se leen **antes** del `delete` del paso 3.
     6. Devolver `$3 + 1`.
     `revoke execute ... from public` y `grant execute` a `authenticated`.
   - **Categorías**: trigger `a05_impedir_borrado_en_uso` (before delete), que cuenta los artículos y lanza `categoria_en_uso` con `detail = conteo::text`.
   - **Categorías y etiquetas**: `z10_registrar_redireccion` (`after update ... for each row when (old.slug is distinct from new.slug)`; la condición va en el `WHEN`, no en la función: validación A3-B1) y `z30_borrar_redirecciones` (after delete), reutilizando las funciones genéricas de T040 parametrizadas por `tg_argv[0]` = tipo de entidad.
-  - Completar `etiquetas` **solo en `privado.mensaje_articulo`** (el mensaje único de cambios y borrados; validación C3-M2), que tiene que leer `articulos_etiquetas`. `n10` llama antes del cascade. No hay triggers por fila en `articulos_etiquetas`. Actualizar también la tabla de privilegios y la de RLS en [data-model.md](data-model.md).
+  - Completar `etiquetas` **solo en `privado.mensaje_articulo`** (el mensaje único de cambios y borrados; validación C3-M2). Debe leer `articulos_etiquetas` y unir las etiquetas actuales con un 4.º parámetro `etiqueta_ids_extra uuid[] default '{}'`, que usa `asignar_etiquetas` para las anteriores (validación A4-M2). Para cambiar la firma:
+    1. `drop function privado.mensaje_articulo(uuid, jsonb, uuid[]);` y crearla con la firma nueva. **No** usar `create function` con un parámetro más, porque dejaría una sobrecarga y las llamadas de 3 argumentos de `z90` y `n10` se volverían ambiguas al ejecutar.
+    2. Volver a crear (`create or replace`) `privado.notificar_cambio_articulo` y `privado.notificar_borrado_articulo` en la misma migración. PL/pgSQL no registra dependencias: el `drop` no falla, pero las rompería recién al ejecutarse.
+    3. `n10` sigue llamando antes del cascade.
+  - Nombres: en las taxonomías el borrado de redirecciones es `z30_borrar_redirecciones`, porque `z20` queda para `z20_recalcular_articulos` (H5). En artículos es `z20_borrar_redirecciones`. No hay triggers por fila en `articulos_etiquetas`. Actualizar también la tabla de privilegios y la de RLS en [data-model.md](data-model.md).
 - [ ] T049 [P] [H3] Crear `packages/db/src/consultas/listados.ts`, con `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta` y `listarParaSitemap`, según [contracts/db.md](contracts/db.md#consultas-públicas-visitante). Usa `count: 'exact'` y `range()`, y un tipo `Pagina<T>` compartido en `packages/db/src/paginacion.ts`. Debe pasar T046.
 - [ ] T050 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.ts`, con `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia` y `asignarEtiquetas` (vía `rpc('asignar_etiquetas')`). Debe pasar T047.
 - [ ] T051 [H3] Agregar el embebido de `etiquetas` en `obtenerArticuloPublicado` (`packages/db/src/consultas/articulos-publicos.ts`). Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T045 a T047 y T039 completo.

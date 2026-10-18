@@ -216,6 +216,13 @@ begin
     raise exception 'asignar_slug: tabla no soportada %', tg_table_name;
   end if;
 
+  -- Solo se calcula al crear o cuando el slug cambia: si no, una edición
+  -- cualquiera podría cambiar una URL publicada (validación A4-M1). Escribir ''
+  -- sigue regenerándolo, porque es distinto del anterior.
+  if tg_op = 'UPDATE' and new.slug is not distinct from old.slug then
+    return new;
+  end if;
+
   new.slug := privado.slug_disponible(
     tipo,
     coalesce(nullif(btrim(new.slug), ''), to_jsonb(new) ->> tg_argv[0]),

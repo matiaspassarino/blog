@@ -2,7 +2,7 @@
 -- privado.slugificar, trigger a10_asignar_slug en categorias y etiquetas,
 -- unicidad de nombres sin distinguir mayúsculas y check de formato del slug.
 begin;
-select plan(30);
+select plan(32);
 
 -- ---------------------------------------------------------------------------
 -- privado.slugificar(text)
@@ -116,5 +116,20 @@ $$, 'asignar_slug ya no usa SQL dinámico');
 
 select throws_ok($$select privado.slug_disponible(null, 'Hola')$$,
   '22004', 'tipo_requerido', 'A-M6: slug_disponible rechaza un tipo nulo (no queda en bucle)');
+-- ---------------------------------------------------------------------------
+-- Validación ronda 4 (A4-M1): el slug no cambia ante updates que no lo tocan,
+-- aunque coincida con la redirección de otra entidad (estado posible tras una
+-- carrera de concurrencia).
+-- ---------------------------------------------------------------------------
+insert into public.categorias (nombre, slug) values ('Deriva', 'deriva-slug');
+insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id)
+  values ('categoria', 'deriva-slug', gen_random_uuid());
+update public.categorias set descripcion = 'Otra descripción' where nombre = 'Deriva';
+select is((select slug from public.categorias where nombre = 'Deriva'), 'deriva-slug',
+  'A4-M1: un update que no toca el slug no lo recalcula');
+update public.categorias set slug = '' where nombre = 'Deriva';
+select is((select slug from public.categorias where nombre = 'Deriva'), 'deriva',
+  'A4-M1: escribir un slug vacío lo regenera desde el nombre');
+
 select * from finish();
 rollback;

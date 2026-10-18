@@ -219,6 +219,6 @@ Los cambios en `apps/` y `packages/ui` son solo de formato y ESLint, sin regresi
 ## revisor-ux-ui: sin cambios desde la ronda 3 (APROBADO)
 
 ## Acciones (ronda 4, menores)
-- [ ] A4-M1 slug estable ante updates que no lo tocan + test
-- [ ] A4-M2 reescribir T048 (`mensaje_articulo` con etiquetas anteriores, sin sobrecarga) · nombre `z20`
-- [ ] C4-M1 a C4-M4
+- [x] A4-M1: `asignar_slug` solo recalcula en el insert o cuando cambia el slug, con un test de regresión en `slugs.test.sql`.
+- [x] A4-M2: T048 reescrita (`drop` y recreación de `mensaje_articulo` con `etiqueta_ids_extra`, más las funciones que la llaman). El nombre `z30` en las taxonomías se mantiene porque `z20` queda para `z20_recalcular_articulos` (H5); documentado.
+- [x] C4-M1: casts tipados desde `Json` y el tipo del embebido. C4-M2: los tipos públicos se movieron a `consultas/tipos-publicos.ts`. C4-M3: todos los casts quedan en `mapeo.ts` (`aFechaPublicacion`). C4-M4: TS filtra solo `estado` y la fecha la decide la base.

@@ -1,27 +1,12 @@
 // Consultas públicas de artículos (contracts/db.md, "Consultas públicas").
 // Una sola petición por consulta, con relaciones embebidas (sin N+1).
-import type { Contenido, Imagen } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { traducirError } from '../errores';
 import type { TipoEntidad } from '../tipos-dominio';
-import { aAutor, aContenido, aImagen, aSeo, type AutorPublico, type ReferenciaTaxonomia } from './mapeo';
+import { aAutor, aContenido, aFechaPublicacion, aImagen, aSeo } from './mapeo';
+import type { ArticuloPublico } from './tipos-publicos';
 
-export type { AutorPublico, ReferenciaTaxonomia };
-
-export type ArticuloPublico = {
-  id: string;
-  titulo: string;
-  slug: string;
-  extracto: string | null;
-  imagen_destacada: Imagen | null;
-  contenido: Contenido;
-  publicado_en: string;
-  actualizado_en: string;
-  categoria: ReferenciaTaxonomia | null;
-  etiquetas: ReferenciaTaxonomia[];
-  autor: AutorPublico | null;
-  seo: { titulo: string; descripcion: string | null };
-};
+export type { ArticuloPublico, AutorPublico, ReferenciaTaxonomia } from './tipos-publicos';
 
 const COLUMNAS_PUBLICAS = `
   id, titulo, slug, extracto, titulo_seo, descripcion_seo, imagen_destacada, contenido,
@@ -31,8 +16,11 @@ const COLUMNAS_PUBLICAS = `
 `;
 
 /**
- * Artículo publicado por slug, o null. El filtro de publicado es explícito además
- * de la RLS: con una sesión del equipo no devuelve borradores (validación A3-M3).
+ * Artículo publicado por slug, o null. El estado se filtra de forma explícita
+ * además de la RLS, así que con una sesión del equipo no devuelve borradores
+ * (validación A3-M3). La fecha no se compara con el reloj de la app (C4-M4):
+ * para anon la decide la RLS con `now()` de la base, y un publicado con fecha
+ * futura solo puede crearlo el sistema (contracts/db.md, service_role).
  */
 export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Promise<ArticuloPublico | null> {
   const { data, error } = await c
@@ -40,7 +28,6 @@ export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Pr
     .select(COLUMNAS_PUBLICAS)
     .eq('slug', slug)
     .eq('estado', 'publicado')
-    .lte('publicado_en', new Date().toISOString())
     .maybeSingle();
   if (error) throw traducirError(error);
   if (!data) return null;
@@ -50,8 +37,7 @@ export async function obtenerArticuloPublicado(c: ClienteBlog, slug: string): Pr
     ...resto,
     imagen_destacada: aImagen(data.imagen_destacada),
     contenido: aContenido(data.contenido),
-    // No es null: lo garantizan el filtro de publicado y el check articulos_publicado_con_fecha.
-    publicado_en: data.publicado_en as string,
+    publicado_en: aFechaPublicacion(data.publicado_en),
     autor: aAutor(data.autor),
     // articulos_etiquetas llega en H3: T051 agrega el embebido real.
     etiquetas: [],
