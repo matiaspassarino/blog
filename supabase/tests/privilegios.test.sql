@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(103);
+select plan(105);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -79,6 +79,10 @@ select function_privs_are('privado', 'fijar_actualizado_en', array[]::text[], 'a
   'anon no puede ejecutar privado.fijar_actualizado_en');
 select function_privs_are('privado', 'fijar_actualizado_en', array[]::text[], 'authenticated', array[]::text[],
   'authenticated no puede ejecutar privado.fijar_actualizado_en');
+select function_privs_are('privado', 'slug_disponible', array['tipo_entidad', 'text', 'uuid'], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.slug_disponible');
+select function_privs_are('privado', 'slug_disponible', array['tipo_entidad', 'text', 'uuid'], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.slug_disponible');
 select function_privs_are('privado', 'asignar_slug', array[]::text[], 'anon', array[]::text[],
   'anon no puede ejecutar privado.asignar_slug');
 select function_privs_are('privado', 'asignar_slug', array[]::text[], 'authenticated', array[]::text[],

@@ -506,7 +506,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 - [ ] T063 [H6] Crear `supabase/migrations/20261018120900_equipo.sql`:
   - política `perfiles_update_admin` (update to authenticated, using y check `(select privado.es_admin())`);
-  - trigger `a20_proteger_perfil` (before update): si `privado.es_cliente()`, entonces `new.id := old.id; new.creado_en := old.creado_en`, y si `(new.rol, new.activo) is distinct from (old.rol, old.activo) and not privado.es_admin()`, lanza `sin_permiso`;
+  - **`create or replace`** de `privado.proteger_perfil()`: ya existe desde la validación del MVP (A-B1, migración de perfiles), con el trigger `a20_proteger_perfil`, y hoy no deja que ningún cliente cambie rol ni activo. Se amplía para que sí pueda el admin: `if (new.rol, new.activo) is distinct from (old.rol, old.activo) and not privado.es_admin()` lanza `sin_permiso`. **No** crear otro trigger;
   - trigger `z10_garantizar_admin` (after update, definer): `perform pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))`; si `not exists (select 1 from public.perfiles where rol = 'admin' and activo)`, lanza `ultimo_admin`;
   - trigger `z90_notificar_cambio_autor` (after update, `when ((old.nombre, old.biografia, old.avatar) is distinct from (new.nombre, new.biografia, new.avatar))`): si hay publicados, llama a `privado.notificar_cambio_publico` con `{tipo:'autor', id, slugs: (hasta 50 slugs publicados)}`.
 - [ ] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.

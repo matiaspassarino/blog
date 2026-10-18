@@ -120,7 +120,7 @@ grant insert, update, delete on public.articulos to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- RPC: previsualización del slug para el panel. Definer porque los clientes no
--- tienen execute sobre privado.slugificar (D20); case estático, sin SQL dinámico.
+-- tienen execute sobre privado.slug_disponible (D20); misma fuente que el trigger.
 -- ---------------------------------------------------------------------------
 create function public.previsualizar_slug(texto text, tipo public.tipo_entidad)
 returns text
@@ -129,33 +129,11 @@ stable
 security definer
 set search_path = ''
 as $$
-declare
-  base text;
-  candidato text;
-  sufijo int := 1;
-  ocupado boolean;
 begin
   if not privado.es_equipo() then
     raise exception using errcode = 'P0001', message = 'sin_permiso';
   end if;
-
-  base := privado.slugificar(texto);
-  if base = '' then
-    base := 'sin-titulo';
-  end if;
-
-  candidato := base;
-  loop
-    ocupado := case tipo
-      when 'articulo' then exists (select 1 from public.articulos where slug = candidato)
-      when 'categoria' then exists (select 1 from public.categorias where slug = candidato)
-      when 'etiqueta' then exists (select 1 from public.etiquetas where slug = candidato)
-    end;
-    exit when not ocupado;
-    sufijo := sufijo + 1;
-    candidato := base || '-' || sufijo;
-  end loop;
-  return candidato;
+  return privado.slug_disponible(tipo, texto);
 end
 $$;
 

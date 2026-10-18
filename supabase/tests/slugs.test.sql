@@ -2,7 +2,7 @@
 -- privado.slugificar, trigger a10_asignar_slug en categorias y etiquetas,
 -- unicidad de nombres sin distinguir mayúsculas y check de formato del slug.
 begin;
-select plan(24);
+select plan(29);
 
 -- ---------------------------------------------------------------------------
 -- privado.slugificar(text)
@@ -94,6 +94,25 @@ select lives_ok($$insert into public.etiquetas (nombre, slug) values ('Bien', 'a
 
 alter table public.categorias enable trigger a10_asignar_slug;
 alter table public.etiquetas enable trigger a10_asignar_slug;
+
+-- ---------------------------------------------------------------------------
+-- Fuente única del sufijo (validación C-B3): privado.slug_disponible
+-- ---------------------------------------------------------------------------
+select is(privado.slug_disponible('categoria', 'Diseño Web'), 'diseno-web-5',
+  'slug_disponible devuelve el primer sufijo libre (igual que el trigger)');
+select is(privado.slug_disponible('categoria', 'Diseño Web',
+    (select id from public.categorias where slug = 'diseno-web')), 'diseno-web',
+  'slug_disponible excluye la fila propia');
+select is(privado.slug_disponible('etiqueta', '¡!'), 'sin-titulo',
+  'slug_disponible usa sin-titulo si el texto no deja caracteres');
+insert into public.categorias (nombre) values ('Diseño  Web!');
+select is((select slug from public.categorias where nombre = 'Diseño  Web!'), 'diseno-web-5',
+  'el trigger asigna el mismo slug que había previsto slug_disponible');
+select is_empty($$
+  select 1 from pg_proc
+  where proname = 'asignar_slug' and pronamespace = 'privado'::regnamespace
+    and prosrc ilike '%execute %'
+$$, 'asignar_slug ya no usa SQL dinámico');
 
 select * from finish();
 rollback;

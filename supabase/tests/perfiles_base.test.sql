@@ -3,7 +3,7 @@
 -- perfiles y bloqueo de edición para miembros desactivados (B4).
 begin;
 \ir helpers/pruebas.psql
-select plan(21);
+select plan(26);
 
 select pruebas.crear_usuario('ana@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Ana Prueba"}');
 select pruebas.crear_usuario('eva@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Eva Editora"}');
@@ -119,6 +119,28 @@ select results_eq(
 select pruebas.como('sinrol@prueba.local');
 select is_empty($$select 1 from public.perfiles$$,
   'un miembro desactivado no ve perfiles');
+
+-- ---------------------------------------------------------------------------
+-- Protección de campos sensibles (validación A-B1; research D4). Hasta H6
+-- ningún cliente cambia rol ni activo; id y creado_en son inmutables.
+-- ---------------------------------------------------------------------------
+select pruebas.como('eva@prueba.local');
+select throws_ok($$update public.perfiles set rol = 'admin' where id = auth.uid()$$,
+  'P0001', 'sin_permiso', 'un editor no puede hacerse admin');
+select is(privado.es_admin(), false, 'el editor sigue sin ser admin tras el intento');
+select throws_ok($$update public.perfiles set activo = false where id = auth.uid()$$,
+  'P0001', 'sin_permiso', 'un miembro no puede desactivarse a sí mismo');
+select pruebas.como('ana@prueba.local');
+select throws_ok($$update public.perfiles set activo = false where id = auth.uid()$$,
+  'P0001', 'sin_permiso', 'un admin no puede desactivarse a sí mismo (RF-023)');
+select pruebas.como('eva@prueba.local');
+update public.perfiles set creado_en = '2000-01-01' where id = auth.uid();
+select pruebas.como_postgres();
+select isnt(
+  (select p.creado_en from public.perfiles p join auth.users u on u.id = p.id where u.email = 'eva@prueba.local'),
+  '2000-01-01'::timestamptz,
+  'creado_en es inmutable para los clientes'
+);
 
 select pruebas.como_postgres();
 select * from finish();

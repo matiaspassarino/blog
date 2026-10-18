@@ -133,8 +133,47 @@ begin
 end
 $$;
 
+-- Fuente única del slug libre (D10, validación C-B3): normaliza el texto y le
+-- agrega el primer sufijo -2, -3… que no esté ocupado en la tabla de la entidad.
+-- `excluir` es la fila propia (al actualizar). Case estático, sin SQL dinámico.
+-- Las tablas se resuelven al ejecutar, así que puede declararse antes que ellas.
+create function privado.slug_disponible(tipo public.tipo_entidad, texto text, excluir uuid default null)
+returns text
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  base text := privado.slugificar(texto);
+  candidato text;
+  sufijo int := 1;
+  ocupado boolean;
+begin
+  if base = '' then
+    base := 'sin-titulo';
+  end if;
+
+  candidato := base;
+  loop
+    ocupado := case tipo
+      when 'articulo' then exists (
+        select 1 from public.articulos where slug = candidato and id is distinct from excluir)
+      when 'categoria' then exists (
+        select 1 from public.categorias where slug = candidato and id is distinct from excluir)
+      when 'etiqueta' then exists (
+        select 1 from public.etiquetas where slug = candidato and id is distinct from excluir)
+    end;
+    exit when not ocupado;
+    sufijo := sufijo + 1;
+    candidato := base || '-' || sufijo;
+  end loop;
+  return candidato;
+end
+$$;
+
 -- Trigger genérico de slug. tg_argv[0] es la columna de origen (titulo o nombre).
--- Definer: corre como el rol del cliente, que no tiene execute sobre slugificar.
+-- Definer: corre como el rol del cliente, que no tiene execute sobre las
+-- funciones de privado.
 create function privado.asignar_slug()
 returns trigger
 language plpgsql
@@ -142,37 +181,22 @@ security definer
 set search_path = ''
 as $$
 declare
-  tabla text;
-  base text;
-  candidato text;
-  sufijo int := 1;
-  existe boolean;
+  tipo public.tipo_entidad;
 begin
-  tabla := case tg_table_name
-    when 'articulos' then 'public.articulos'
-    when 'categorias' then 'public.categorias'
-    when 'etiquetas' then 'public.etiquetas'
+  tipo := case tg_table_name
+    when 'articulos' then 'articulo'
+    when 'categorias' then 'categoria'
+    when 'etiquetas' then 'etiqueta'
   end;
-  if tabla is null then
+  if tipo is null then
     raise exception 'asignar_slug: tabla no soportada %', tg_table_name;
   end if;
 
-  base := privado.slugificar(coalesce(nullif(btrim(new.slug), ''), to_jsonb(new) ->> tg_argv[0]));
-  if base = '' then
-    base := 'sin-titulo';
-  end if;
-
-  candidato := base;
-  loop
-    execute format('select exists (select 1 from %s where slug = $1 and id <> $2)', tabla)
-      into existe
-      using candidato, new.id;
-    exit when not existe;
-    sufijo := sufijo + 1;
-    candidato := base || '-' || sufijo;
-  end loop;
-
-  new.slug := candidato;
+  new.slug := privado.slug_disponible(
+    tipo,
+    coalesce(nullif(btrim(new.slug), ''), to_jsonb(new) ->> tg_argv[0]),
+    new.id
+  );
   return new;
 end
 $$;
