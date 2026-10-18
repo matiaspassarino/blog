@@ -1,0 +1,15 @@
+{
+  "name": "@blog/db",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@blog/config": "workspace:*",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

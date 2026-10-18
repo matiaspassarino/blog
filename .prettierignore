@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+packages/db/src/tipos.ts
+.specify/
+.claude/
+specs/

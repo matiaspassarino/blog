@@ -1,0 +1,1 @@
+-- Datos de demo navegables (constitucion.md §V.9). Se completa en la spec 001-modelo-de-contenido.

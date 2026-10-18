@@ -1,0 +1,7 @@
+{
+  "name": "@blog/config",
+  "private": true,
+  "type": "module",
+  "files": ["tsconfig.base.json"],
+  "exports": { "./tsconfig.base.json": "./tsconfig.base.json" }
+}
