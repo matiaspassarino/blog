@@ -49,7 +49,11 @@ listarParaSitemap(c): Promise<{ tipo; slug; actualizadoEn }[]>                  
   - `obtenerArticuloPublicado` filtra publicado de forma **explícita**, además de la RLS: con una sesión del equipo tampoco devuelve borradores (validación A3-M3).
 - **`service_role` no escribe contenido editorial**: puede (A-M7), pero el sistema no está diseñado para eso. Si publicara con `publicado_en` futuro, el artículo se haría visible sin notificación. Los únicos escritores del sistema son el seed y el cron.
 - `Pagina<T>` = `{ items: T[]; total: number; pagina: number; porPagina: number; totalPaginas: number }`. `porPagina` vale 12 por defecto (RF-017).
-- Cada consulta hace **una sola ida** a la base, con relaciones embebidas (sin N+1).
+- Cada consulta hace una cantidad **constante** de peticiones, con relaciones embebidas (sin N+1). `obtenerArticuloPublicado`, `buscarArticulos` y `resolverRedireccion` hacen **una**. Los listados por taxonomía hacen hasta **2**, porque necesitan distinguir un slug inexistente (`null`) de un listado vacío, y `listarParaSitemap` hasta **3** (ajuste de H3).
+- `ResumenArticulo = { id; titulo; slug; extracto; imagen_destacada; publicado_en; categoria: ReferenciaTaxonomia | null }`, en `tipos-publicos.ts`.
+- `Pagina<T>`: `pagina` empieza en 1, `totalPaginas = ceil(total / porPagina)` y las opciones son opcionales (`listarArticulosPublicados(c)` es válido). El orden es `publicado_en desc, id desc`.
+- `Categoria` y `Etiqueta` son la fila `{ id, nombre, slug, descripcion }`.
+- Operaciones de taxonomías: `crearTaxonomia(c, tipo, { nombre, slug?, descripcion? })` y `actualizarTaxonomia(c, tipo, id, cambios)` devuelven la fila, sin versión. `eliminarTaxonomia` devuelve `void` y lanza `no_encontrado` si no borra nada.
 
 ## Operaciones del equipo (las usa el panel en su spec)
 

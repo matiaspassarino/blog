@@ -1,0 +1,306 @@
+// T046: listados públicos (contracts/db.md, "Consultas públicas"; H3-E1, H3-E2, H3-E5; RF-017, RSEO-004, D16).
+// Integración contra Supabase local como visitante (anon). Los datos los crea y los borra el admin demo
+// del seed (research D18). Otras suites publican en paralelo: los listados globales se verifican por
+// sus invariantes y por la presencia de los artículos propios, nunca por totales exactos.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { ClienteBlog } from '../cliente';
+import type { Pagina } from '../paginacion';
+import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { listarArticulosPublicados, listarParaSitemap, listarPorCategoria, listarPorEtiqueta } from './listados';
+
+const sufijo = crypto.randomUUID().slice(0, 8);
+const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
+
+type Taxonomia = { id: string; nombre: string; slug: string; descripcion: string | null };
+type Creado = { id: string; slug: string; version: number };
+
+/** Verifica que los items vengan del más reciente al más antiguo (RF-017). */
+function esperarOrdenDescendente(items: { publicado_en: string }[]) {
+  const fechas = items.map((item) => new Date(item.publicado_en).getTime());
+  expect(fechas).toEqual([...fechas].sort((a, b) => b - a));
+}
+
+/** Verifica la aritmética de `Pagina<T>`. */
+function esperarPaginaCoherente<T>(pagina: Pagina<T>, numero: number, porPagina: number) {
+  expect(pagina.pagina).toBe(numero);
+  expect(pagina.porPagina).toBe(porPagina);
+  expect(pagina.totalPaginas).toBe(Math.ceil(pagina.total / porPagina));
+  expect(pagina.items.length).toBe(Math.max(0, Math.min(porPagina, pagina.total - (numero - 1) * porPagina)));
+}
+
+describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
+  let admin: ClienteBlog;
+  let anon: ClienteBlog;
+  let categoria: Taxonomia;
+  let categoriaSinPublicados: Taxonomia;
+  let etiquetaDiseno: Taxonomia;
+  let etiquetaSeo: Taxonomia;
+  let etiquetaSoloBorrador: Taxonomia;
+  let etiquetaSinArticulos: Taxonomia;
+  /** Publicados de `categoria`, en el orden en que se publicaron (el primero es el más antiguo). */
+  const publicados: Creado[] = [];
+  let borrador: Creado;
+  let borradorSinPublicados: Creado;
+  const articulosCreados: string[] = [];
+  const categoriasCreadas: string[] = [];
+  const etiquetasCreadas: string[] = [];
+
+  async function crearTaxonomia(tabla: 'categorias' | 'etiquetas', nombre: string, slug: string) {
+    const { data, error } = await admin
+      .from(tabla)
+      .insert({ nombre: `${nombre} ${sufijo}`, slug: `${slug}-${sufijo}`, descripcion: `Descripción de ${nombre}.` })
+      .select('id, nombre, slug, descripcion')
+      .single();
+    if (error) throw new Error(`No se pudo crear la taxonomía de prueba: ${error.message}`);
+    (tabla === 'categorias' ? categoriasCreadas : etiquetasCreadas).push(data.id);
+    return data;
+  }
+
+  /** Crea un borrador con categoría y un bloque (RF-010), le asigna etiquetas y, si se pide, lo publica. */
+  async function crearArticulo(
+    nombre: string,
+    categoriaId: string,
+    { publicar, etiquetas = [] }: { publicar: boolean; etiquetas?: string[] },
+  ): Promise<Creado> {
+    const { data: creado, error } = await admin
+      .from('articulos')
+      .insert({
+        titulo: `H3 listados: ${nombre}`,
+        slug: `h3-listados-${nombre}-${sufijo}`,
+        extracto: `Extracto de ${nombre}.`,
+        contenido,
+        categoria_id: categoriaId,
+      })
+      .select('id, slug, version')
+      .single();
+    if (error) throw new Error(`No se pudo crear el artículo de prueba: ${error.message}`);
+    articulosCreados.push(creado.id);
+
+    let version = creado.version;
+    if (etiquetas.length > 0) {
+      const { data: nuevaVersion, error: errorEtiquetas } = await admin.rpc('asignar_etiquetas', {
+        articulo_id: creado.id,
+        etiqueta_ids: etiquetas,
+        version,
+      });
+      if (errorEtiquetas) throw new Error(`No se pudieron asignar las etiquetas: ${errorEtiquetas.message}`);
+      version = nuevaVersion;
+    }
+    if (!publicar) return { ...creado, version };
+
+    const { data: publicado, error: errorPublicar } = await admin
+      .from('articulos')
+      .update({ estado: 'publicado', version })
+      .eq('id', creado.id)
+      .select('id, slug, version, estado')
+      .single();
+    if (errorPublicar) throw new Error(`No se pudo publicar el artículo de prueba: ${errorPublicar.message}`);
+    if (publicado.estado !== 'publicado') throw new Error('El artículo de prueba no quedó publicado');
+    return publicado;
+  }
+
+  beforeAll(async () => {
+    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    anon = clienteAnon();
+
+    categoria = await crearTaxonomia('categorias', 'H3 Listados Categoría', 'h3-listados-categoria');
+    categoriaSinPublicados = await crearTaxonomia('categorias', 'H3 Listados Vacía', 'h3-listados-vacia');
+    etiquetaDiseno = await crearTaxonomia('etiquetas', 'H3 Listados Diseño', 'h3-listados-diseno');
+    etiquetaSeo = await crearTaxonomia('etiquetas', 'H3 Listados SEO', 'h3-listados-seo');
+    etiquetaSoloBorrador = await crearTaxonomia('etiquetas', 'H3 Listados Solo Borrador', 'h3-listados-solo-borrador');
+    etiquetaSinArticulos = await crearTaxonomia('etiquetas', 'H3 Listados Sin Artículos', 'h3-listados-sin-articulos');
+
+    // H3-E1: 3 publicados y 1 borrador en la misma categoría. Se publican en orden, así que el
+    // último publicado es el más reciente (publicado_en = now() de cada petición).
+    publicados.push(
+      await crearArticulo('primero', categoria.id, {
+        publicar: true,
+        etiquetas: [etiquetaSeo.id, etiquetaDiseno.id],
+      }),
+    );
+    publicados.push(await crearArticulo('segundo', categoria.id, { publicar: true }));
+    publicados.push(await crearArticulo('tercero', categoria.id, { publicar: true }));
+    borrador = await crearArticulo('borrador', categoria.id, {
+      publicar: false,
+      etiquetas: [etiquetaDiseno.id, etiquetaSoloBorrador.id],
+    });
+    // H3-E5: una categoría que solo tiene un borrador.
+    borradorSinPublicados = await crearArticulo('borrador-sin-publicados', categoriaSinPublicados.id, {
+      publicar: false,
+    });
+  });
+
+  // Primero los artículos (la categoría tiene FK restrict y no se borra en uso).
+  afterAll(async () => {
+    if (articulosCreados.length > 0) await admin.from('articulos').delete().in('id', articulosCreados);
+    if (categoriasCreadas.length > 0) await admin.from('categorias').delete().in('id', categoriasCreadas);
+    if (etiquetasCreadas.length > 0) await admin.from('etiquetas').delete().in('id', etiquetasCreadas);
+  });
+
+  describe('listarPorCategoria', () => {
+    it('H3-E1: devuelve exactamente los 3 publicados, del más reciente al más antiguo', async () => {
+      const resultado = await listarPorCategoria(anon, categoria.slug);
+
+      expect(resultado?.categoria).toMatchObject(categoria);
+      const ids = resultado?.articulos.items.map((item) => item.id);
+      expect(ids).toEqual([publicados[2]?.id, publicados[1]?.id, publicados[0]?.id]);
+      expect(ids).not.toContain(borrador.id);
+      esperarOrdenDescendente(resultado?.articulos.items ?? []);
+    });
+
+    it('RF-017: la página por defecto es la 1, con 12 por página y el total correcto', async () => {
+      const resultado = await listarPorCategoria(anon, categoria.slug);
+
+      expect(resultado?.articulos).toMatchObject({ total: 3, pagina: 1, porPagina: 12, totalPaginas: 1 });
+    });
+
+    it('RF-017: pagina con un tamaño configurable', async () => {
+      const primera = await listarPorCategoria(anon, categoria.slug, { porPagina: 2 });
+      const segunda = await listarPorCategoria(anon, categoria.slug, { pagina: 2, porPagina: 2 });
+
+      expect(primera?.articulos).toMatchObject({ total: 3, pagina: 1, porPagina: 2, totalPaginas: 2 });
+      expect(primera?.articulos.items.map((item) => item.id)).toEqual([publicados[2]?.id, publicados[1]?.id]);
+      expect(segunda?.articulos).toMatchObject({ total: 3, pagina: 2, porPagina: 2, totalPaginas: 2 });
+      expect(segunda?.articulos.items.map((item) => item.id)).toEqual([publicados[0]?.id]);
+    });
+
+    it('cada item es un resumen con id, título, slug, extracto, fecha de publicación y categoría', async () => {
+      const resultado = await listarPorCategoria(anon, categoria.slug);
+
+      const masAntiguo = resultado?.articulos.items.at(-1);
+      expect(masAntiguo).toMatchObject({
+        id: publicados[0]?.id,
+        titulo: 'H3 listados: primero',
+        slug: publicados[0]?.slug,
+        extracto: 'Extracto de primero.',
+        publicado_en: expect.any(String),
+        categoria: { nombre: categoria.nombre, slug: categoria.slug },
+      });
+      expect(Number.isNaN(new Date(masAntiguo?.publicado_en ?? '').getTime())).toBe(false);
+    });
+
+    it('H3-E5: una categoría sin publicados devuelve un listado vacío, sin error', async () => {
+      const resultado = await listarPorCategoria(anon, categoriaSinPublicados.slug);
+
+      expect(resultado?.categoria).toMatchObject(categoriaSinPublicados);
+      expect(resultado?.articulos).toMatchObject({ items: [], total: 0, pagina: 1, porPagina: 12 });
+    });
+
+    it('un slug inexistente devuelve null', async () => {
+      await expect(listarPorCategoria(anon, `h3-listados-no-existe-${sufijo}`)).resolves.toBeNull();
+    });
+
+    it('CE-002: con una sesión del equipo tampoco lista borradores', async () => {
+      const resultado = await listarPorCategoria(admin, categoria.slug);
+
+      expect(resultado?.articulos.items.map((item) => item.id)).not.toContain(borrador.id);
+      expect(resultado?.articulos.total).toBe(3);
+    });
+  });
+
+  describe('listarPorEtiqueta', () => {
+    it('H3-E2: un artículo con las etiquetas "seo" y "diseño" aparece en el listado de "diseño"', async () => {
+      const resultado = await listarPorEtiqueta(anon, etiquetaDiseno.slug);
+
+      expect(resultado?.etiqueta).toMatchObject(etiquetaDiseno);
+      expect(resultado?.articulos.items.map((item) => item.id)).toEqual([publicados[0]?.id]);
+      expect(resultado?.articulos).toMatchObject({ total: 1, pagina: 1, porPagina: 12, totalPaginas: 1 });
+    });
+
+    it('H3-E2: el mismo artículo aparece en el listado de "seo"', async () => {
+      const resultado = await listarPorEtiqueta(anon, etiquetaSeo.slug);
+
+      expect(resultado?.articulos.items.map((item) => item.id)).toEqual([publicados[0]?.id]);
+    });
+
+    it('H3-E5: una etiqueta sin publicados devuelve un listado vacío, sin error', async () => {
+      const soloBorrador = await listarPorEtiqueta(anon, etiquetaSoloBorrador.slug);
+      const sinArticulos = await listarPorEtiqueta(anon, etiquetaSinArticulos.slug);
+
+      expect(soloBorrador?.etiqueta).toMatchObject(etiquetaSoloBorrador);
+      expect(soloBorrador?.articulos).toMatchObject({ items: [], total: 0 });
+      expect(sinArticulos?.articulos).toMatchObject({ items: [], total: 0 });
+    });
+
+    it('un slug inexistente devuelve null', async () => {
+      await expect(listarPorEtiqueta(anon, `h3-listados-no-existe-${sufijo}`)).resolves.toBeNull();
+    });
+  });
+
+  describe('listarArticulosPublicados', () => {
+    it('RF-017: por defecto devuelve la página 1 con 12 por página', async () => {
+      const pagina = await listarArticulosPublicados(anon);
+
+      expect(pagina.total).toBeGreaterThanOrEqual(3);
+      esperarPaginaCoherente(pagina, 1, 12);
+      esperarOrdenDescendente(pagina.items);
+    });
+
+    it('RF-017: pagina con un tamaño configurable', async () => {
+      const primera = await listarArticulosPublicados(anon, { porPagina: 1 });
+      const segunda = await listarArticulosPublicados(anon, { pagina: 2, porPagina: 1 });
+
+      esperarPaginaCoherente(primera, 1, 1);
+      esperarPaginaCoherente(segunda, 2, 1);
+    });
+
+    it('incluye los publicados propios en orden y nunca los borradores', async () => {
+      const pagina = await listarArticulosPublicados(anon, { porPagina: 50 });
+
+      const ids = pagina.items.map((item) => item.id);
+      const propios = ids.filter((id) => publicados.some((publicado) => publicado.id === id));
+      expect(propios).toEqual([publicados[2]?.id, publicados[1]?.id, publicados[0]?.id]);
+      expect(ids).not.toContain(borrador.id);
+      expect(ids).not.toContain(borradorSinPublicados.id);
+      esperarOrdenDescendente(pagina.items);
+    });
+  });
+
+  describe('listarParaSitemap', () => {
+    it('RSEO-004: incluye los artículos publicados con su fecha de última modificación', async () => {
+      const entradas = await listarParaSitemap(anon);
+
+      const { data: filas, error } = await admin
+        .from('articulos')
+        .select('slug, actualizado_en')
+        .in(
+          'id',
+          publicados.map((publicado) => publicado.id),
+        );
+      if (error) throw new Error(`No se pudieron leer los artículos de prueba: ${error.message}`);
+      for (const fila of filas) {
+        const entrada = entradas.find((e) => e.tipo === 'articulo' && e.slug === fila.slug);
+        expect(entrada, `falta el artículo ${fila.slug} en el sitemap`).toBeDefined();
+        expect(new Date(entrada?.actualizadoEn ?? '').getTime()).toBe(new Date(fila.actualizado_en).getTime());
+      }
+    });
+
+    it('CE-002: no incluye borradores', async () => {
+      const entradas = await listarParaSitemap(anon);
+
+      const slugsArticulos = entradas.filter((e) => e.tipo === 'articulo').map((e) => e.slug);
+      expect(slugsArticulos).not.toContain(borrador.slug);
+      expect(slugsArticulos).not.toContain(borradorSinPublicados.slug);
+    });
+
+    it('RSEO-004: incluye solo las categorías y etiquetas con algún artículo publicado', async () => {
+      const entradas = await listarParaSitemap(anon);
+
+      const slugsDe = (tipo: string) => entradas.filter((e) => e.tipo === tipo).map((e) => e.slug);
+      expect(slugsDe('categoria')).toContain(categoria.slug);
+      expect(slugsDe('categoria')).not.toContain(categoriaSinPublicados.slug);
+      expect(slugsDe('etiqueta')).toEqual(expect.arrayContaining([etiquetaDiseno.slug, etiquetaSeo.slug]));
+      expect(slugsDe('etiqueta')).not.toContain(etiquetaSoloBorrador.slug);
+      expect(slugsDe('etiqueta')).not.toContain(etiquetaSinArticulos.slug);
+    });
+
+    it('RSEO-004: cada entrada tiene tipo, slug y una fecha de modificación válida', async () => {
+      const entradas = await listarParaSitemap(anon);
+
+      const propia = entradas.find((e) => e.tipo === 'categoria' && e.slug === categoria.slug);
+      expect(propia).toMatchObject({ tipo: 'categoria', slug: categoria.slug });
+      expect(Number.isNaN(new Date(propia?.actualizadoEn ?? '').getTime())).toBe(false);
+      expect(entradas.every((e) => ['articulo', 'categoria', 'etiqueta'].includes(e.tipo))).toBe(true);
+    });
+  });
+});

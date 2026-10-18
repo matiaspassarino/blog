@@ -46,6 +46,7 @@ X-Blog-Firma: sha256={hex(HMAC-SHA256(secreto_revalidacion, marca + "." + cuerpo
 
 - **Artículo**: `/blog/{slug}` por cada slug, `/blog`, `/blog/pagina/*` (las primeras 5 páginas), `/blog/categoria/{c}`, `/blog/etiqueta/{e}`, `/`, `/sitemap.xml`, `/rss.xml`.
 - **Autor**: `/blog/{slug}` por cada slug y `/blog`.
+- **Pendiente para la spec web:** al borrar una etiqueta, o al renombrar una categoría o etiqueta, el mensaje lleva el slug de la taxonomía pero no los de sus artículos, así que las páginas de esos artículos no se revalidan. La spec del sitio público tiene que decidir si esas páginas se revalidan por expiración o si el mensaje se amplía.
 - **Categoría o etiqueta**: `/blog/{categoria|etiqueta}/{slug}` por cada slug, `/blog`, `/sitemap.xml`.
 
 ## Garantías

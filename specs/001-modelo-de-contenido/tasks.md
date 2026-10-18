@@ -353,7 +353,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 3 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T045 [P] [H3] Crear `supabase/tests/taxonomias.test.sql` (H3-E3, H3-E4, D22, D23, RF-012). Debe verificar:
+- [X] T045 [P] [H3] Crear `supabase/tests/taxonomias.test.sql` (H3-E3, H3-E4, D22, D23, RF-012). Debe verificar:
   - borrar una categoría con 2 artículos lanza `categoria_en_uso` con `detail = '2'`;
   - borrar una categoría sin artículos funciona;
   - borrar una etiqueta la quita de los artículos y los artículos se conservan;
@@ -368,14 +368,14 @@ description: "Lista de tareas: modelo de contenido del blog"
   - un editor que hace `insert` o `delete` directo en `articulos_etiquetas` recibe `permission denied` (la única vía de escritura es el RPC);
   - un miembro desactivado que ejecuta `asignar_etiquetas` recibe `sin_permiso`;
   - borrar un artículo publicado notifica con sus etiquetas (las lee `n10_notificar_borrado` antes del cascade).
-- [ ] T046 [P] [H3] Crear `packages/db/src/consultas/listados.test.ts`, de integración como anon (H3-E1, H3-E2, H3-E5, RF-017). Debe verificar:
+- [X] T046 [P] [H3] Crear `packages/db/src/consultas/listados.test.ts`, de integración como anon (H3-E1, H3-E2, H3-E5, RF-017). Debe verificar:
   - `listarPorCategoria` devuelve solo los publicados, ordenados por `publicado_en desc`, con `Pagina` correcta (`total`, `totalPaginas`, `porPagina = 12` por defecto);
   - `listarPorEtiqueta` incluye un artículo con la etiqueta "diseño";
   - una categoría sin publicados devuelve `items: []`;
   - un slug inexistente devuelve `null`;
   - `listarArticulosPublicados` pagina;
   - `listarParaSitemap` devuelve artículos publicados y solo las taxonomías con algún artículo publicado (observación de arquitecto-db).
-- [ ] T047 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.test.ts`:
+- [X] T047 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.test.ts`:
   - `eliminarTaxonomia('categoria', id)` con artículos asignados lanza `ErrorDominio('categoria_en_uso')` con el conteo;
   - `asignarEtiquetas` envía `version` y devuelve la nueva.
 
@@ -392,6 +392,10 @@ description: "Lista de tareas: modelo de contenido del blog"
     - `ae_select_equipo` (to authenticated): lo mismo `or E`
     - **sin** políticas de escritura: la única vía es `asignar_etiquetas`.
   - **Grants**: solo `select` a `anon, authenticated` (ningún `insert` ni `delete` para clientes).
+  - **Cuidados de implementación** (los detectó escritor-tests):
+    - **Nombres de parámetros:** en PL/pgSQL, `articulo_id` y `version` chocan con columnas (columna ambigua), así que hay que calificarlos (`asignar_etiquetas.version`). En `mensaje_articulo` (SQL), dentro de un subselect sobre `etiquetas`, `id` resuelve a `e.id` **sin dar error**: usar `mensaje_articulo.id`.
+    - **SQL dinámico:** el cuerpo de `asignar_etiquetas` no puede contener la palabra `execute ` ni siquiera en comentarios, porque `privilegios.test.sql` lo busca en las funciones definer expuestas.
+    - **Búsqueda:** `busqueda` y `a50` llegan en H5. En H3 el update de versión del paso 4 sigue siendo obligatorio (versión y notificación). Los 2 tests de búsqueda de T045 se saltean hasta que exista la columna.
   - **RPC** `public.asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int) returns int`: `volatile`, **`security definer`**, `search_path = ''`. Pasos:
     1. `if not privado.es_equipo() then raise ... 'sin_permiso'`.
     2. `select version from public.articulos where id = $1 for update`. Si no existe, lanza `no_encontrado`; si `version <> $3`, lanza `conflicto_version`.
@@ -407,9 +411,9 @@ description: "Lista de tareas: modelo de contenido del blog"
     2. Volver a crear (`create or replace`) `privado.notificar_cambio_articulo` y `privado.notificar_borrado_articulo` en la misma migración. PL/pgSQL no registra dependencias: el `drop` no falla, pero las rompería recién al ejecutarse.
     3. `n10` sigue llamando antes del cascade.
   - Nombres: en las taxonomías el borrado de redirecciones es `z30_borrar_redirecciones`, porque `z20` queda para `z20_recalcular_articulos` (H5). En artículos es `z20_borrar_redirecciones`. No hay triggers por fila en `articulos_etiquetas`. Actualizar también la tabla de privilegios y la de RLS en [data-model.md](data-model.md).
-- [ ] T049 [P] [H3] Crear `packages/db/src/consultas/listados.ts`, con `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta` y `listarParaSitemap`, según [contracts/db.md](contracts/db.md#consultas-públicas-visitante). Usa `count: 'exact'` y `range()`, y un tipo `Pagina<T>` compartido en `packages/db/src/paginacion.ts`. Debe pasar T046.
+- [ ] T049 [P] [H3] Crear `packages/db/src/consultas/listados.ts`, con `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta` y `listarParaSitemap`, según [contracts/db.md](contracts/db.md#consultas-públicas-visitante). Usa `count: 'exact'` y `range()`, y un tipo `Pagina<T>` compartido en `packages/db/src/paginacion.ts` (`pagina` empieza en 1 y `totalPaginas = ceil(total / porPagina)`). El orden es `publicado_en desc, id desc` (estable con fechas iguales). `ResumenArticulo` se agrega en `tipos-publicos.ts` y sus casts en `mapeo.ts`. Los listados por taxonomía pueden hacer **hasta 2 peticiones** (taxonomía y artículos) y el sitemap hasta 3: es una cantidad constante, sin N+1 (contrato). Debe pasar T046.
 - [ ] T050 [P] [H3] Crear `packages/db/src/consultas/equipo-taxonomias.ts`, con `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia` y `asignarEtiquetas` (vía `rpc('asignar_etiquetas')`). Debe pasar T047.
-- [ ] T051 [H3] Agregar el embebido de `etiquetas` en `obtenerArticuloPublicado` (`packages/db/src/consultas/articulos-publicos.ts`). Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T045 a T047 y T039 completo.
+- [ ] T051 [H3] Agregar el embebido de `etiquetas` en `obtenerArticuloPublicado` (`packages/db/src/consultas/articulos-publicos.ts`). **Actualizar `articulos-publicos.test.ts` (T039)** para que asigne etiquetas y verifique el embebido real, en lugar de `etiquetas: []` (hoy ninguna tarea lo pedía). Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T045 a T047 y T039 completo.
 - [ ] T052 [H3] Agregar a `supabase/tests/privilegios.test.sql`: `articulos_etiquetas` (anon y authenticated solo `select`: sin insert ni delete) y `asignar_etiquetas` (solo `authenticated`, `security definer`).
 
 **Checkpoint**: Las historias P1 están completas y el blog es navegable a nivel de datos.
@@ -476,6 +480,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - `privado.documento_busqueda(texto text, peso "char")`: `setweight(to_tsvector('public.es_sin_tildes', coalesce(texto,'')) || to_tsvector('pg_catalog.spanish', coalesce(texto,'')), peso)`.
   - `alter table public.articulos add column busqueda tsvector` y un índice GIN.
   - Trigger `a50_calcular_busqueda` (before ins/upd, siempre): A título; B extracto, el nombre de la categoría y los nombres de las etiquetas (consultados); C `bloques_a_texto(contenido)`.
+  - **Borrar una etiqueta** también tiene que recalcular la búsqueda de sus artículos (observación de escritor-tests en H3): `before delete on etiquetas` guarda los ids de sus artículos y `after delete` llama a `recalcular_busqueda`. El cascade borra las filas de `articulos_etiquetas` sin triggers.
   - `privado.recalcular_busqueda(articulo_ids uuid[])`, definer: un `update` que dispara `a50`. Cuando lo invoca un trigger (`pg_trigger_depth() > 1`) conserva la versión; desde el seed la incrementa, lo cual es inocuo. Lo invocan solo los triggers `z20_recalcular_articulos` de `categorias` y `etiquetas` (al cambiar `nombre`) y el seed. `asignar_etiquetas` **no** lo usa, porque su update de versión ya recalcula (I3).
   - Verificar que `z90_notificar_cambio` ignore estos updates (solo cambian `busqueda`, `version` y `actualizado_en`).
   - RPC `public.buscar_articulos(consulta text, limite int default 12, desplazamiento int default 0)`, `stable`, invoker. Devuelve `table(id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria_slug, rango real, total bigint)`, con `q := websearch_to_tsquery('public.es_sin_tildes', consulta) || websearch_to_tsquery('pg_catalog.spanish', consulta)`, el filtro `estado = 'publicado' and publicado_en <= now() and busqueda @@ q`, `order by ts_rank_cd(busqueda, q) desc, publicado_en desc`, `limit least(limite, 50) offset greatest(desplazamiento, 0)` y `count(*) over ()`. `grant execute` a `anon, authenticated`.
