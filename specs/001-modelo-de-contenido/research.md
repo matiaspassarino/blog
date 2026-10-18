@@ -92,7 +92,11 @@ Entorno verificado: Postgres 17.11 local (Supabase CLI 2.121), con estas extensi
   - Los triggers de `articulos_etiquetas` salen sin hacer nada si el artículo padre ya no existe. Los updates que solo cambian columnas derivadas (`busqueda`, `version`, `actualizado_en`) no notifican.
   - `privado.notificar_cambio_publico` es `security definer`, propiedad de `postgres`, con `search_path = ''`. Envía `net.http_post` (asincrónico) envuelto en `exception when others then raise warning`, de modo que **nunca** hace fallar la transacción.
   - La URL y el secreto se leen de Vault. Si faltan, no se envía nada.
-  - Después de instalar `pg_net` se revoca `execute` sobre `net.http_post` y `net.http_get` para `anon` y `authenticated`, para evitar SSRF: el event trigger de Supabase se los concede.
+  - **Riesgo aceptado y mitigado (SSRF)**: el event trigger de Supabase concede `execute` sobre `net.http_*` y `usage` sobre `net` a `anon` y `authenticated`, y `postgres` **no puede revocarlos** (los otorga `supabase_admin`; verificado). Mitigaciones:
+    1. `net` no está en los esquemas expuestos por la API (`[api] schemas = ["public","graphql_public"]`), así que no se puede invocar por PostgREST.
+    2. Ninguna función ejecutable por clientes llama a `net.http_*` (test pgTAP).
+    3. Ninguna función definer expuesta ejecuta SQL dinámico (test pgTAP).
+    4. `notificar_cambio_publico` no es ejecutable por clientes.
   - Un cambio de perfil emite **un solo** mensaje `tipo: 'autor'` con los slugs de hasta 50 artículos.
 - **Razón**: Un solo camino de notificación para el panel y el cron.
 - **Alternativas**: que el panel llame a revalidar (no cubre al cron); una tabla de cola con worker (más piezas).
@@ -134,7 +138,9 @@ Entorno verificado: Postgres 17.11 local (Supabase CLI 2.121), con estas extensi
 - **Decisión**: Postgres ejecuta los triggers del mismo evento por **orden alfabético**, así que los nombres llevan prefijo: `a10_` a `a90_` para los `before` y `z10_` a `z90_` para los `after`. No se usan listas `update of`: cada función compara `old` con `new`.
 
 ## D22. Asignación de etiquetas atómica
-- **Decisión**: RPC `asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int)`, `security invoker`. En una sola transacción reemplaza el conjunto de etiquetas, incrementa la versión del artículo (lo que da conflicto si cambió) y emite una única notificación.
+- **Decisión**: RPC `asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int)`, `security definer` con chequeo `es_equipo()`, y **única vía de escritura** de `articulos_etiquetas`: los clientes no tienen insert ni delete directos. En una sola transacción verifica la versión, reemplaza el conjunto de etiquetas y hace **un único** update de versión, que recalcula la búsqueda vía `a50`. Emite una única notificación.
+- **Por qué no se llama a `recalcular_busqueda` dentro del RPC**: un segundo update a profundidad de trigger 1 incrementaría la versión dos veces (hallazgo I3 de `/speckit-analyze`).
+- **Por qué no hay escrituras directas**: si existieran, la búsqueda quedaría desactualizada y no se notificaría (hallazgo I4).
 - **Razón**: Hacer delete más insert por PostgREST no es atómico y no respeta el bloqueo optimista.
 
 ## D23. Mensajes de error accionables

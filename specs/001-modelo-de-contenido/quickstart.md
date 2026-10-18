@@ -27,16 +27,16 @@ pnpm test:db
 
 | Archivo | Verifica |
 |---|---|
-| `perfiles.test.sql` | RF-021 a RF-026: alta por trigger, protección de rol y activo, último admin, vista `autores_publicos` |
-| `articulos_permisos.test.sql` | tabla de permisos × rol (CE-001), anon sin borradores (CE-002) |
-| `articulos_estados.test.sql` | matriz de transiciones, requisitos de publicación, `publicado_en`, versión (RF-008 a RF-011) |
-| `slugs_redirecciones.test.sql` | normalización, unicidad con sufijo, redirecciones sin cadenas (RF-005, RF-012) |
-| `taxonomias.test.sql` | categoría en uso, borrado de etiqueta, listados (RF-014 a RF-017) |
-| `busqueda.test.sql` | tildes, variantes, peso del título, sin no publicados (RF-018 a RF-020, CE-004) |
-| `programacion.test.sql` | `publicar_programados()` publica lo vencido y no lo futuro (RF-011) |
+| `privilegios.test.sql` | privilegios exactos por rol; `net.http_*` revocado |
+| `perfiles_base.test.sql` · `equipo.test.sql` | alta por trigger, protección de rol y activo, último admin, editor desactivado |
+| `slugs.test.sql` · `redirecciones.test.sql` | normalización, sufijos, redirecciones sin cadenas ni fugas (RF-005, RF-012) |
+| `articulos_borrador.test.sql` · `articulos_publicacion.test.sql` | campos del sistema, versión, matriz de estados, requisitos (RF-008 a RF-010) |
+| `autores_publicos.test.sql` | datos públicos de autores; vista no escribible |
+| `taxonomias.test.sql` | categoría en uso, borrado de etiqueta, `asignar_etiquetas` (RF-014 a RF-016) |
+| `programacion.test.sql` | cron y `publicado_en = programado_para` (RF-011, CE-003) |
+| `busqueda.test.sql` | conjunto de prueba ≥ 95 % en el top 3, pesos, solo publicados (RF-018 a RF-020, CE-004) |
 | `notificaciones.test.sql` | qué eventos encolan una petición en `net.http_request_queue` (RF-013) |
-| `storage.test.sql` | bucket `medios`: lectura pública, escritura solo del equipo |
-| `privilegios.test.sql` | privilegios exactos por rol; `autores_publicos` no escribible; `net.http_*` revocado |
+| `storage.test.sql` | bucket `medios` |
 | `seed.test.sql` | volumen y cobertura de los datos de demo (RF-028) |
 
 ## 3. Pruebas de paquetes

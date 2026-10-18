@@ -207,7 +207,7 @@ El admin da de alta miembros del equipo con rol editor o admin, cambia sus roles
 
 ### Entidades clave
 
-- **Perfil**: Miembro del equipo. Nombre visible, biografía, foto, rol (admin | editor), estado (activo | desactivado). Vinculado a una cuenta de acceso.
+- **Perfil**: Miembro del equipo. Nombre visible, biografía, foto (`avatar`), rol (admin | editor), estado (activo | desactivado). Vinculado a una cuenta de acceso.
 - **Artículo**: Unidad de contenido. Título, slug, extracto, imagen destacada (con texto alternativo), campos SEO, contenido (lista ordenada de bloques), estado, fecha programada, fecha de publicación, autor (perfil), categoría, etiquetas y versión (para detectar ediciones concurrentes).
 - **Bloque**: Elemento del contenido de un artículo, con un tipo y campos propios del tipo. Vive siempre dentro de un artículo y no tiene identidad fuera de él.
 - **Categoría**: Agrupación principal. Nombre, slug, descripción. Una categoría tiene muchos artículos.
@@ -244,3 +244,7 @@ El admin da de alta miembros del equipo con rol editor o admin, cambia sus roles
 - Comentarios, newsletter, formulario de contacto, analítica.
 - Historial de revisiones y flujo de aprobación editorial.
 - Multiidioma.
+
+**Heredado por otras specs** (decidido acá, se implementa allá):
+- Panel: el alta de miembros por invitación o creación de cuenta (H6-E1 se valida de punta a punta ahí), la suspensión de la cuenta al desactivar, la zona horaria por defecto para programar y la conversión de la URL de video al `idVideo`.
+- Sitio público: el render seguro de los bloques (el texto nunca se ejecuta como código; caso borde de inyección) y el endpoint `/api/revalidar`.

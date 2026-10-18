@@ -109,7 +109,7 @@ Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 | `a10_asignar_slug` | before ins/upd | Genera o normaliza el slug y le agrega un sufijo único |
 | `a20_campos_sistema` | before ins/upd | Solo para el cliente (`privado.es_cliente()`). En el insert fuerza `version = 1`, `publicado_en = null`, `estado = 'borrador'` y `creado_en = now()`. En el update conserva `autor_id`, `creado_en` y `publicado_en` |
 | `a30_controlar_version` | before upd | Con `pg_trigger_depth() > 1` conserva la versión. En otro caso exige que `new.version = old.version` (si no, `conflicto_version`) y la incrementa |
-| `a40_validar_estado` | before ins/upd | Aplica la matriz de transiciones (`estado_invalido`) y los requisitos de publicación (`requisitos_publicacion` con `detail`). Exige `programado_para > now()` al entrar a programado o al cambiar la fecha (`fecha_no_futura`). Asigna `publicado_en` en la primera publicación (`now()` si la hace un cliente, `programado_para` si la hace el cron). Limpia `programado_para` al salir de programado |
+| `a40_validar_estado` | before ins/upd | En el update aplica la matriz de transiciones (`estado_invalido`); en el insert, el cliente ya viene forzado a borrador y el sistema o seed puede insertar en cualquier estado y los requisitos de publicación (`requisitos_publicacion` con `detail`). Exige `programado_para > now()` al entrar a programado o al cambiar la fecha (`fecha_no_futura`). Si queda publicado sin `publicado_en`, lo asigna: `now()` si la hace un cliente, `programado_para` si la hace el cron. Nunca pisa un valor existente. Limpia `programado_para` al salir de programado |
 | `a50_calcular_busqueda` | before ins/upd | Recalcula siempre: A título; B extracto, categoría y etiquetas; C `bloques_a_texto` |
 | `a90_actualizado_en` | before upd | `actualizado_en = now()` |
 | `n10_notificar_borrado` | before del | Captura las etiquetas y notifica si el artículo era público |
@@ -144,8 +144,7 @@ Requisitos para publicar o programar: título, categoría y al menos un bloque. 
 | PK | `(articulo_id, etiqueta_id)` | |
 
 - Índice `(etiqueta_id, articulo_id)`.
-- Triggers `z10_` (after ins/del): recalculan la búsqueda del artículo si todavía existe; si no, no hacen nada.
-- La asignación desde el panel pasa por el RPC `asignar_etiquetas` (D22), que es atómico, incrementa la versión y emite una sola notificación.
+- **No tiene triggers ni políticas de escritura.** La única vía de escritura para los clientes es el RPC `asignar_etiquetas` (D22, `security definer` con chequeo `es_equipo()`), que es atómico, incrementa la versión una sola vez (`a50` recalcula la búsqueda) y emite una única notificación. El seed escribe como `postgres` y después llama a `privado.recalcular_busqueda`.
 
 ## `redirecciones`
 
@@ -186,11 +185,11 @@ Hay un test que verifica que **insert, update y delete fallan** como `anon` y co
 | `buscar_articulos(consulta text, limite int = 12, desplazamiento int = 0)` | invoker | anon, authenticated | Filtro explícito de publicados; `least(limite, 50)`; devuelve `total` (D12) |
 | `resolver_redireccion(tipo tipo_entidad, slug text)` | invoker | anon, authenticated | Join contra la entidad, que pasa por la RLS (D24) |
 | `previsualizar_slug(texto text, tipo tipo_entidad)` | invoker | authenticated | `case` estático, sin SQL dinámico |
-| `asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int)` | invoker | authenticated | `volatile`; atómica (D22) |
+| `asignar_etiquetas(articulo_id uuid, etiqueta_ids uuid[], version int)` | **definer** con chequeo `es_equipo()` | authenticated | `volatile`; atómica; única vía de escritura de etiquetas (D22) |
 
 **Internas** (`privado`): `es_cliente`, `es_equipo`, `es_admin`, `slugificar`, `tipos_bloque`, `contenido_valido`, `imagen_valida`, `bloques_a_texto`, las funciones de los triggers, `recalcular_busqueda(uuid)`, `notificar_cambio_publico(jsonb)`, `publicar_programados()`.
 - Las funciones puras (`slugificar`, `tipos_bloque`, `contenido_valido`, `imagen_valida` y `bloques_a_texto`) son `immutable` y van con `search_path = ''` y nombres calificados (`extensions.unaccent`).
-- `es_equipo` y `es_admin` son `stable security definer`.
+- `es_equipo`, `es_admin` y `asignar_slug` son `security definer`; `asignar_slug` lo necesita porque el editor no tiene `execute` sobre `slugificar`.
 
 ## Privilegios (D20)
 
@@ -199,18 +198,18 @@ La primera migración revoca los privilegios por defecto de Supabase y después 
 | Objeto | anon | authenticated |
 |---|---|---|
 | schema `privado` | usage | usage |
-| `privado.es_equipo`, `tipos_bloque`, `contenido_valido`, `imagen_valida` | execute | execute |
+| `privado.es_cliente`, `es_equipo`, `tipos_bloque`, `contenido_valido`, `imagen_valida` | execute | execute |
 | `privado.es_admin` | — | execute |
 | Resto de `privado.*` | — | — |
 | `categorias`, `etiquetas` | select | select, insert, update, delete |
 | `articulos` | select | select, insert, update, delete |
-| `articulos_etiquetas` | select | select, insert, delete |
+| `articulos_etiquetas` | select | select (escritura solo vía `asignar_etiquetas`) |
 | `redirecciones` | select | select |
 | `perfiles` | — | select, update |
 | `autores_publicos` | select | select |
 | `buscar_articulos`, `resolver_redireccion` | execute | execute |
 | `previsualizar_slug`, `asignar_etiquetas` | — | execute |
-| `net.http_post`, `net.http_get` | revocado | revocado |
+| `net.http_post`, `net.http_get` | no se puede revocar (lo otorga `supabase_admin`); mitigado (D14) | ídem |
 
 Ningún rol de cliente recibe TRUNCATE ni REFERENCES. Los tests usan `table_privs_are` y `function_privs_are`.
 
@@ -232,7 +231,6 @@ Todas las tablas tienen RLS. `E` = `(select privado.es_equipo())`, `A` = `(selec
 | | `articulos_delete_admin` | authenticated | delete | `A` |
 | `articulos_etiquetas` | `ae_select_publico` | anon | select | `exists (select 1 from articulos a where a.id = articulo_id and PUB(a))` |
 | | `ae_select_equipo` | authenticated | select | la misma condición `or E` |
-| | `ae_escritura_equipo` | authenticated | insert / delete | `E` |
 | `redirecciones` | `redirecciones_select` | anon, authenticated | select | `tipo_entidad <> 'articulo' or exists (select 1 from articulos a where a.id = entidad_id)` (hereda la RLS) |
 | `storage.objects` | `medios_select` | anon, authenticated | select | `bucket_id = 'medios'` |
 | | `medios_escritura_equipo` | authenticated | insert / update / delete | `bucket_id = 'medios' and E` |

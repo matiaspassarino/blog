@@ -1,0 +1,321 @@
+-- T008: privilegios explícitos (research D20, data-model "Privilegios (D20)")
+-- y matriz de permisos de la spec (CE-001) para los objetos de la Fase 2:
+-- perfiles, categorias, etiquetas, redirecciones y funciones de `privado`.
+-- Cada historia posterior agrega aquí sus objetos y sus celdas de la matriz
+-- (T033, T044, T052, T060).
+begin;
+\ir helpers/pruebas.psql
+select plan(92);
+
+-- ---------------------------------------------------------------------------
+-- Esquema privado
+-- ---------------------------------------------------------------------------
+select schema_privs_are('privado', 'anon', array['USAGE'],
+  'anon solo tiene usage sobre el esquema privado');
+select schema_privs_are('privado', 'authenticated', array['USAGE'],
+  'authenticated solo tiene usage sobre el esquema privado');
+select is_empty($$
+  select 1
+  from pg_namespace n, aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) a
+  where n.nspname = 'privado' and a.grantee = 0
+$$, 'PUBLIC no tiene privilegios sobre el esquema privado');
+
+-- ---------------------------------------------------------------------------
+-- Tablas (fila por fila de la tabla D20)
+-- ---------------------------------------------------------------------------
+select table_privs_are('public', 'perfiles', 'anon', array[]::text[],
+  'anon no tiene privilegios sobre perfiles');
+select table_privs_are('public', 'perfiles', 'authenticated', array['SELECT', 'UPDATE'],
+  'authenticated solo tiene select y update sobre perfiles');
+select table_privs_are('public', 'categorias', 'anon', array['SELECT'],
+  'anon solo tiene select sobre categorias');
+select table_privs_are('public', 'categorias', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+  'authenticated tiene select, insert, update y delete sobre categorias');
+select table_privs_are('public', 'etiquetas', 'anon', array['SELECT'],
+  'anon solo tiene select sobre etiquetas');
+select table_privs_are('public', 'etiquetas', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+  'authenticated tiene select, insert, update y delete sobre etiquetas');
+select table_privs_are('public', 'redirecciones', 'anon', array['SELECT'],
+  'anon solo tiene select sobre redirecciones');
+select table_privs_are('public', 'redirecciones', 'authenticated', array['SELECT'],
+  'authenticated solo tiene select sobre redirecciones');
+
+-- ---------------------------------------------------------------------------
+-- Funciones de privado
+-- Permitidas para anon: es_cliente, es_equipo, tipos_bloque, contenido_valido,
+-- imagen_valida. authenticated además: es_admin. El resto: sin execute.
+-- (es_cliente figura en T012 paso 12; la tabla D20 del data-model no la lista,
+-- pero la necesitan los triggers que corren como el rol del cliente.)
+-- ---------------------------------------------------------------------------
+select function_privs_are('privado', 'es_cliente', array[]::text[], 'anon', array['EXECUTE'],
+  'anon puede ejecutar privado.es_cliente');
+select function_privs_are('privado', 'es_cliente', array[]::text[], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.es_cliente');
+select function_privs_are('privado', 'es_equipo', array[]::text[], 'anon', array['EXECUTE'],
+  'anon puede ejecutar privado.es_equipo');
+select function_privs_are('privado', 'es_equipo', array[]::text[], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.es_equipo');
+select function_privs_are('privado', 'es_admin', array[]::text[], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.es_admin');
+select function_privs_are('privado', 'es_admin', array[]::text[], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.es_admin');
+select function_privs_are('privado', 'tipos_bloque', array[]::text[], 'anon', array['EXECUTE'],
+  'anon puede ejecutar privado.tipos_bloque');
+select function_privs_are('privado', 'tipos_bloque', array[]::text[], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.tipos_bloque');
+select function_privs_are('privado', 'contenido_valido', array['jsonb'], 'anon', array['EXECUTE'],
+  'anon puede ejecutar privado.contenido_valido');
+select function_privs_are('privado', 'contenido_valido', array['jsonb'], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.contenido_valido');
+select function_privs_are('privado', 'imagen_valida', array['jsonb'], 'anon', array['EXECUTE'],
+  'anon puede ejecutar privado.imagen_valida');
+select function_privs_are('privado', 'imagen_valida', array['jsonb'], 'authenticated', array['EXECUTE'],
+  'authenticated puede ejecutar privado.imagen_valida');
+select function_privs_are('privado', 'slugificar', array['text'], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.slugificar');
+select function_privs_are('privado', 'slugificar', array['text'], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.slugificar');
+select function_privs_are('privado', 'fijar_actualizado_en', array[]::text[], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.fijar_actualizado_en');
+select function_privs_are('privado', 'fijar_actualizado_en', array[]::text[], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.fijar_actualizado_en');
+select function_privs_are('privado', 'asignar_slug', array[]::text[], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.asignar_slug');
+select function_privs_are('privado', 'asignar_slug', array[]::text[], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.asignar_slug');
+select function_privs_are('privado', 'crear_perfil', array[]::text[], 'anon', array[]::text[],
+  'anon no puede ejecutar privado.crear_perfil');
+select function_privs_are('privado', 'crear_perfil', array[]::text[], 'authenticated', array[]::text[],
+  'authenticated no puede ejecutar privado.crear_perfil');
+
+-- Barrido general: cualquier función de privado fuera de la lista permitida
+-- (incluidas las que se agreguen después) no es ejecutable por los clientes.
+select is_empty($$
+  select p.oid::regprocedure
+  from pg_proc p
+  where p.pronamespace = 'privado'::regnamespace
+    and p.proname not in ('es_cliente', 'es_equipo', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and has_function_privilege('anon', p.oid, 'EXECUTE')
+$$, 'anon no ejecuta funciones de privado fuera de la lista permitida');
+select is_empty($$
+  select p.oid::regprocedure
+  from pg_proc p
+  where p.pronamespace = 'privado'::regnamespace
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+$$, 'authenticated no ejecuta funciones de privado fuera de la lista permitida');
+select is_empty($$
+  select p.oid::regprocedure
+  from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+  where p.pronamespace = 'privado'::regnamespace
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and a.grantee = 0
+    and a.privilege_type = 'EXECUTE'
+$$, 'PUBLIC no ejecuta funciones de privado fuera de la lista permitida');
+
+-- ---------------------------------------------------------------------------
+-- Ningún rol de cliente tiene TRUNCATE ni REFERENCES en public
+-- ---------------------------------------------------------------------------
+select is_empty($$
+  select c.oid::regclass
+  from pg_class c
+  where c.relnamespace = 'public'::regnamespace
+    and c.relkind in ('r', 'p', 'v', 'm', 'f')
+    and (has_table_privilege('anon', c.oid, 'TRUNCATE')
+         or has_table_privilege('anon', c.oid, 'REFERENCES'))
+$$, 'anon no tiene TRUNCATE ni REFERENCES sobre ninguna tabla de public');
+select is_empty($$
+  select c.oid::regclass
+  from pg_class c
+  where c.relnamespace = 'public'::regnamespace
+    and c.relkind in ('r', 'p', 'v', 'm', 'f')
+    and (has_table_privilege('authenticated', c.oid, 'TRUNCATE')
+         or has_table_privilege('authenticated', c.oid, 'REFERENCES'))
+$$, 'authenticated no tiene TRUNCATE ni REFERENCES sobre ninguna tabla de public');
+
+-- ---------------------------------------------------------------------------
+-- pg_net: mitigación (research D14). Los grants de net.* los otorga
+-- supabase_admin y postgres no puede revocarlos; net no está en los esquemas
+-- expuestos por la API, así que se verifica que ninguna función invocable por
+-- clientes llame a net.*.
+-- ---------------------------------------------------------------------------
+select is_empty($$
+  select p.oid::regprocedure from pg_proc p
+  where p.pronamespace in ('public'::regnamespace, 'privado'::regnamespace)
+    and p.prosrc ilike '%net.http_%'
+    and (has_function_privilege('anon', p.oid, 'execute')
+         or has_function_privilege('authenticated', p.oid, 'execute'))
+$$, 'ninguna función ejecutable por clientes llama a net.http_*');
+select is_empty($$
+  select p.oid::regprocedure from pg_proc p
+  where p.pronamespace = 'public'::regnamespace
+    and p.prosecdef
+    and p.prosrc ilike '%execute %'
+    and (has_function_privilege('anon', p.oid, 'execute')
+         or has_function_privilege('authenticated', p.oid, 'execute'))
+$$, 'ninguna función definer expuesta ejecuta SQL dinámico');
+
+-- ===========================================================================
+-- Matriz de permisos (CE-001)
+-- Celdas de la tabla "Requisitos de permisos" de la spec cuyos objetos existen
+-- en esta fase. Visitante = anon; Editor y Admin = miembros activos.
+-- ===========================================================================
+select pruebas.como_postgres();
+select pruebas.crear_usuario('admin@prueba.local', '{"rol":"admin"}', '{"nombre":"Admin Prueba"}');
+select pruebas.crear_usuario('editor@prueba.local', '{"rol":"editor"}', '{"nombre":"Editor Prueba"}');
+select pruebas.crear_usuario('desactivado@prueba.local', '{}', '{"nombre":"Cuenta Externa"}');
+insert into public.categorias (nombre, slug) values ('Matriz', 'matriz');
+insert into public.etiquetas (nombre, slug) values ('Matriz', 'matriz');
+insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id)
+  select 'categoria', 'matriz-vieja', id from public.categorias where slug = 'matriz';
+insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id)
+  values ('articulo', 'articulo-oculto', gen_random_uuid());
+
+-- Leer categorías y etiquetas: Visitante ✓ · Editor ✓ · Admin ✓
+select pruebas.como_anon();
+select isnt_empty($$select 1 from public.categorias where slug = 'matriz'$$,
+  'matriz: el visitante lee categorías');
+select isnt_empty($$select 1 from public.etiquetas where slug = 'matriz'$$,
+  'matriz: el visitante lee etiquetas');
+select pruebas.como('editor@prueba.local');
+select isnt_empty($$select 1 from public.categorias where slug = 'matriz'$$,
+  'matriz: el editor lee categorías');
+select isnt_empty($$select 1 from public.etiquetas where slug = 'matriz'$$,
+  'matriz: el editor lee etiquetas');
+select pruebas.como('admin@prueba.local');
+select isnt_empty($$select 1 from public.categorias where slug = 'matriz'$$,
+  'matriz: el admin lee categorías');
+select isnt_empty($$select 1 from public.etiquetas where slug = 'matriz'$$,
+  'matriz: el admin lee etiquetas');
+
+-- Crear, editar y eliminar categorías y etiquetas: Visitante ✗
+select pruebas.como_anon();
+select throws_ok($$insert into public.categorias (nombre) values ('Del visitante')$$,
+  '42501', null, 'matriz: el visitante no crea categorías');
+select throws_ok($$update public.categorias set descripcion = 'x' where slug = 'matriz'$$,
+  '42501', null, 'matriz: el visitante no edita categorías');
+select throws_ok($$delete from public.categorias where slug = 'matriz'$$,
+  '42501', null, 'matriz: el visitante no borra categorías');
+select throws_ok($$insert into public.etiquetas (nombre) values ('Del visitante')$$,
+  '42501', null, 'matriz: el visitante no crea etiquetas');
+select throws_ok($$update public.etiquetas set descripcion = 'x' where slug = 'matriz'$$,
+  '42501', null, 'matriz: el visitante no edita etiquetas');
+select throws_ok($$delete from public.etiquetas where slug = 'matriz'$$,
+  '42501', null, 'matriz: el visitante no borra etiquetas');
+
+-- Crear, editar y eliminar categorías y etiquetas: Editor ✓
+select pruebas.como('editor@prueba.local');
+select lives_ok($$insert into public.categorias (nombre) values ('Del editor')$$,
+  'matriz: el editor crea categorías');
+select lives_ok($$update public.categorias set descripcion = 'editada' where nombre = 'Del editor'$$,
+  'matriz: el editor edita categorías (sin error)');
+select isnt_empty($$select 1 from public.categorias where nombre = 'Del editor' and descripcion = 'editada'$$,
+  'matriz: la edición del editor sobre categorías se aplicó');
+select lives_ok($$delete from public.categorias where nombre = 'Del editor'$$,
+  'matriz: el editor borra categorías (sin error)');
+select is_empty($$select 1 from public.categorias where nombre = 'Del editor'$$,
+  'matriz: el borrado del editor sobre categorías se aplicó');
+select lives_ok($$insert into public.etiquetas (nombre) values ('Del editor')$$,
+  'matriz: el editor crea etiquetas');
+select lives_ok($$update public.etiquetas set descripcion = 'editada' where nombre = 'Del editor'$$,
+  'matriz: el editor edita etiquetas (sin error)');
+select isnt_empty($$select 1 from public.etiquetas where nombre = 'Del editor' and descripcion = 'editada'$$,
+  'matriz: la edición del editor sobre etiquetas se aplicó');
+select lives_ok($$delete from public.etiquetas where nombre = 'Del editor'$$,
+  'matriz: el editor borra etiquetas (sin error)');
+select is_empty($$select 1 from public.etiquetas where nombre = 'Del editor'$$,
+  'matriz: el borrado del editor sobre etiquetas se aplicó');
+
+-- Crear, editar y eliminar categorías y etiquetas: Admin ✓
+select pruebas.como('admin@prueba.local');
+select lives_ok($$insert into public.categorias (nombre) values ('Del admin')$$,
+  'matriz: el admin crea categorías');
+select lives_ok($$update public.categorias set descripcion = 'editada' where nombre = 'Del admin'$$,
+  'matriz: el admin edita categorías (sin error)');
+select isnt_empty($$select 1 from public.categorias where nombre = 'Del admin' and descripcion = 'editada'$$,
+  'matriz: la edición del admin sobre categorías se aplicó');
+select lives_ok($$delete from public.categorias where nombre = 'Del admin'$$,
+  'matriz: el admin borra categorías (sin error)');
+select is_empty($$select 1 from public.categorias where nombre = 'Del admin'$$,
+  'matriz: el borrado del admin sobre categorías se aplicó');
+select lives_ok($$insert into public.etiquetas (nombre) values ('Del admin')$$,
+  'matriz: el admin crea etiquetas');
+select lives_ok($$update public.etiquetas set descripcion = 'editada' where nombre = 'Del admin'$$,
+  'matriz: el admin edita etiquetas (sin error)');
+select isnt_empty($$select 1 from public.etiquetas where nombre = 'Del admin' and descripcion = 'editada'$$,
+  'matriz: la edición del admin sobre etiquetas se aplicó');
+select lives_ok($$delete from public.etiquetas where nombre = 'Del admin'$$,
+  'matriz: el admin borra etiquetas (sin error)');
+select is_empty($$select 1 from public.etiquetas where nombre = 'Del admin'$$,
+  'matriz: el borrado del admin sobre etiquetas se aplicó');
+
+-- Política *_escritura_equipo, caso negativo: una cuenta sin perfil activo
+-- (autenticada, pero fuera del equipo) no escribe taxonomías.
+select pruebas.como('desactivado@prueba.local');
+select throws_ok($$insert into public.categorias (nombre) values ('Del desactivado')$$,
+  '42501', null, 'matriz: un miembro desactivado no crea categorías');
+select throws_ok($$insert into public.etiquetas (nombre) values ('Del desactivado')$$,
+  '42501', null, 'matriz: un miembro desactivado no crea etiquetas');
+select lives_ok($$update public.categorias set descripcion = 'hackeada' where slug = 'matriz'$$,
+  'matriz: el update de un miembro desactivado no da error (RLS lo filtra)');
+select lives_ok($$delete from public.categorias where slug = 'matriz'$$,
+  'matriz: el delete de un miembro desactivado no da error (RLS lo filtra)');
+select pruebas.como_postgres();
+select isnt_empty($$select 1 from public.categorias where slug = 'matriz' and descripcion is null$$,
+  'matriz: la categoría sigue intacta tras los intentos del miembro desactivado');
+
+-- Leer datos públicos de autores: Editor ✓ · Admin ✓ (tabla perfiles).
+-- El visitante ✓ (solo autores con publicados) se cubre con la vista
+-- autores_publicos en H2 (T044); aquí se verifica que no lee la tabla directa.
+select pruebas.como_anon();
+select throws_ok($$select * from public.perfiles$$,
+  '42501', null, 'matriz: el visitante no lee la tabla perfiles directamente');
+select pruebas.como('editor@prueba.local');
+select isnt_empty($$select nombre, biografia, avatar from public.perfiles$$,
+  'matriz: el editor lee los datos de los autores');
+select pruebas.como('admin@prueba.local');
+select isnt_empty($$select nombre, biografia, avatar from public.perfiles$$,
+  'matriz: el admin lee los datos de los autores');
+
+-- Editar el perfil propio: Visitante ✗ · Editor ✓ · Admin ✓
+select pruebas.como_anon();
+select throws_ok($$update public.perfiles set nombre = 'Visitante'$$,
+  '42501', null, 'matriz: el visitante no edita perfiles');
+select pruebas.como('editor@prueba.local');
+select lives_ok($$update public.perfiles set nombre = 'Editor Editado', biografia = 'Bio del editor' where id = auth.uid()$$,
+  'matriz: el editor edita su perfil (sin error)');
+select isnt_empty($$select 1 from public.perfiles where id = auth.uid() and nombre = 'Editor Editado' and biografia = 'Bio del editor'$$,
+  'matriz: la edición del perfil propio del editor se aplicó');
+select pruebas.como('admin@prueba.local');
+select lives_ok($$update public.perfiles set nombre = 'Admin Editado', biografia = 'Bio del admin' where id = auth.uid()$$,
+  'matriz: el admin edita su perfil (sin error)');
+select isnt_empty($$select 1 from public.perfiles where id = auth.uid() and nombre = 'Admin Editado' and biografia = 'Bio del admin'$$,
+  'matriz: la edición del perfil propio del admin se aplicó');
+
+-- Redirecciones: se leen las de categorías y etiquetas, no las de artículos
+-- no visibles, y ningún cliente las escribe (solo los triggers definer).
+select pruebas.como_anon();
+select isnt_empty($$select 1 from public.redirecciones where slug_anterior = 'matriz-vieja'$$,
+  'matriz: el visitante lee redirecciones de categorías');
+select is_empty($$select 1 from public.redirecciones where slug_anterior = 'articulo-oculto'$$,
+  'matriz: el visitante no ve redirecciones de artículos no visibles');
+select throws_ok($$insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id) values ('categoria', 'x', gen_random_uuid())$$,
+  '42501', null, 'matriz: el visitante no escribe redirecciones');
+select pruebas.como('editor@prueba.local');
+select isnt_empty($$select 1 from public.redirecciones where slug_anterior = 'matriz-vieja'$$,
+  'matriz: el editor lee redirecciones de categorías');
+select is_empty($$select 1 from public.redirecciones where slug_anterior = 'articulo-oculto'$$,
+  'matriz: el editor no ve redirecciones de artículos inexistentes');
+select throws_ok($$insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id) values ('categoria', 'x', gen_random_uuid())$$,
+  '42501', null, 'matriz: el editor no escribe redirecciones');
+select pruebas.como('admin@prueba.local');
+select isnt_empty($$select 1 from public.redirecciones where slug_anterior = 'matriz-vieja'$$,
+  'matriz: el admin lee redirecciones de categorías');
+select is_empty($$select 1 from public.redirecciones where slug_anterior = 'articulo-oculto'$$,
+  'matriz: el admin no ve redirecciones de artículos inexistentes');
+select throws_ok($$insert into public.redirecciones (tipo_entidad, slug_anterior, entidad_id) values ('categoria', 'x', gen_random_uuid())$$,
+  '42501', null, 'matriz: el admin no escribe redirecciones');
+
+select pruebas.como_postgres();
+select * from finish();
+rollback;
