@@ -327,7 +327,7 @@ description: "Lista de tareas: sitio público (landing y blog)"
 - [ ] T103 [P] Enmienda PARCHE de `constitucion.md`: quitar `@astrojs/sitemap` de la tabla §II, porque el sitemap es propio (research D14; validación C-M2).
 - [ ] T104 [P] Teléfono del pie con formato legible: campo `contacto.whatsappVisible` (por ejemplo "+54 9 11 0000-0000") en `contracts/landing.md`, `esquema.ts`, `landing.ts` y `Pie.astro` (validación U-M11).
 - [ ] T105 [P] Spec 001: corregir el encabezado de `supabase/migrations/20261018120100_perfiles.sql:4`, que nombra `20261018120900_equipo.sql`; el archivo real será `20261019120900_equipo.sql` (validación, observación fuera de alcance).
-- [ ] T102 Actualizar la sección "Estado actual" de `CLAUDE.md` (spec 002 completa, Vault cargado, pendientes de la 001) y quitar la nota sobre la skill `astro-seo` desactualizada.
+- [X] T102 Actualizar la sección "Estado actual" de `CLAUDE.md` (spec 002 completa, Vault cargado, pendientes de la 001) y quitar la nota sobre la skill `astro-seo` desactualizada.
 
 ---
 
