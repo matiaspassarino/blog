@@ -6,9 +6,19 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", ".vercel/output/**"],
       "env": ["PUBLIC_*", "NEXT_PUBLIC_*", "SUPABASE_*", "SECRETO_REVALIDACION"]
     },
-    "dev": { "cache": false, "persistent": true },
-    "lint": { "dependsOn": ["^build"] },
-    "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] }
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "env": ["PUBLIC_*", "SECRETO_REVALIDACION", "SUPABASE_*", "CI"]
+    }
   }
 }
