@@ -1,0 +1,36 @@
+---
+// Hero de la portada (RF-012): único h1 de la página, propuesta principal y contacto.
+import { Image } from 'astro:assets';
+import { landing } from '../../contenido/landing';
+import { enlaceWhatsapp } from '../../lib/contacto';
+import Icono from '../iconos/Icono.astro';
+import Boton from '../ui/Boton.astro';
+import Contenedor from '../ui/Contenedor.astro';
+
+const { hero, contacto } = landing;
+---
+
+<div class="bg-marca-suave">
+  <Contenedor class="grid items-center gap-10 py-seccion lg:grid-cols-2">
+    <div>
+      <h1 class="font-titulos text-titulo-1 leading-tight font-bold text-balance">{hero.titulo}</h1>
+      <p class="mt-5 max-w-prose text-xl text-texto-suave">{hero.bajada}</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <Boton href={enlaceWhatsapp(contacto.whatsapp, contacto.mensaje)} externo>
+          <Icono nombre="whatsapp" class="size-5" />
+          {hero.cta}
+        </Boton>
+        <Boton href="/blog" variante="secundaria">Leer el blog</Boton>
+      </div>
+    </div>
+    <Image
+      src={hero.imagen.src}
+      alt={hero.imagen.alt}
+      widths={[480, 800, 1200, 1600]}
+      sizes="(min-width: 1024px) 36rem, 100vw"
+      loading="eager"
+      fetchpriority="high"
+      class="w-full rounded-lg shadow-tarjeta"
+    />
+  </Contenedor>
+</div>

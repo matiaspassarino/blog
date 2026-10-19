@@ -1,0 +1,42 @@
+---
+// Testimonios (RF-012). Los de la demo son ficticios y lo dicen a la vista
+// (contracts/landing.md): no se presentan reseñas inventadas como reales.
+import { Image } from 'astro:assets';
+import { landing } from '../../contenido/landing';
+import Contenedor from '../ui/Contenedor.astro';
+
+const { testimonios } = landing;
+---
+
+<section aria-labelledby="titulo-testimonios" class="py-seccion">
+  <Contenedor>
+    <h2 id="titulo-testimonios" class="font-titulos text-titulo-2 font-bold">{testimonios.titulo}</h2>
+    <p class="mt-2 text-sm text-texto-suave">Testimonios de ejemplo</p>
+    <ul class="mt-10 grid gap-6 md:grid-cols-3" role="list">
+      {
+        testimonios.items.map((testimonio) => (
+          <li>
+            <figure class="flex h-full flex-col rounded-lg border border-separador p-6">
+              <blockquote class="flex-1 text-lg">“{testimonio.cita}”</blockquote>
+              <figcaption class="mt-6 flex items-center gap-3">
+                {testimonio.foto && (
+                  <Image
+                    src={testimonio.foto.src}
+                    alt={testimonio.foto.alt}
+                    width={48}
+                    height={48}
+                    class="size-12 rounded-full object-cover"
+                  />
+                )}
+                <span>
+                  <span class="block font-semibold">{testimonio.nombre}</span>
+                  <span class="block text-sm text-texto-suave">{testimonio.cargo}</span>
+                </span>
+              </figcaption>
+            </figure>
+          </li>
+        ))
+      }
+    </ul>
+  </Contenedor>
+</section>

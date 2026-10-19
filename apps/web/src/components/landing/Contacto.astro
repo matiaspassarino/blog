@@ -1,0 +1,31 @@
+---
+// Llamada final a contactar (RF-013b): WhatsApp como acción principal y correo como
+// alternativa visible. Destino del enlace "Contacto" de la cabecera.
+import { landing } from '../../contenido/landing';
+import { enlaceCorreo, enlaceWhatsapp } from '../../lib/contacto';
+import Icono from '../iconos/Icono.astro';
+import Boton from '../ui/Boton.astro';
+import Contenedor from '../ui/Contenedor.astro';
+
+const { contacto } = landing;
+---
+
+<section id="contacto" aria-labelledby="titulo-contacto" class="scroll-mt-4 py-seccion">
+  <Contenedor ancho="lectura" class="text-center">
+    <h2 id="titulo-contacto" class="font-titulos text-titulo-2 font-bold text-balance">{contacto.titulo}</h2>
+    <p class="mt-4 text-lg text-texto-suave">{contacto.texto}</p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+      <Boton href={enlaceWhatsapp(contacto.whatsapp, contacto.mensaje)} externo>
+        <Icono nombre="whatsapp" class="size-5" />
+        Escribinos por WhatsApp
+      </Boton>
+      <a
+        href={enlaceCorreo(contacto.correo, contacto.asunto)}
+        class="inline-flex min-h-11 items-center gap-2 font-medium underline underline-offset-4 hover:text-marca"
+      >
+        <Icono nombre="correo" class="size-5" />
+        o mandanos un correo a {contacto.correo}
+      </a>
+    </div>
+  </Contenedor>
+</section>

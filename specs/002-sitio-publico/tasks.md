@@ -247,10 +247,10 @@ description: "Lista de tareas: sitio público (landing y blog)"
 
 ### Implementación de la Historia 3
 
-- [ ] T070 [P] [H3] Agregar las imágenes de demo a `apps/web/src/assets/landing/` (hero y fotos de testimonios, con licencia libre o generadas) y referenciarlas desde `landing.ts`.
-- [ ] T071 [P] [H3] Crear `apps/web/src/components/landing/Hero.astro` (`h1`, bajada, `Boton` hacia WhatsApp e imagen con `<Image>` de `astro:assets`, `loading="eager"` y `fetchpriority="high"`), `Propuesta.astro` y `Servicios.astro` (íconos de T038), cada uno con su `h2`.
-- [ ] T072 [P] [H3] Crear `apps/web/src/components/landing/Testimonios.astro` (con la leyenda visible "Testimonios de ejemplo", [contracts/landing.md](contracts/landing.md)), `UltimosArticulos.astro` (usa `TarjetaArticulo`; no renderiza nada si la lista está vacía) y `Contacto.astro` (`id="contacto"`, WhatsApp como acción principal y correo como alternativa visible). Debe pasar T069.
-- [ ] T073 [H3] Reescribir `apps/web/src/pages/index.astro`: `<Base>` con `Seo` (`sitio.nombre` + lema, `sitio.descripcion`), las seis secciones en orden, `listarArticulosPublicados({ porPagina: 3 })` y `Astro.cache.set(cacheListado())`. Debe pasar T068.
+- [X] T070 [P] [H3] Agregar las imágenes de demo a `apps/web/src/assets/landing/` (hero y fotos de testimonios, con licencia libre o generadas) y referenciarlas desde `landing.ts`.
+- [X] T071 [P] [H3] Crear `apps/web/src/components/landing/Hero.astro` (`h1`, bajada, `Boton` hacia WhatsApp e imagen con `<Image>` de `astro:assets`, `loading="eager"` y `fetchpriority="high"`), `Propuesta.astro` y `Servicios.astro` (íconos de T038), cada uno con su `h2`.
+- [X] T072 [P] [H3] Crear `apps/web/src/components/landing/Testimonios.astro` (con la leyenda visible "Testimonios de ejemplo", [contracts/landing.md](contracts/landing.md)), `UltimosArticulos.astro` (usa `TarjetaArticulo`; no renderiza nada si la lista está vacía) y `Contacto.astro` (`id="contacto"`, WhatsApp como acción principal y correo como alternativa visible). Debe pasar T069.
+- [X] T073 [H3] Reescribir `apps/web/src/pages/index.astro`: `<Base>` con `Seo` (`sitio.nombre` + lema, `sitio.descripcion`), las seis secciones en orden, `listarArticulosPublicados({ porPagina: 3 })` y `Astro.cache.set(cacheListado())`. Debe pasar T068.
 
 **Checkpoint**: la demo se puede mostrar completa (portada + blog).
 
