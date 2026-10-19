@@ -45,7 +45,7 @@ Extensiones que se instalan: `unaccent`, `pg_net`, `pg_cron` (además de `pgcryp
 - `privado.crear_perfil()`: `after insert on auth.users`, definer. Toma `rol` de `raw_app_meta_data->>'rol'` (editor por defecto) y `nombre` de `raw_user_meta_data->>'nombre'` (si falta, la parte local del email). Pone `activo = raw_app_meta_data ? 'rol'`: una cuenta que no creó el servidor nace inactiva.
 - `a20_proteger_perfil` (`before update`): para peticiones de cliente, `id` y `creado_en` son inmutables, y cambiar `rol` o `activo` (con `is distinct from`) exige `es_admin()`.
 - `z10_garantizar_admin` (`after update`): toma `pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))` y lanza `ultimo_admin` si no queda ningún admin activo (RF-023).
-- `z90_notificar_cambio_autor` (`after update`, cuando cambian `nombre`, `biografia` o `avatar`): emite un único mensaje `tipo: 'autor'`.
+- `z90_notificar_cambio_autor` (`after update`, cuando cambian `nombre`, `biografia`, `avatar` o `slug`): emite un único mensaje `tipo: 'autor'` con `slugs = [slug del autor]`. **Se implementa en la spec 002** junto con `perfiles.slug` (ver `specs/002-sitio-publico/data-model.md`).
 
 Los perfiles no se borran: la FK es `restrict` y no hay política de delete.
 

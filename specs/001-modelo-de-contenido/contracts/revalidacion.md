@@ -39,10 +39,12 @@ X-Blog-Firma: sha256={hex(HMAC-SHA256(secreto_revalidacion, marca + "." + cuerpo
 | Un artículo publicado pasa a archivado o a borrador, o se elimina | Sí |
 | Cambios en borradores o programados | No |
 | Se crea, edita o elimina una categoría o etiqueta | Sí |
-| Cambio de `nombre`, `biografia` o `avatar` de un autor con artículos publicados | Sí: **un** mensaje `tipo: 'autor'` con los slugs de hasta 50 de sus artículos publicados |
+| Cambio de `nombre`, `biografia` o `avatar` de un autor con artículos publicados | Sí: **un** mensaje `tipo: 'autor'` con `slugs = [slug del autor]` (spec 002) |
 | Updates que solo cambian `busqueda`, `version` o `actualizado_en` | No |
 
 ## Rutas que calcula `rutasAfectadas` (`@blog/db`)
+
+> **Reemplazado en la spec 002**: el sitio usa caché de rutas con tags y `invalidacionesDe(cambio)` (ver `specs/002-sitio-publico/contracts/cache.md`, research D1). Lo que sigue queda como historia; el punto "Pendiente para la spec web" se resuelve con los tags `categoria:<id>` / `etiqueta:<id>` de las páginas de artículos.
 
 - **Artículo**: `/blog/{slug}` por cada slug, `/blog`, `/blog/pagina/*` (las primeras 5 páginas), `/blog/categoria/{c}`, `/blog/etiqueta/{e}`, `/`, `/sitemap.xml`, `/rss.xml`.
 - **Autor**: `/blog/{slug}` por cada slug y `/blog`.

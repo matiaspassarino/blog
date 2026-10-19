@@ -25,6 +25,8 @@ Se apoya en el modelo de contenido de la spec 001, que ya define qué es públic
 
 - P: ¿Adónde lleva la llamada a contactar? → R: A WhatsApp, con un mensaje prearmado, y a un correo como alternativa. Ambos se configuran por cliente.
 - P: ¿Dónde se configuran los textos de la landing? → R: En un archivo de contenido del proyecto, que se valida al generar el sitio. No se editan desde el panel.
+- P: ¿Cambia la URL del autor si se renombra? → R: No. El identificador se genera una vez a partir del nombre y es inmutable, sin redirecciones (RF-011).
+- P: ¿Un artículo archivado o eliminado responde 404 o 410? → R: 404, igual que todo lo no publicado. Un archivado puede volver a publicarse, y así no se expone qué existió (RF-006).
 
 ## Escenarios de usuario y pruebas *(obligatorio)*
 
@@ -151,6 +153,8 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 - **Enlace de llamada a la acción con un esquema peligroso** (por ejemplo `javascript:`): no se renderiza como enlace activo.
 - **Video de un proveedor caído**: el resto del artículo se ve igual; el bloque muestra su título y un enlace al video original.
 - **Autor desactivado con artículos publicados**: su página y su ficha siguen visibles, porque la autoría se conserva.
+- **Autor renombrado**: su URL no cambia. La página muestra el nombre nuevo.
+- **Dos miembros con el mismo nombre**: el segundo recibe un identificador con sufijo numérico (por ejemplo, `ana-perez-2`).
 - **Slug con mayúsculas o barra final** (`/blog/Mi-Articulo/`): redirige de forma permanente a la forma canónica.
 - **La base no responde** mientras se regenera una página: el visitante sigue viendo la última versión generada. Si la página nunca se generó, ve una página de error amable con estado 5xx (no un 404 falso).
 - **Aviso de cambio con cuerpo malformado o tipo desconocido**: se rechaza como petición inválida, sin efectos.
@@ -167,14 +171,14 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 - **RF-003**: Ningún texto de un bloque DEBE interpretarse como marcado ejecutable. Los enlaces solo DEBEN aceptar destinos `http`, `https`, `mailto` y rutas internas.
 - **RF-004**: Los videos DEBEN cargar el reproductor externo solo cuando el visitante lo pide. Hasta entonces se muestra una vista previa liviana.
 - **RF-005**: Al final del artículo DEBEN mostrarse la ficha del autor y hasta 3 artículos relacionados: primero los de la misma categoría, completando con los más recientes.
-- **RF-006**: Los artículos no publicados y los slugs inexistentes DEBEN responder 404.
+- **RF-006**: Los artículos no publicados (borrador, programado o archivado), los eliminados y los slugs inexistentes DEBEN responder 404, sin distinguir entre esos casos. El sitio NO DEBE usar 410.
 
 **Listados**
 - **RF-007**: `/blog` DEBE listar los artículos publicados por fecha de publicación descendente, de a 12 por página, con páginas siguientes en `/blog/pagina/{n}`.
 - **RF-008**: Las páginas de categoría (`/blog/categoria/{slug}`), etiqueta (`/blog/etiqueta/{slug}`) y autor (`/blog/autor/{slug}`) DEBEN mostrar su presentación y sus artículos publicados con la misma paginación (`…/pagina/{n}`).
 - **RF-009**: Cada tarjeta de artículo DEBE mostrar imagen, título enlazado, extracto, categoría y fecha. La misma tarjeta DEBE usarse en todos los listados, en los relacionados y en la portada.
 - **RF-010**: La paginación DEBE indicar la página actual y ofrecer anterior y siguiente. Las páginas fuera de rango responden 404 y `/pagina/1` redirige a la URL sin paginar.
-- **RF-011**: Cada autor con artículos publicados DEBE tener un identificador legible y estable para su URL, derivado de su nombre con las mismas reglas de normalización de slugs de la spec 001.
+- **RF-011**: Cada miembro DEBE tener un identificador legible para su URL de autor. Se genera una sola vez a partir de su nombre, con las reglas de normalización y unicidad de slugs de la spec 001. Es inmutable: no cambia al renombrar al miembro, no se edita y no genera redirecciones.
 
 **Landing**
 - **RF-012**: La portada DEBE mostrar, en orden, estas secciones: hero con llamada a la acción, propuesta de valor, servicios o beneficios, testimonios, últimos 3 artículos publicados y llamada final a contactar.
@@ -230,7 +234,7 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 ### Entidades clave *(si la feature involucra datos)*
 
 - **Artículo público**: la vista de un artículo publicado según la spec 001. Incluye título, slug, extracto, SEO, imagen destacada, bloques, fechas, categoría, etiquetas y autor.
-- **Autor público**: nombre, biografía, foto y **un identificador legible para su URL (nuevo en esta spec)**. Solo existe para miembros con artículos publicados.
+- **Autor público**: nombre, biografía, foto y **un identificador legible e inmutable para su URL (nuevo en esta spec)**. Solo existe para miembros con artículos publicados.
 - **Contenido de la landing**: textos del hero, propuesta de valor, servicios o beneficios (título, descripción, ícono), testimonios (cita, nombre, cargo, foto) y datos de contacto. Se adapta por cliente.
 - **Aviso de cambio**: el mensaje firmado del contrato de la spec 001 (tipo, id, slugs, categorías, etiquetas, fecha).
 - **Redirección**: un slug anterior que apunta a la entidad vigente (spec 001).
@@ -253,7 +257,7 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 ## Supuestos
 
 - El modelo de contenido, las reglas de visibilidad, el contrato del aviso de cambio y los datos de demo son los de la spec 001. Esta spec no cambia reglas de negocio de los artículos.
-- La única novedad en los datos es el identificador legible de los autores (RF-011). Hereda las reglas de slugs y de redirección de la spec 001.
+- La única novedad en los datos es el identificador legible de los autores (RF-011). Hereda la normalización de slugs de la spec 001, pero no las redirecciones, porque es inmutable.
 - El sitio es solo en español y tiene un único dominio por despliegue.
 - Las páginas de demo usan las imágenes del contenido de demo. Si falta una imagen, se usa una genérica del sitio.
 - El tamaño de página de 12 y el feed de 20 artículos son valores por defecto que se pueden cambiar.

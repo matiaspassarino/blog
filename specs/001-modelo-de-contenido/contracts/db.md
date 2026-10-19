@@ -81,11 +81,12 @@ Todas propagan `ErrorDominio`. Las operaciones de update **siempre** envían `ve
 export type CambioPublico = {
   tipo: 'articulo' | 'categoria' | 'etiqueta' | 'autor';
   id: string;
-  slugs: string[];            // actuales y anteriores del objeto; para 'autor', los slugs de sus artículos publicados (máx. 50)
+  slugs: string[];            // actuales y anteriores del objeto; para 'autor', el slug del autor (spec 002)
   categorias?: string[];      // slugs de categorías afectadas (artículos)
   etiquetas?: string[];       // slugs de etiquetas afectadas (artículos)
 };
-export function rutasAfectadas(cambio: CambioPublico): string[]; // función pura
+// Spec 002: rutasAfectadas se reemplaza por invalidacionesDe(cambio): { tags, rutas } y CambioPublico
+// se deriva de esquemaCambioPublico (Zod). Ver specs/002-sitio-publico/contracts/cache.md.
 ```
 
 Ver [revalidacion.md](revalidacion.md).

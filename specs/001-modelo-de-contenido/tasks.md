@@ -440,7 +440,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 4
 
-- [ ] T054 [H4] Crear `supabase/migrations/20261018120700_programacion.sql`:
+- [ ] T054 [H4] Crear `supabase/migrations/20261019120700_programacion.sql`:
   - índice `(programado_para) where estado = 'programado'`;
   - `privado.publicar_programados()`, definer: `update public.articulos set estado = 'publicado' where id in (select id from public.articulos where estado = 'programado' and programado_para <= now() for update skip locked)`;
   - `select cron.schedule('publicar-programados', '* * * * *', 'select privado.publicar_programados()')`;
@@ -474,7 +474,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 5
 
-- [ ] T058 [H5] Crear `supabase/migrations/20261018120800_busqueda.sql` (research D12):
+- [ ] T058 [H5] Crear `supabase/migrations/20261019120800_busqueda.sql` (research D12):
   - `create text search configuration public.es_sin_tildes (copy = pg_catalog.spanish); alter text search configuration public.es_sin_tildes alter mapping for hword, hword_part, word with extensions.unaccent, pg_catalog.spanish_stem;`
   - `privado.bloques_a_texto(jsonb)`, `immutable`: extrae el texto de `parrafo`, `titulo`, `cita` (texto y autor), `lista`, `imagen` (`alt` y leyenda), `galeria` (alts), `cta` (título y texto) y `video` (título); excluye `codigo`; reemplaza `\[([^\]]*)\]\([^)]*\)` por `\1`; trunca a 200.000 caracteres.
   - `privado.documento_busqueda(texto text, peso "char")`: `setweight(to_tsvector('public.es_sin_tildes', coalesce(texto,'')) || to_tsvector('pg_catalog.spanish', coalesce(texto,'')), peso)`.
@@ -518,11 +518,12 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 6
 
-- [ ] T063 [H6] Crear `supabase/migrations/20261018120900_equipo.sql`:
+- [ ] T063 [H6] Crear `supabase/migrations/20261019120900_equipo.sql`:
   - política `perfiles_update_admin` (update to authenticated, using y check `(select privado.es_admin())`);
   - **`create or replace`** de `privado.proteger_perfil()`: ya existe desde la validación del MVP (A-B1, migración de perfiles), con el trigger `a20_proteger_perfil`, y hoy no deja que ningún cliente cambie rol ni activo. Se amplía para que sí pueda el admin: `if (new.rol, new.activo) is distinct from (old.rol, old.activo) and not privado.es_admin()` lanza `sin_permiso`. **No** crear otro trigger;
   - trigger `z10_garantizar_admin` (after update, definer): `perform pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))`; si `not exists (select 1 from public.perfiles where rol = 'admin' and activo)`, lanza `ultimo_admin`;
-  - trigger `z90_notificar_cambio_autor` (after update, `when ((old.nombre, old.biografia, old.avatar) is distinct from (new.nombre, new.biografia, new.avatar))`): si hay publicados, llama a `privado.notificar_cambio_publico` con `{tipo:'autor', id, slugs: (hasta 50 slugs publicados)}`.
+  - ~~trigger `z90_notificar_cambio_autor`~~: **se trasladó a la spec 002** (`20261019120100_autores_publicos.sql`, data-model 002), con `slugs = [slug del autor]`. No crearlo acá.
+  - Nota (spec 002): las migraciones de H4–H6 llevan timestamps posteriores a `20261019120100` para respetar el orden de autoría.
 - [ ] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
 
 **Checkpoint**: Las 6 historias están completas.
