@@ -1,6 +1,7 @@
 ---
 // Hero de la portada (RF-012): único h1 de la página, propuesta principal y contacto.
 import { Image } from 'astro:assets';
+import { ANCHOS_IMAGEN } from '../../lib/anchos-imagen';
 import { CALIDAD_IMAGEN } from '../../lib/imagenes';
 import { landing } from '../../contenido/landing';
 import { enlaceWhatsapp } from '../../lib/contacto';
@@ -28,7 +29,7 @@ const { hero, contacto } = landing;
       quality={CALIDAD_IMAGEN}
       src={hero.imagen.src}
       alt={hero.imagen.alt}
-      widths={[480, 800, 1200, 1600]}
+      widths={ANCHOS_IMAGEN}
       sizes="(min-width: 1024px) 36rem, 100vw"
       loading="eager"
       fetchpriority="high"

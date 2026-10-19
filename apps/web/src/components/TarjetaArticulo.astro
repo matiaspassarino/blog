@@ -5,6 +5,7 @@ import type { ResumenArticulo } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
 import { fechaLarga } from '../lib/fechas';
+import { ANCHOS_IMAGEN } from '../lib/anchos-imagen';
 import { CALIDAD_IMAGEN, urlImagen } from '../lib/imagenes';
 
 interface Props {
@@ -32,7 +33,7 @@ const SIZES = '(min-width: 1024px) 23rem, (min-width: 640px) 50vw, 100vw';
         alt=""
         width={imagen.ancho}
         height={imagen.alto}
-        widths={[400, 800]}
+        widths={ANCHOS_IMAGEN.slice(0, 2)}
         sizes={SIZES}
         loading={prioridad ? 'eager' : 'lazy'}
         fetchpriority={prioridad ? 'high' : undefined}

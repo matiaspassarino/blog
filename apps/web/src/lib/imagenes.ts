@@ -3,6 +3,7 @@
 // @blog/bloques son síncronos.
 import type { Imagen } from '@blog/bloques';
 import { getImage } from 'astro:assets';
+import { ANCHOS_IMAGEN } from './anchos-imagen';
 
 /** Ruta absoluta tal cual; relativa, al bucket público `medios` de Supabase Storage. */
 export function urlImagen(ruta: string, supabaseUrl: string): string {
@@ -16,8 +17,6 @@ export type MapaVariantes = Map<string, Variante>;
 /** Calidad de las imágenes optimizadas: Vercel usa 100 por defecto y pesa el doble sin diferencia visible (T099). */
 export const CALIDAD_IMAGEN = 75;
 
-const ANCHOS = [480, 800, 1200, 1600];
-
 /** ruta → variante optimizada, para las imágenes que muestra una página. */
 export async function precalcularVariantes(imagenes: Imagen[], supabaseUrl: string): Promise<MapaVariantes> {
   const mapa: MapaVariantes = new Map();
@@ -25,7 +24,9 @@ export async function precalcularVariantes(imagenes: Imagen[], supabaseUrl: stri
     imagenes
       .filter((imagen, i, todas) => todas.findIndex((otra) => otra.ruta === imagen.ruta) === i)
       .map(async (imagen) => {
-        const anchos = ANCHOS.filter((ancho) => ancho < imagen.ancho).concat(imagen.ancho);
+        // Solo anchos que Vercel genera (anchos-imagen.ts); nunca más grande que el original.
+        const disponibles = ANCHOS_IMAGEN.filter((ancho) => ancho <= imagen.ancho);
+        const anchos = disponibles.length > 0 ? disponibles : [ANCHOS_IMAGEN[0] ?? imagen.ancho];
         const resultado = await getImage({
           src: urlImagen(imagen.ruta, supabaseUrl),
           width: imagen.ancho,
