@@ -2,6 +2,7 @@
 // Testimonios (RF-012). Los de la demo son ficticios y lo dicen a la vista
 // (contracts/landing.md): no se presentan reseñas inventadas como reales.
 import { Image } from 'astro:assets';
+import { CALIDAD_IMAGEN } from '../../lib/imagenes';
 import { landing } from '../../contenido/landing';
 import Contenedor from '../ui/Contenedor.astro';
 
@@ -21,6 +22,7 @@ const { testimonios } = landing;
               <figcaption class="mt-6 flex items-center gap-3">
                 {testimonio.foto && (
                   <Image
+                    quality={CALIDAD_IMAGEN}
                     src={testimonio.foto.src}
                     alt={testimonio.foto.alt}
                     width={48}

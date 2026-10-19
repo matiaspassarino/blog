@@ -5,7 +5,7 @@ import type { ResumenArticulo } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
 import { fechaLarga } from '../lib/fechas';
-import { urlImagen } from '../lib/imagenes';
+import { CALIDAD_IMAGEN, urlImagen } from '../lib/imagenes';
 
 interface Props {
   articulo: ResumenArticulo;
@@ -27,6 +27,7 @@ const SIZES = '(min-width: 1024px) 23rem, (min-width: 640px) 50vw, 100vw';
   {
     imagen ? (
       <Image
+        quality={CALIDAD_IMAGEN}
         src={urlImagen(imagen.ruta, PUBLIC_SUPABASE_URL)}
         alt=""
         width={imagen.ancho}

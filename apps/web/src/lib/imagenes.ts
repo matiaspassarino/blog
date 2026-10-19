@@ -13,6 +13,9 @@ export function urlImagen(ruta: string, supabaseUrl: string): string {
 type Variante = { src: string; srcset: string; width: number; height: number };
 export type MapaVariantes = Map<string, Variante>;
 
+/** Calidad de las imágenes optimizadas: Vercel usa 100 por defecto y pesa el doble sin diferencia visible (T099). */
+export const CALIDAD_IMAGEN = 75;
+
 const ANCHOS = [480, 800, 1200, 1600];
 
 /** ruta → variante optimizada, para las imágenes que muestra una página. */
@@ -28,6 +31,7 @@ export async function precalcularVariantes(imagenes: Imagen[], supabaseUrl: stri
           width: imagen.ancho,
           height: imagen.alto,
           widths: anchos,
+          quality: CALIDAD_IMAGEN,
         });
         mapa.set(imagen.ruta, {
           src: resultado.src,

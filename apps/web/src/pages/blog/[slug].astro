@@ -17,7 +17,7 @@ import Base from '../../layouts/Base.astro';
 import { cacheArticulo, cacheNoEncontrado, cacheRedireccion } from '../../lib/cache';
 import { datos } from '../../lib/datos';
 import { fechaLarga } from '../../lib/fechas';
-import { precalcularVariantes, urlImagen } from '../../lib/imagenes';
+import { CALIDAD_IMAGEN, precalcularVariantes, urlImagen } from '../../lib/imagenes';
 import { migasDelBlog } from '../../lib/listados';
 import { blogPosting, migas as migasJsonLd } from '../../lib/json-ld';
 import { resolverEntidad, respuestaNoEncontrado } from '../../lib/resolver';
@@ -114,6 +114,7 @@ const migas: Miga[] = migasDelBlog(
       destacada && (
         <Contenedor class="mt-8">
           <Image
+            quality={CALIDAD_IMAGEN}
             src={urlImagen(destacada.ruta, PUBLIC_SUPABASE_URL)}
             alt={destacada.decorativa ? '' : (destacada.alt ?? '')}
             width={destacada.ancho}

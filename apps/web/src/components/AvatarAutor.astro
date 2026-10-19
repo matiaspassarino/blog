@@ -4,7 +4,7 @@
 import type { AutorPublico } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
-import { urlImagen } from '../lib/imagenes';
+import { CALIDAD_IMAGEN, urlImagen } from '../lib/imagenes';
 
 interface Props {
   autor: AutorPublico;
@@ -26,6 +26,7 @@ const clases = tamanio === 64 ? 'size-16 text-xl' : 'size-10 text-sm';
 {
   autor.avatar ? (
     <Image
+      quality={CALIDAD_IMAGEN}
       src={urlImagen(autor.avatar.ruta, PUBLIC_SUPABASE_URL)}
       alt={decorativo ? '' : etiqueta}
       width={tamanio}
