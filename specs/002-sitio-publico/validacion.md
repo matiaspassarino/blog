@@ -84,6 +84,30 @@ Límites de capas, convenciones y cobertura (§IX.5: todo criterio tiene al meno
 
 **Observación para el admin (spec futura)**: cuando `apps/admin` consuma `@blog/bloques/render`, su CSS de Tailwind tiene que incluir `@source` hacia `packages/bloques/src/render` y `packages/ui/src`; si no, el bloque CTA queda sin estilos.
 
+## T099: mediciones sobre el preview del PR #1 (2026-10-19)
+
+Preview `blog-web-git-002-sitio-publico-…vercel.app`, con Deployment Protection (se accede con un secreto de *Protection Bypass for Automation*, revocable en Vercel → Deployment Protection). La base de la nube tiene las migraciones de la 002 y el seed de la 001.
+
+**Lighthouse móvil** (13.5, medición final, commit con anchos de imagen):
+
+| Página | Perf | A11y | Buenas prácticas | SEO | LCP | CLS | TBT |
+|---|---|---|---|---|---|---|---|
+| `/` | 99 | 100 | 100 | 61* | 2,07 s | 0 | 0 ms |
+| `/blog` | 100 | 100 | 100 | 61* | 1,62 s | 0 | 0 ms |
+| artículo | 99–100 | 100 | 100 | 61* | 1,77 s | 0 | 0 ms |
+| `/blog/categoria/diseno` | 100 | 100 | 100 | 61* | 1,77 s | 0 | 0 ms |
+
+\* Solo fallan `is-crawlable` (el preview lleva `X-Robots-Tag: noindex` a propósito, H5-E6) y `robots-txt` (Lighthouse pide `robots.txt` sin la cabecera de bypass y recibe el login de Vercel). Las demás auditorías de SEO pasan; en producción esas dos también. INP no se mide en laboratorio: TBT 0 ms en todas.
+
+**Verificaciones con `curl`**: los 404 de las rutas dinámicas y de las rutas sin coincidencia muestran la página completa; `/blog/` → 308 a `/blog`; `/Blog` y `/Blog/Categoria/Diseno?x=1` → 301 a minúsculas conservando la query; `/blog/pagina/1` → 301; `X-Robots-Tag: noindex` en el preview; sin `<script>` propios salvo JSON-LD (el único extra es Vercel Live, que Vercel inyecta solo en previews); imágenes por `/_vercel/image` en AVIF/WebP con `srcset` de 480 y 800 en tarjetas (picsum funciona: no hace falta el plan B de D7); sitemap con los 3 autores; RSS con los 9 publicados; robots con `Sitemap:` del dominio de producción.
+
+**Problemas que encontró T099 y quedaron corregidos**:
+1. Los 404 dinámicos salían vacíos (la función no lee el `404.html` prerenderizado) y `/Blog` daba 404: la 404 pasa a renderizarse en la función, cacheada una hora (research D13).
+2. LCP de `/blog` en 3,5 s: la primera tarjeta de cada listado carga con prioridad.
+3. Todas las imágenes salían en 1920 px y calidad 100: anchos declarados a Vercel (`src/lib/anchos-imagen.ts`), AVIF/WebP y calidad 75 (`CALIDAD_IMAGEN`).
+
+**Pendiente para producción (T101)**: validadores de schema.org, sitemap y feed de W3C (necesitan una URL pública) y la medición de CE-004.
+
 ## Acciones
 
 1. ~~Corregir los bloqueantes C-B1, U-B1 y U-B2, con sus tests.~~ Hecho.
