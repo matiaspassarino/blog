@@ -20,3 +20,9 @@ export async function resolverEntidad<T>({ buscar, redireccion, prefijo }: Opcio
   const slugNuevo = await redireccion();
   return slugNuevo ? { tipo: 'redireccion', destino: `${prefijo}${slugNuevo}` } : { tipo: 'no_encontrado' };
 }
+
+/**
+ * 404 de una página dinámica: Astro renderiza src/pages/404.astro con este estado. No se usa
+ * Astro.rewrite('/404'): Astro lo prohíbe hacia una página prerenderizada (ForbiddenRewrite).
+ */
+export const respuestaNoEncontrado = () => new Response(null, { status: 404 });

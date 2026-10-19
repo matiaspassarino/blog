@@ -10,7 +10,7 @@ export function urlImagen(ruta: string, supabaseUrl: string): string {
   return `${supabaseUrl}/storage/v1/object/public/medios/${ruta.replace(/^\/+/, '')}`;
 }
 
-export type Variante = { src: string; srcset: string; width: number; height: number };
+type Variante = { src: string; srcset: string; width: number; height: number };
 export type MapaVariantes = Map<string, Variante>;
 
 const ANCHOS = [480, 800, 1200, 1600];

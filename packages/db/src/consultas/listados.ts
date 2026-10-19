@@ -73,6 +73,40 @@ export async function listarPorEtiqueta(
 }
 
 /**
+ * Hasta `cantidad` publicados para el final de un artículo (spec 002, RF-005, research D18):
+ * primero los de su categoría y, si faltan, los más recientes. A lo sumo 2 peticiones.
+ */
+export async function listarRelacionados(
+  c: ClienteBlog,
+  articulo: { id: string; categoriaId: string | null },
+  cantidad = 3,
+): Promise<ResumenArticulo[]> {
+  const publicadosSin = (excluir: string[], limite: number) =>
+    c
+      .from('articulos')
+      .select(COLUMNAS_RESUMEN)
+      .eq('estado', 'publicado')
+      .not('id', 'in', `(${excluir.join(',')})`)
+      .order('publicado_en', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limite);
+
+  const elegidos: ResumenArticulo[] = [];
+  if (articulo.categoriaId) {
+    const { data, error } = await publicadosSin([articulo.id], cantidad).eq('categoria_id', articulo.categoriaId);
+    if (error) throw traducirError(error);
+    elegidos.push(...data.map(aResumen));
+  }
+  if (elegidos.length < cantidad) {
+    const excluir = [articulo.id, ...elegidos.map((a) => a.id)];
+    const { data, error } = await publicadosSin(excluir, cantidad - elegidos.length);
+    if (error) throw traducirError(error);
+    elegidos.push(...data.map(aResumen));
+  }
+  return elegidos;
+}
+
+/**
  * Artículos publicados y solo las taxonomías con algún artículo publicado
  * (RSEO-004). Un único jsonb vía RPC: PostgREST corta las filas en max_rows
  * (1000) y el sitemap tiene que ser completo (validación A5-B1).

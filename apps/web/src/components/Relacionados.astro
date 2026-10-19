@@ -1,0 +1,29 @@
+---
+// Hasta 3 artículos para seguir leyendo (RF-005). No se muestra si no hay ninguno.
+import type { ResumenArticulo } from '@blog/db';
+import TarjetaArticulo from './TarjetaArticulo.astro';
+import Contenedor from './ui/Contenedor.astro';
+
+interface Props {
+  articulos: ResumenArticulo[];
+}
+
+const { articulos } = Astro.props;
+---
+
+{
+  articulos.length > 0 && (
+    <section aria-labelledby="titulo-relacionados" class="mt-seccion">
+      <Contenedor>
+        <h2 id="titulo-relacionados" class="font-titulos text-titulo-2 font-bold">
+          Artículos relacionados
+        </h2>
+        <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {articulos.map((articulo) => (
+            <TarjetaArticulo articulo={articulo} nivel={3} />
+          ))}
+        </div>
+      </Contenedor>
+    </section>
+  )
+}

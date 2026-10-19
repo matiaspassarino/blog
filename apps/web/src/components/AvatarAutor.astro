@@ -1,0 +1,45 @@
+---
+// Foto del autor, o sus iniciales si no tiene. En ambos casos expone el nombre como imagen
+// accesible (RF-001).
+import type { AutorPublico } from '@blog/db';
+import { Image } from 'astro:assets';
+import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
+import { urlImagen } from '../lib/imagenes';
+
+interface Props {
+  autor: AutorPublico;
+  /** Lado en píxeles. */
+  tamanio?: 40 | 64;
+}
+
+const { autor, tamanio = 40 } = Astro.props;
+const iniciales = autor.nombre
+  .split(/\s+/)
+  .slice(0, 2)
+  .map((palabra) => palabra.charAt(0).toUpperCase())
+  .join('');
+const clases = tamanio === 64 ? 'size-16 text-xl' : 'size-10 text-sm';
+---
+
+{
+  autor.avatar ? (
+    <Image
+      src={urlImagen(autor.avatar.ruta, PUBLIC_SUPABASE_URL)}
+      alt={autor.nombre}
+      width={tamanio}
+      height={tamanio}
+      class:list={['shrink-0 rounded-full object-cover', clases]}
+    />
+  ) : (
+    <span
+      role="img"
+      aria-label={autor.nombre}
+      class:list={[
+        'inline-flex shrink-0 items-center justify-center rounded-full bg-marca font-titulos font-bold text-marca-contraste',
+        clases,
+      ]}
+    >
+      <span aria-hidden="true">{iniciales}</span>
+    </span>
+  )
+}

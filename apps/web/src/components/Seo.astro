@@ -4,8 +4,8 @@
 import { PUBLIC_URL_SITIO } from 'astro:env/server';
 import { landing } from '../contenido/landing';
 
-export type ImagenSeo = { url: string; ancho: number; alto: number; alt?: string };
-export type DatosArticuloSeo = {
+type ImagenSeo = { url: string; ancho: number; alto: number; alt?: string };
+type DatosArticuloSeo = {
   publicadoEn: string;
   actualizadoEn: string;
   seccion?: string;

@@ -36,6 +36,7 @@ export {
   listarPorCategoria,
   listarPorEtiqueta,
   listarParaSitemap,
+  listarRelacionados,
   type EntradaSitemap,
 } from './consultas/listados';
 export {

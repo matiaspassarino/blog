@@ -148,7 +148,7 @@ Es idempotente: invalidar dos veces es lo mismo que invalidar una (RF-019, H4-E3
 
 - Si una página dinámica no encuentra la entidad, devuelve `Astro.rewrite('/404')` con estado 404. `src/pages/404.astro` se prerenderiza.
 - Los errores de datos (`ErrorDominio` distinto de `no_encontrado`) se propagan a `src/pages/500.astro`, con estado 500. El CDN no cachea 5xx y, mientras tanto, sigue sirviendo la versión anterior por `swr`.
-- En la implementación se verifica que `Astro.rewrite('/404')` conserve el estado 404 en el adaptador de Vercel. Si no lo conserva, se usa `new Response(html404, { status: 404 })`.
+- **Verificado en la implementación (T058)**: Astro prohíbe `Astro.rewrite('/404')` hacia una página prerenderizada (`ForbiddenRewrite`). Las páginas dinámicas devuelven `new Response(null, { status: 404 })` con el helper `respuestaNoEncontrado()` de `src/lib/resolver.ts`, y Astro renderiza `404.astro` con estado 404. En Vercel se confirma sobre el preview (T099).
 
 ## D14. Sitemap y RSS propios (se quita `@astrojs/sitemap`)
 
