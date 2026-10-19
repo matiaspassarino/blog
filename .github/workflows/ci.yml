@@ -30,7 +30,8 @@ jobs:
       - run: pnpm formato:verificar
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
+      # Los tests de integración de @blog/db necesitan Supabase: corren en el job base-de-datos.
+      - run: pnpm turbo run test --filter='!@blog/db'
       - run: pnpm calidad
       - run: pnpm build
 
