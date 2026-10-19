@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(120);
+select plan(127);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -407,6 +407,30 @@ select function_privs_are('public', 'entradas_sitemap', array[]::text[], 'anon',
 select is(
   (select prosecdef from pg_proc where oid = 'public.entradas_sitemap()'::regprocedure),
   false, 'entradas_sitemap es invoker (la RLS decide qué es visible)');
+
+-- ===========================================================================
+-- Spec 002 (T016): slug de autores y notificación de cambios de autor
+-- ===========================================================================
+select function_privs_are('public', 'entradas_sitemap', array[]::text[], 'authenticated', array['EXECUTE'],
+  'spec 002: authenticated sigue pudiendo ejecutar entradas_sitemap');
+select function_privs_are('privado', 'impedir_cambio_slug', array[]::text[], 'anon', array[]::text[],
+  'spec 002: anon no puede ejecutar privado.impedir_cambio_slug');
+select function_privs_are('privado', 'impedir_cambio_slug', array[]::text[], 'authenticated', array[]::text[],
+  'spec 002: authenticated no puede ejecutar privado.impedir_cambio_slug');
+select function_privs_are('privado', 'notificar_cambio_autor', array[]::text[], 'anon', array[]::text[],
+  'spec 002: anon no puede ejecutar privado.notificar_cambio_autor');
+select function_privs_are('privado', 'notificar_cambio_autor', array[]::text[], 'authenticated', array[]::text[],
+  'spec 002: authenticated no puede ejecutar privado.notificar_cambio_autor');
+select ok(
+  to_regprocedure('privado.impedir_cambio_slug()') is not null and not exists (
+    select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = to_regprocedure('privado.impedir_cambio_slug()') and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
+  'spec 002: PUBLIC no puede ejecutar privado.impedir_cambio_slug');
+select ok(
+  to_regprocedure('privado.notificar_cambio_autor()') is not null and not exists (
+    select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = to_regprocedure('privado.notificar_cambio_autor()') and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
+  'spec 002: PUBLIC no puede ejecutar privado.notificar_cambio_autor');
 
 select pruebas.como_postgres();
 select * from finish();

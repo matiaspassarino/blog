@@ -108,17 +108,39 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
         ],
         seo: { titulo: 'H2 públicos: completo', descripcion: 'Extracto de completo.' },
       });
-      expect(articulo?.autor).toEqual(perfilAdmin);
+      // Spec 002 (T018): el autor suma id y slug; toMatchObject conserva la verificación de la 001.
+      expect(articulo?.autor).toMatchObject(perfilAdmin);
       expect(perfilAdmin.nombre).toBe('Ana Admin');
     });
 
-    it('H2-E2: el autor contiene solo nombre, biografía y avatar (nunca correo ni rol)', async () => {
+    it('H2-E2 / spec 002: el autor contiene solo id, slug, nombre, biografía y avatar (nunca correo ni rol)', async () => {
       const creado = await crearArticulo('autor');
 
       const articulo = await obtenerArticuloPublicado(anon, creado.slug);
 
-      expect(Object.keys(articulo?.autor ?? {}).sort()).toEqual(['avatar', 'biografia', 'nombre']);
+      expect(Object.keys(articulo?.autor ?? {}).sort()).toEqual(['avatar', 'biografia', 'id', 'nombre', 'slug']);
       expect(JSON.stringify(articulo)).not.toContain('@demo.local');
+    });
+
+    it('T018 (spec 002): devuelve categoria.id, etiquetas[].id y autor.{id, slug} para los tags de caché', async () => {
+      const creado = await crearArticulo('ids');
+      const { error } = await admin.rpc('asignar_etiquetas', {
+        articulo_id: creado.id,
+        etiqueta_ids: [etiqueta.id, otraEtiqueta.id],
+        version: creado.version,
+      });
+      if (error) throw new Error(`No se pudieron asignar las etiquetas: ${error.message}`);
+      const { data: usuario } = await admin.auth.getUser();
+
+      const articulo = await obtenerArticuloPublicado(anon, creado.slug);
+
+      expect(articulo?.categoria).toEqual({ id: categoria.id, nombre: categoria.nombre, slug: categoria.slug });
+      expect(articulo?.etiquetas).toEqual([
+        { id: otraEtiqueta.id, nombre: otraEtiqueta.nombre, slug: otraEtiqueta.slug },
+        { id: etiqueta.id, nombre: etiqueta.nombre, slug: etiqueta.slug },
+      ]);
+      // "Ana Admin" → ana-admin (slug inmutable generado desde el nombre, research D10).
+      expect(articulo?.autor).toMatchObject({ id: usuario.user?.id, slug: 'ana-admin' });
     });
 
     it('RF-006: con titulo_seo y descripcion_seo propios, el SEO los usa', async () => {

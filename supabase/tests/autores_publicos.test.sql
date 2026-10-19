@@ -45,8 +45,9 @@ grant select on autores_h2 to anon, authenticated;
 -- Forma de la vista (D5)
 -- ---------------------------------------------------------------------------
 select has_view('public', 'autores_publicos', 'existe la vista public.autores_publicos');
-select columns_are('public', 'autores_publicos', array['id', 'nombre', 'biografia', 'avatar'],
-  'H2-E2: la vista expone exactamente id, nombre, biografia y avatar (nunca correo, rol ni estado)');
+-- Spec 002 (T014): se agregan slug (URL del autor) y actualizado_en (lastmod del sitemap) al final.
+select columns_are('public', 'autores_publicos', array['id', 'nombre', 'biografia', 'avatar', 'slug', 'actualizado_en'],
+  'H2-E2 / spec 002: la vista expone exactamente id, nombre, biografia, avatar, slug y actualizado_en (nunca correo, rol ni estado)');
 select ok(
   coalesce((select reloptions @> array['security_barrier=true'] from pg_class
             where oid = to_regclass('public.autores_publicos')), false),

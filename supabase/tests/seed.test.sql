@@ -1,11 +1,16 @@
 -- T065: datos de demo (RF-028, CE-007). Verifica el estado que deja seed.sql
 -- después de `pnpm db:reset`: es el único test que depende del seed, a propósito.
 begin;
-select plan(13);
+select plan(14);
 
 select is(
   (select count(*)::int from public.perfiles p join auth.users u on u.id = p.id where u.email like '%@demo.local'),
   3, 'hay 3 perfiles demo');
+-- Spec 002 (T017): el slug se lee con to_jsonb para que, sin la columna, falle solo esta afirmación.
+select is(
+  (select count(*)::int from public.perfiles p join auth.users u on u.id = p.id
+    where u.email like '%@demo.local' and coalesce(to_jsonb(p) ->> 'slug', '') <> ''),
+  3, 'spec 002: los 3 perfiles demo tienen slug no vacío');
 select is(
   (select count(*)::int from public.perfiles p join auth.users u on u.id = p.id
     where u.email like '%@demo.local' and p.rol = 'admin' and p.activo),

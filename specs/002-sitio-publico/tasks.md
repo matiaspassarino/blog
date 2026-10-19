@@ -51,7 +51,7 @@ description: "Lista de tareas: sitio público (landing y blog)"
   - `adapter: vercel({ imageService: true })`, **sin** `isr` y sin `bypassToken`;
   - caché de rutas con el proveedor `cacheVercel()` de `@astrojs/vercel/cache`;
   - `env.schema` con `PUBLIC_URL_SITIO`, `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_ANON_KEY` (`context: 'server', access: 'public'`) y `SECRETO_REVALIDACION` (`context: 'server', access: 'secret'`, mínimo de 32 caracteres);
-  - `fonts`: `fontProviders.fontsource()` con `identidad.fuentes.cuerpo` → `--font-cuerpo` e `identidad.fuentes.titulos` → `--font-titulos`, importando `identidad` de `@blog/ui/identidad` (T031; §VII.6, análisis C1). Ningún nombre de fuente queda escrito en `astro.config.mjs`;
+  - `fonts`: `fontProviders.fontsource()` con `identidad.fuentes.cuerpo` → `--fuente-cuerpo` e `identidad.fuentes.titulos` → `--fuente-titulos` (research D16), importando `identidad` de `@blog/ui/identidad` (T031; §VII.6, análisis C1). Ningún nombre de fuente queda escrito en `astro.config.mjs`;
   - `image.remotePatterns` para el host de `PUBLIC_SUPABASE_URL`, `picsum.photos` y `fastly.picsum.photos`;
   - `trailingSlash: 'never'`;
   - `integrations: [react()]` (sin `sitemap()`);
@@ -81,7 +81,7 @@ description: "Lista de tareas: sitio público (landing y blog)"
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T013 [P] Crear `supabase/tests/autores_slug.test.sql` ([data-model.md](data-model.md#tests-pgtap-supabasetestsautores_slugtestsql)). Debe verificar:
+- [X] T013 [P] Crear `supabase/tests/autores_slug.test.sql` ([data-model.md](data-model.md#tests-pgtap-supabasetestsautores_slugtestsql)). Debe verificar:
   - un insert en `auth.users` crea un perfil con slug normalizado ("José Núñez" → `jose-nunez`);
   - dos homónimos reciben `ana-perez` y `ana-perez-2` (RF-011, caso borde);
   - un cliente `authenticated` (editor o el propio dueño) que cambia `slug` recibe `P0001 sin_permiso` con `detail = 'slug'`; si cambia `nombre`, el slug se conserva (aclaración del 2026-10-19);
@@ -92,22 +92,22 @@ description: "Lista de tareas: sitio público (landing y blog)"
   - existe `articulos_autor_publicado_idx` sobre `(autor_id, publicado_en desc)` y ya no existe `articulos_autor_idx`;
   - si un autor con publicados cambia `nombre`, se encola **un** mensaje `tipo = 'autor'` con `slugs = [slug]` (H4-E7). Usar secretos de Vault creados dentro de la transacción, igual que `notificaciones.test.sql`;
   - si cambia el `nombre` de un autor sin publicados, o si solo cambian `rol`, `activo` o `actualizado_en`, no se encola nada.
-- [ ] T014 [P] Actualizar `supabase/tests/autores_publicos.test.sql`: el `columns_are` de la línea ~48 pasa a `id, nombre, biografia, avatar, slug, actualizado_en`. Ajustar `plan()`.
-- [ ] T015 [P] Actualizar `supabase/tests/sitemap.test.sql`: con `pruebas.como_anon()`, `entradas_sitemap()` incluye `{tipo: 'autor', slug}` solo de autores con publicados, y su `actualizado_en` es el máximo entre el del perfil y el de sus artículos publicados. Ajustar `plan()`.
-- [ ] T016 [P] Actualizar `supabase/tests/privilegios.test.sql`: `function_privs_are` de `privado.impedir_cambio_slug()` y `privado.notificar_cambio_autor()` sin `execute` para `public`, `anon` ni `authenticated`; `public.entradas_sitemap()` sigue ejecutable por `anon` y `authenticated`. Ajustar `plan()`.
-- [ ] T017 [P] Actualizar `supabase/tests/seed.test.sql`: los 3 perfiles demo tienen slug no vacío. Ajustar `plan()`. (Hacer después de T012, que toca el mismo archivo.)
-- [ ] T018 [P] Ampliar `packages/db/src/consultas/articulos-publicos.test.ts` (integración): `obtenerArticuloPublicado` devuelve `categoria.id`, `etiquetas[].id` y `autor.{id, slug}`.
-- [ ] T019 [P] Crear `packages/ui/src/tokens.test.ts`: lee `tokens.css`; exige que `identidad.ts` exporte `fuentes.cuerpo`, `fuentes.titulos` y `logo` (`src`, `alt`, `ancho`, `alto`), y que los nombres de `fuentes` coincidan con las familias de `--font-cuerpo` y `--font-titulos` de `tokens.css` (una sola identidad, §VII.6); exige que existan los tokens nuevos de T031 y verifica el contraste WCAG (≥ 4,5:1 para `--color-texto` y `--color-texto-suave` sobre `--color-fondo` y `--color-superficie`; `--color-marca-contraste` sobre `--color-marca`; `--color-texto` sobre `--color-marca-suave`; ≥ 3:1 para `--color-foco` y `--color-borde` sobre `--color-fondo`). La conversión OKLCH → sRGB → luminancia relativa se escribe en el test; no agregar dependencias.
-- [ ] T020 [P] Crear `apps/web/src/lib/fechas.test.ts`: `fechaLarga('2026-10-18T15:00:00Z')` → `"18 de octubre de 2026"`; una fecha a las 01:00 UTC se muestra con el día anterior (zona `America/Argentina/Buenos_Aires`, research D17).
-- [ ] T021 [P] Crear `apps/web/src/lib/imagenes.test.ts`: `urlImagen(ruta, supabaseUrl)` devuelve igual una ruta `https://…` y convierte una ruta relativa en `<supabaseUrl>/storage/v1/object/public/medios/<ruta>` (research D7).
-- [ ] T022 [P] Crear `apps/web/src/lib/cache.test.ts` ([contracts/cache.md](contracts/cache.md#tags-que-declara-cada-página-appswebsrclibcachets)):
+- [X] T014 [P] Actualizar `supabase/tests/autores_publicos.test.sql`: el `columns_are` de la línea ~48 pasa a `id, nombre, biografia, avatar, slug, actualizado_en`. Ajustar `plan()`.
+- [X] T015 [P] Actualizar `supabase/tests/sitemap.test.sql`: con `pruebas.como_anon()`, `entradas_sitemap()` incluye `{tipo: 'autor', slug}` solo de autores con publicados, y su `actualizado_en` es el máximo entre el del perfil y el de sus artículos publicados. Ajustar `plan()`.
+- [X] T016 [P] Actualizar `supabase/tests/privilegios.test.sql`: `function_privs_are` de `privado.impedir_cambio_slug()` y `privado.notificar_cambio_autor()` sin `execute` para `public`, `anon` ni `authenticated`; `public.entradas_sitemap()` sigue ejecutable por `anon` y `authenticated`. Ajustar `plan()`.
+- [X] T017 [P] Actualizar `supabase/tests/seed.test.sql`: los 3 perfiles demo tienen slug no vacío. Ajustar `plan()`. (Hacer después de T012, que toca el mismo archivo.)
+- [X] T018 [P] Ampliar `packages/db/src/consultas/articulos-publicos.test.ts` (integración): `obtenerArticuloPublicado` devuelve `categoria.id`, `etiquetas[].id` y `autor.{id, slug}`.
+- [X] T019 [P] Crear `packages/ui/src/tokens.test.ts`: lee `tokens.css`; exige que `identidad.ts` exporte `fuentes.cuerpo`, `fuentes.titulos` y `logo` (`src`, `alt`, `ancho`, `alto`), y que los nombres de `fuentes` coincidan con las familias de `--font-cuerpo` y `--font-titulos` de `tokens.css` (una sola identidad, §VII.6); exige que existan los tokens nuevos de T031 y verifica el contraste WCAG (≥ 4,5:1 para `--color-texto` y `--color-texto-suave` sobre `--color-fondo` y `--color-superficie`; `--color-marca-contraste` sobre `--color-marca`; `--color-texto` sobre `--color-marca-suave`; ≥ 3:1 para `--color-foco` y `--color-borde` sobre `--color-fondo`). La conversión OKLCH → sRGB → luminancia relativa se escribe en el test; no agregar dependencias.
+- [X] T020 [P] Crear `apps/web/src/lib/fechas.test.ts`: `fechaLarga('2026-10-18T15:00:00Z')` → `"18 de octubre de 2026"`; una fecha a las 01:00 UTC se muestra con el día anterior (zona `America/Argentina/Buenos_Aires`, research D17).
+- [X] T021 [P] Crear `apps/web/src/lib/imagenes.test.ts`: `urlImagen(ruta, supabaseUrl)` devuelve igual una ruta `https://…` y convierte una ruta relativa en `<supabaseUrl>/storage/v1/object/public/medios/<ruta>` (research D7).
+- [X] T022 [P] Crear `apps/web/src/lib/cache.test.ts` ([contracts/cache.md](contracts/cache.md#tags-que-declara-cada-página-appswebsrclibcachets)):
   - `cacheArticulo(a, relacionados)` → `maxAge 31536000`, `swr 60` y tags `articulo:<a.id>`, `categoria:<id>`, `etiqueta:<id>` de cada etiqueta, `autor:<id>` y `articulo:<r.id>` de cada relacionado, sin repetidos (H4-E6: el artículo lleva el tag de su categoría);
   - `cacheListado()` → `['articulos']`; `cacheListado({ tipo: 'categoria', id })` agrega `categoria:<id>` (ídem etiqueta y autor);
   - `cacheNoEncontrado()` → `maxAge 3600`, `swr 60`, sin tags; `cacheRedireccion()` → `maxAge 31536000`, `swr 0`;
   - los tags se arman con los constructores de `@blog/db` (`tagArticulo`, etc.), no con texto literal.
-- [ ] T023 [P] Crear `apps/web/src/lib/resolver.test.ts`: `resolverEntidad({ buscar, redireccion, prefijo })` devuelve `{ tipo: 'entidad', valor }` si `buscar` encuentra; si no, `{ tipo: 'redireccion', destino: '<prefijo><slugNuevo>' }` cuando `redireccion` devuelve un slug; si no, `{ tipo: 'no_encontrado' }`. No llama a `redireccion` cuando encuentra la entidad. Si `buscar` lanza un `ErrorDominio` distinto de `no_encontrado`, lo propaga sin convertirlo en 404 (caso borde "la base no responde", research D13).
-- [ ] T024 [P] Crear `apps/web/src/contenido/esquema.test.ts` (RF-013c, H3-E5): el contenido de `landing.ts` es válido; quitar `hero.titulo` o poner `contacto.whatsapp: '+54 11'` hace fallar el parseo con un error cuya ruta nombra el campo (`hero.titulo`, `contacto.whatsapp`); `servicios.items` con 2 elementos falla (mínimo 3); `sitio.descripcion` de menos de 50 caracteres falla.
-- [ ] T025 [P] Crear `apps/web/src/lib/contacto.test.ts` (research D9, H3-E4): `enlaceWhatsapp('5491100000000', 'Hola, quiero info')` → `https://wa.me/5491100000000?text=Hola%2C%20quiero%20info`; `enlaceCorreo('a@b.com', 'Consulta & demo')` → `mailto:a@b.com?subject=Consulta%20%26%20demo`.
+- [X] T023 [P] Crear `apps/web/src/lib/resolver.test.ts`: `resolverEntidad({ buscar, redireccion, prefijo })` devuelve `{ tipo: 'entidad', valor }` si `buscar` encuentra; si no, `{ tipo: 'redireccion', destino: '<prefijo><slugNuevo>' }` cuando `redireccion` devuelve un slug; si no, `{ tipo: 'no_encontrado' }`. No llama a `redireccion` cuando encuentra la entidad. Si `buscar` lanza un `ErrorDominio` distinto de `no_encontrado`, lo propaga sin convertirlo en 404 (caso borde "la base no responde", research D13).
+- [X] T024 [P] Crear `apps/web/src/contenido/esquema.test.ts` (RF-013c, H3-E5): el contenido de `landing.ts` es válido; quitar `hero.titulo` o poner `contacto.whatsapp: '+54 11'` hace fallar el parseo con un error cuya ruta nombra el campo (`hero.titulo`, `contacto.whatsapp`); `servicios.items` con 2 elementos falla (mínimo 3); `sitio.descripcion` de menos de 50 caracteres falla.
+- [X] T025 [P] Crear `apps/web/src/lib/contacto.test.ts` (research D9, H3-E4): `enlaceWhatsapp('5491100000000', 'Hola, quiero info')` → `https://wa.me/5491100000000?text=Hola%2C%20quiero%20info`; `enlaceCorreo('a@b.com', 'Consulta & demo')` → `mailto:a@b.com?subject=Consulta%20%26%20demo`.
 
 ### Implementación
 
@@ -131,7 +131,7 @@ description: "Lista de tareas: sitio público (landing y blog)"
   Debe pasar T018 y no romper `listados.test.ts`.
 - [ ] T030 [P] Crear `packages/db/src/tags.ts` con `TAG_ARTICULOS = 'articulos'` y los constructores `tagArticulo(id)`, `tagCategoria(id)`, `tagEtiqueta(id)` y `tagAutor(id)` ([contracts/cache.md](contracts/cache.md)). Exportarlos desde `packages/db/src/index.ts`.
 - [ ] T031 [P] Identidad y tokens en `packages/ui` (plan.md, "Impacto en UI y tokens"; análisis C1):
-  - agregar a `packages/ui/src/tokens.css`: `--spacing-seccion`, `--spacing-bloque`, `--container-lectura` (≈ 68ch), `--container-sitio` (≈ 72rem), `--text-titulo-1` a `--text-titulo-3` con `clamp`, `--color-foco`, `--color-marca-suave` y `--aspect-tarjeta` (16/9);
+  - en `packages/ui/src/tokens.css`, `--font-cuerpo: var(--fuente-cuerpo, 'Inter', …)` y `--font-titulos: var(--fuente-titulos, 'Inter Tight', …)` (research D16), oscurecer `--color-borde` hasta ≥ 3:1 sobre el fondo (hoy da 1,31:1, lo detectó T019), y agregar `--spacing-seccion`, `--spacing-bloque`, `--container-lectura` (≈ 68ch), `--container-sitio` (≈ 72rem), `--text-titulo-1` a `--text-titulo-3` con `clamp`, `--color-foco`, `--color-marca-suave` y `--aspect-tarjeta` (16/9);
   - crear `packages/ui/src/identidad.ts` con `fuentes: { cuerpo: 'Inter', titulos: 'Inter Tight' }` y `logo: { src, alt, ancho, alto }`, con un logo genérico en `packages/ui/src/assets/logo.svg`; exportar `./identidad` en `packages/ui/package.json`;
   - agregar a `apps/web/src/styles/global.css` el estilo base de `:focus-visible` con `--color-foco`.
   Debe pasar T019.
