@@ -2,14 +2,23 @@
   "name": "@blog/db",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "tsc",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@blog/config": "workspace:*",
+    "eslint": "9.39.5",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
+  },
+  "dependencies": {
+    "@blog/bloques": "workspace:*",
+    "@supabase/supabase-js": "2.118.0",
+    "zod": "4.6.7"
   }
 }

@@ -1,0 +1,16 @@
+---
+// Ancho máximo y márgenes laterales del sitio (§VII.3).
+import type { HTMLAttributes } from 'astro/types';
+
+type Props = HTMLAttributes<'div'> & {
+  /** `sitio` para la grilla general, `lectura` para el cuerpo de un artículo. */
+  ancho?: 'sitio' | 'lectura';
+  etiqueta?: 'div' | 'section' | 'header' | 'footer' | 'article' | 'nav';
+};
+
+const { ancho = 'sitio', etiqueta: Etiqueta = 'div', class: clase, ...resto } = Astro.props;
+---
+
+<Etiqueta class:list={['mx-auto w-full px-4 sm:px-6', ancho === 'sitio' ? 'max-w-sitio' : 'max-w-lectura', clase]} {...resto}>
+  <slot />
+</Etiqueta>

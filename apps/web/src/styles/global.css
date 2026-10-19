@@ -1,8 +1,29 @@
-@import "tailwindcss";
-@import "@blog/ui/tokens.css";
+@import 'tailwindcss';
+@import '@blog/ui/tokens.css';
+
+/* Renderers de bloques compartidos (@blog/bloques/render): Tailwind tiene que ver sus clases. */
+@source '../../../../packages/bloques/src/render';
+@source '../../../../packages/ui/src';
 
 body {
   background: var(--color-fondo);
   color: var(--color-texto);
   font-family: var(--font-cuerpo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Foco visible en todo elemento interactivo (§VII.4). */
+:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
 }

@@ -1,0 +1,88 @@
+-- Helpers de test compartidos (esquema `pruebas`).
+--
+-- Cada archivo *.test.sql corre en su propia transacción con rollback, así que
+-- estos helpers no persisten entre archivos. Por eso cada test que los usa los
+-- incluye al inicio de su transacción con:
+--
+--   \ir helpers/pruebas.psql
+--
+-- La extensión es `.psql` (y no `.sql`) a propósito: `supabase test db` ejecuta
+-- como test todo archivo `.sql` dentro de supabase/tests, y este no lo es.
+-- Solo para tests: no es código de producción ni una migración.
+
+create schema if not exists pruebas;
+grant usage on schema pruebas to anon, authenticated;
+
+-- Crea un usuario en auth.users y devuelve su id. El trigger de perfiles
+-- (si existe) crea el perfil a partir de los metadatos.
+create or replace function pruebas.crear_usuario(
+  email text,
+  meta_app jsonb default '{}'::jsonb,
+  meta_usuario jsonb default '{}'::jsonb
+) returns uuid
+language plpgsql
+as $$
+declare
+  nuevo_id uuid := gen_random_uuid();
+begin
+  insert into auth.users (
+    id, instance_id, aud, role, email,
+    raw_app_meta_data, raw_user_meta_data,
+    email_confirmed_at, created_at, updated_at
+  ) values (
+    nuevo_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', email,
+    meta_app, meta_usuario,
+    now(), now(), now()
+  );
+  return nuevo_id;
+end;
+$$;
+
+-- Vuelve al rol postgres y limpia los claims del JWT.
+create or replace function pruebas.como_postgres() returns void
+language plpgsql
+as $$
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$;
+
+-- Simula una petición de visitante (rol anon, sin sub).
+create or replace function pruebas.como_anon() returns void
+language plpgsql
+as $$
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  perform set_config('role', 'anon', true);
+end;
+$$;
+
+-- Simula una petición autenticada del usuario con ese email.
+-- Primero vuelve a postgres para poder leer auth.users aunque ya se esté
+-- actuando como otro rol.
+create or replace function pruebas.como(email_usuario text) returns void
+language plpgsql
+as $$
+declare
+  id_usuario uuid;
+begin
+  perform set_config('role', 'postgres', true);
+  select u.id into id_usuario from auth.users u where u.email = email_usuario;
+  if id_usuario is null then
+    raise exception 'pruebas.como: no existe el usuario %', email_usuario;
+  end if;
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object('sub', id_usuario, 'role', 'authenticated', 'email', email_usuario)::text,
+    true
+  );
+  perform set_config('role', 'authenticated', true);
+end;
+$$;
+
+-- Solo los cambios de rol son invocables por los roles de cliente.
+revoke execute on all functions in schema pruebas from public;
+grant execute on function pruebas.como_postgres(), pruebas.como_anon(), pruebas.como(text)
+  to anon, authenticated;

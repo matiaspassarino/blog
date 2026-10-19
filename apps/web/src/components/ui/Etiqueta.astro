@@ -1,0 +1,27 @@
+---
+// Badge de categoría o etiqueta, enlazable (§VII.3).
+interface Props {
+  href?: string;
+  class?: string;
+}
+
+const { href, class: clase } = Astro.props;
+const estilo = [
+  'inline-flex items-center rounded-sm bg-marca-suave px-2.5 py-1 text-sm font-medium text-texto',
+  // Enlazada, el área táctil llega a 44 px (§VII.4).
+  href ? 'min-h-11 hover:underline' : 'min-h-8',
+  clase,
+];
+---
+
+{
+  href ? (
+    <a href={href} class:list={estilo}>
+      <slot />
+    </a>
+  ) : (
+    <span class:list={estilo}>
+      <slot />
+    </span>
+  )
+}

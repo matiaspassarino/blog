@@ -1,0 +1,41 @@
+---
+// /blog y /blog/pagina/<n> (H2-E1, RF-007): publicados de a 12, del más reciente al más antiguo.
+import { listarArticulosPublicados } from '@blog/db';
+import ListadoArticulos from '../../components/ListadoArticulos.astro';
+import Base from '../../layouts/Base.astro';
+import { landing } from '../../contenido/landing';
+import { cacheListado } from '../../lib/cache';
+import { datos } from '../../lib/datos';
+import { coleccion, migas } from '../../lib/json-ld';
+import { migasDelBlog, resolverListado, rutaDePagina, sufijoPagina } from '../../lib/listados';
+import { sitio } from '../../lib/sitio';
+
+const RUTA = '/blog';
+const resultado = await resolverListado({
+  param: Astro.params.pagina,
+  rutaBase: RUTA,
+  cargar: async (pagina) => ({ articulos: await listarArticulosPublicados(datos, { pagina }) }),
+});
+if (resultado.tipo === 'respuesta') {
+  Astro.cache.set(resultado.cache);
+  return resultado.respuesta;
+}
+Astro.cache.set(cacheListado());
+
+const { articulos } = resultado.valor;
+const sufijo = sufijoPagina(resultado.pagina);
+const ruta = rutaDePagina(RUTA, resultado.pagina);
+const jsonLd = [
+  coleccion({ nombre: `Blog${sufijo}`, descripcion: landing.blog.descripcion, ruta }, sitio.url),
+  migas(migasDelBlog(), sitio.url),
+];
+---
+
+<Base titulo={`Blog${sufijo}`} descripcion={landing.blog.descripcion} ruta={ruta} jsonLd={jsonLd}>
+  <ListadoArticulos articulos={articulos} rutaBase={RUTA}>
+    <Fragment slot="encabezado">
+      <h1 class="font-titulos text-titulo-1 font-bold">Blog{sufijo}</h1>
+      <p class="mt-3 text-lg text-texto-suave">{landing.blog.descripcion}</p>
+    </Fragment>
+  </ListadoArticulos>
+</Base>

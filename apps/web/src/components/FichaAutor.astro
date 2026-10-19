@@ -1,0 +1,22 @@
+---
+// Ficha del autor al final del artículo (RF-005): foto, nombre enlazado y biografía.
+import type { AutorPublico } from '@blog/db';
+import AvatarAutor from './AvatarAutor.astro';
+
+interface Props {
+  autor: AutorPublico;
+}
+
+const { autor } = Astro.props;
+---
+
+<aside aria-label="Sobre el autor" class="mt-12 flex gap-4 rounded-lg bg-superficie p-6">
+  <AvatarAutor autor={autor} tamanio={64} />
+  <div>
+    <p class="text-sm text-texto-suave">Escrito por</p>
+    <p class="font-titulos text-lg font-bold">
+      <a href={`/blog/autor/${autor.slug}`} class="inline-flex min-h-11 items-center hover:underline">{autor.nombre}</a>
+    </p>
+    {autor.biografia && <p class="mt-1 text-texto-suave">{autor.biografia}</p>}
+  </div>
+</aside>

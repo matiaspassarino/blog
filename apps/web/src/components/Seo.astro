@@ -1,0 +1,82 @@
+---
+// Componente único de metadatos (specs/002-sitio-publico/contracts/rutas.md, RSEO-001 a
+// RSEO-009). Todas las páginas lo usan a través de layouts/Base.astro.
+import { PUBLIC_URL_SITIO } from 'astro:env/server';
+import { landing } from '../contenido/landing';
+
+type ImagenSeo = { url: string; ancho: number; alto: number; alt?: string };
+type DatosArticuloSeo = {
+  publicadoEn: string;
+  actualizadoEn: string;
+  seccion?: string;
+  etiquetas: string[];
+};
+
+export interface Props {
+  titulo: string;
+  descripcion: string;
+  /** Ruta de la página (`/blog/mi-articulo`); la canónica es absoluta. */
+  ruta: string;
+  imagen?: ImagenSeo;
+  tipo?: 'website' | 'article' | 'profile';
+  articulo?: DatosArticuloSeo;
+  noindex?: boolean;
+  jsonLd?: object[];
+}
+
+const { titulo, descripcion, ruta, imagen, tipo = 'website', articulo, noindex = false, jsonLd = [] } = Astro.props;
+
+const LARGO_TITULO = 60;
+const LARGO_DESCRIPCION = 160;
+const recortar = (texto: string, largo: number) =>
+  texto.length <= largo ? texto : `${texto.slice(0, largo - 1).trimEnd()}…`;
+
+// RSEO-001: el nombre del sitio se agrega solo si el total entra en 60 caracteres.
+const conSitio = `${titulo} | ${landing.sitio.nombre}`;
+const tituloFinal = conSitio.length <= LARGO_TITULO ? conSitio : recortar(titulo, LARGO_TITULO);
+const descripcionFinal = recortar(descripcion, LARGO_DESCRIPCION);
+
+const canonica = new URL(ruta, PUBLIC_URL_SITIO).href;
+const imagenOg = imagen ?? { url: '/og-generica.png', ancho: 1200, alto: 630, alt: landing.sitio.nombre };
+const urlImagenOg = new URL(imagenOg.url, PUBLIC_URL_SITIO).href;
+
+// Escapa "<" para que ningún texto cierre el <script> (RF-003).
+const serializar = (dato: object) => JSON.stringify(dato).replace(/</g, '\\u003c');
+---
+
+<title>{tituloFinal}</title>
+<meta name="description" content={descripcionFinal} />
+<link rel="canonical" href={canonica} />
+{noindex && <meta name="robots" content="noindex" />}
+<link rel="alternate" type="application/rss+xml" title={landing.sitio.nombre} href="/rss.xml" />
+
+<meta property="og:type" content={tipo} />
+<meta property="og:site_name" content={landing.sitio.nombre} />
+<meta property="og:locale" content="es_AR" />
+<meta property="og:title" content={tituloFinal} />
+<meta property="og:description" content={descripcionFinal} />
+<meta property="og:url" content={canonica} />
+<meta property="og:image" content={urlImagenOg} />
+<meta property="og:image:width" content={String(imagenOg.ancho)} />
+<meta property="og:image:height" content={String(imagenOg.alto)} />
+{imagenOg.alt && <meta property="og:image:alt" content={imagenOg.alt} />}
+{
+  articulo && (
+    <>
+      <meta property="article:published_time" content={articulo.publicadoEn} />
+      <meta property="article:modified_time" content={articulo.actualizadoEn} />
+      {articulo.seccion && <meta property="article:section" content={articulo.seccion} />}
+      {articulo.etiquetas.map((etiqueta) => (
+        <meta property="article:tag" content={etiqueta} />
+      ))}
+    </>
+  )
+}
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={tituloFinal} />
+<meta name="twitter:description" content={descripcionFinal} />
+<meta name="twitter:image" content={urlImagenOg} />
+{imagenOg.alt && <meta name="twitter:image:alt" content={imagenOg.alt} />}
+
+{jsonLd.map((dato) => <script type="application/ld+json" set:html={serializar(dato)} />)}

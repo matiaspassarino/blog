@@ -1,0 +1,27 @@
+---
+// Botón o enlace con aspecto de botón (§VII.3). Área táctil mínima de 44 px (§VII.4).
+import { clasesBoton, type VarianteBoton } from '@blog/ui/clases';
+import type { HTMLAttributes } from 'astro/types';
+
+type Props = HTMLAttributes<'a'> & {
+  variante?: VarianteBoton;
+  /** Enlace externo: se abre en otra pestaña sin dar acceso a la página de origen. */
+  externo?: boolean;
+};
+
+const { variante = 'primaria', externo = false, class: clase, ...resto } = Astro.props;
+
+const destino = externo ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+---
+
+<a
+  class:list={[
+    clasesBoton(variante),
+    clase,
+  ]}
+  {...destino}
+  {...resto}
+>
+  <slot />
+  {externo && <span class="sr-only">(se abre en otra pestaña)</span>}
+</a>

@@ -2,7 +2,14 @@
 
 <!--
 Informe de sincronización
-- Versión: 1.0.0 (ratificación inicial)
+- Versión: 1.0.1 → 1.0.2 (PARCHE, 2026-10-19). Aclaraciones surgidas de /speckit-analyze en la spec 002; no cambian principios:
+  - §III.6 y §IV.1: "ISR on-demand" incluye el caché de rutas en el CDN con invalidación por tags
+    (research D1 de la spec 002), y el aviso de invalidación puede emitirlo el admin o la base.
+- Versión: 1.0.0 → 1.0.1 (PARCHE, 2026-10-18). Aclaraciones surgidas de /speckit-analyze en la spec 001; no cambian principios:
+  - §V.3: los timestamps son obligatorios en tablas de entidades; las tablas puente y de registro quedan exentas.
+  - §V.4: el editor no elimina artículos (solo archiva), según la decisión del usuario en la spec 001.
+  - §V.6: el tsvector puede mantenerse por trigger si incluye datos de otras tablas.
+- Plantillas revisadas: sin cambios necesarios.
 - Archivo canónico: /constitucion.md (`.specify/memory/constitution.md` es un symlink a este archivo)
 - Plantillas a revisar cuando se enmiende: .specify/templates/{spec,plan,tasks}-template.md
 -->
@@ -76,13 +83,15 @@ specs/      Una carpeta por feature (NNN-nombre) generada por Spec Kit.
 5. La lógica de dominio (slugs, validación de bloques, permisos, programación) **DEBE** escribirse
    como funciones puras en `packages/*`, testeables sin framework.
 6. La comunicación entre admin y web se hace por **revalidación ISR on-demand**: al publicar o
-   editar, el admin invalida las rutas afectadas (artículo, listados, categoría, etiquetas, sitemap,
-   RSS) mediante un endpoint protegido con secreto.
+   editar, el admin o la base de datos invalidan las páginas afectadas (artículo, listados,
+   categoría, etiquetas, sitemap, RSS) mediante un endpoint protegido con secreto. La invalidación
+   puede ser por ruta o por tags de caché.
 
 ## IV. SEO primero (NO NEGOCIABLE en `apps/web`)
 
-1. Las páginas públicas **DEBEN** servirse como HTML pre-renderizado (estático o ISR). El SSR por
-   request queda restringido a la búsqueda.
+1. Las páginas públicas **DEBEN** servirse como HTML pre-renderizado (estático o ISR). Cuenta como
+   ISR el HTML cacheado en el CDN que solo se regenera ante una invalidación on-demand (por ruta o
+   por tags). El SSR por request, sin caché, queda restringido a la búsqueda.
 2. **JS cero por defecto**: la hidratación de una isla React **DEBE** justificarse en el plan.
 3. Toda ruta pública **DEBE** tener `title`, `meta description`, `canonical`, Open Graph y Twitter
    Card. Los artículos **DEBEN** tener además JSON-LD `BlogPosting` y `BreadcrumbList`. La landing
@@ -103,17 +112,19 @@ specs/      Una carpeta por feature (NNN-nombre) generada por Spec Kit.
 2. **RLS activado en todas las tablas**, sin excepción. Cada política **DEBE** tener su test pgTAP.
 3. **Nomenclatura**: español, `snake_case`, tablas en plural (`articulos`, `categorias`,
    `etiquetas`, `articulos_etiquetas`, `perfiles`), sin tildes ni ñ (`anio`, `disenio`). Las PK son
-   `id uuid` y los timestamps `creado_en` / `actualizado_en` (`timestamptz`).
+   `id uuid` y los timestamps `creado_en` / `actualizado_en` (`timestamptz`) en las tablas de
+   entidades. Las tablas puente (`articulos_etiquetas`) y de registro (`redirecciones`) quedan exentas.
 4. **Roles**: se guardan en `perfiles.rol` (`admin` | `editor`), ligado a `auth.users`. Las
    políticas leen el rol con una función `security definer` estable.
-   - `admin`: CRUD de todo y gestión de usuarios.
-   - `editor`: CRUD de artículos y taxonomías; no gestiona usuarios.
+   - `admin`: CRUD de todo (incluida la eliminación definitiva de artículos) y gestión de usuarios.
+   - `editor`: crea, edita, publica, programa y archiva cualquier artículo (no los elimina);
+     CRUD de taxonomías; no gestiona usuarios.
    - `anon`: lectura de lo publicado (`estado = 'publicado' and publicado_en <= now()`).
 5. Los **estados de un artículo** son `borrador` → `programado` → `publicado` (y `archivado`).
    La programación se resuelve con `pg_cron`, que pasa los artículos a `publicado` y dispara la
    revalidación.
-6. La **búsqueda** usa una columna `tsvector` generada con la configuración `spanish` y
-   `unaccent`, con índice GIN.
+6. La **búsqueda** usa una columna `tsvector` (generada, o mantenida por trigger si incluye
+   datos de otras tablas) con la configuración `spanish` y `unaccent`, con índice GIN.
 7. Los **tipos TypeScript** se regeneran (`pnpm db:tipos`) con cada migración y se commitean en
    `packages/db`.
 8. Toda clave foránea y toda columna que se filtre u ordene **DEBE** tener índice.
@@ -235,4 +246,4 @@ documentada.
 3. Las revisiones de PR **DEBEN** verificar el cumplimiento. Toda complejidad adicional se
    justifica en la tabla "Seguimiento de complejidad" del `plan.md`.
 
-**Versión**: 1.0.0 | **Ratificada**: 2026-10-18 | **Última enmienda**: 2026-10-18
+**Versión**: 1.0.2 | **Ratificada**: 2026-10-18 | **Última enmienda**: 2026-10-19

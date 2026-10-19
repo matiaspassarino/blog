@@ -15,20 +15,22 @@
     "lint": "astro check"
   },
   "dependencies": {
-    "@astrojs/react": "^7.1.0",
-    "@astrojs/sitemap": "^3.7.4",
-    "@astrojs/vercel": "^11.0.15",
+    "@astrojs/react": "7.1.0",
+    "@astrojs/rss": "4.0.19",
+    "@astrojs/vercel": "11.0.15",
+    "@blog/bloques": "workspace:*",
+    "@blog/db": "workspace:*",
     "@blog/ui": "workspace:*",
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "astro": "^7.4.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "tailwindcss": "^4.3.3"
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "astro": "7.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
+    "@astrojs/check": "0.9.10",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }

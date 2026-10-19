@@ -1,0 +1,27 @@
+---
+// Servicios o beneficios (RF-012): de 3 a 6, con ícono del set cerrado.
+import { landing } from '../../contenido/landing';
+import Icono from '../iconos/Icono.astro';
+import Contenedor from '../ui/Contenedor.astro';
+
+const { servicios } = landing;
+---
+
+<section aria-labelledby="titulo-servicios" class="bg-superficie py-seccion">
+  <Contenedor>
+    <h2 id="titulo-servicios" class="font-titulos text-titulo-2 font-bold">{servicios.titulo}</h2>
+    <ul class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="list">
+      {
+        servicios.items.map((servicio) => (
+          <li class="rounded-lg bg-fondo p-6 shadow-tarjeta">
+            <span class="inline-flex size-12 items-center justify-center rounded-md bg-marca-suave text-marca">
+              <Icono nombre={servicio.icono} />
+            </span>
+            <h3 class="mt-4 font-titulos text-xl font-bold">{servicio.titulo}</h3>
+            <p class="mt-2 text-texto-suave">{servicio.descripcion}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </Contenedor>
+</section>

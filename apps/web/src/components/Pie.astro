@@ -1,0 +1,46 @@
+---
+// Pie común (RF-015): blog, feed y datos de contacto visibles como texto (RF-013b).
+import { landing } from '../contenido/landing';
+import { enlaceCorreo, enlaceWhatsapp } from '../lib/contacto';
+import Icono from './iconos/Icono.astro';
+import Contenedor from './ui/Contenedor.astro';
+
+const { contacto, sitio } = landing;
+const anio = new Date().getFullYear();
+const claseEnlace = 'inline-flex min-h-11 items-center gap-2 hover:text-texto hover:underline';
+---
+
+<footer class="mt-seccion border-t border-separador bg-superficie text-texto-suave">
+  <Contenedor class="grid gap-8 py-10 sm:grid-cols-3">
+    <div>
+      <p class="font-titulos text-lg font-bold text-texto">{sitio.nombre}</p>
+      <p class="mt-2">{sitio.lema}</p>
+    </div>
+    <nav aria-label="Pie">
+      <ul role="list">
+        <li><a class={claseEnlace} href="/blog">Blog</a></li>
+        <li>
+          <a class={claseEnlace} href="/rss.xml"><Icono nombre="rss" class="size-5" />Feed RSS</a>
+        </li>
+      </ul>
+    </nav>
+    <address class="not-italic">
+      <ul role="list">
+        <li>
+          <a class={claseEnlace} href={enlaceWhatsapp(contacto.whatsapp, contacto.mensaje)} target="_blank" rel="noopener noreferrer">
+            <Icono nombre="whatsapp" class="size-5" />+{contacto.whatsapp}
+            <span class="sr-only">(WhatsApp, se abre en otra pestaña)</span>
+          </a>
+        </li>
+        <li>
+          <a class={claseEnlace} href={enlaceCorreo(contacto.correo, contacto.asunto)}>
+            <Icono nombre="correo" class="size-5" />{contacto.correo}
+          </a>
+        </li>
+      </ul>
+    </address>
+  </Contenedor>
+  <Contenedor class="border-t border-separador py-4 text-sm">
+    <p>© {anio} {sitio.nombre}</p>
+  </Contenedor>
+</footer>

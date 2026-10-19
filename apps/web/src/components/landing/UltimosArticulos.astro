@@ -1,0 +1,36 @@
+---
+// Últimos 3 publicados (RF-012, RF-014): sin artículos, la sección no se muestra.
+import type { ResumenArticulo } from '@blog/db';
+import { landing } from '../../contenido/landing';
+import TarjetaArticulo from '../TarjetaArticulo.astro';
+import Boton from '../ui/Boton.astro';
+import Contenedor from '../ui/Contenedor.astro';
+
+interface Props {
+  articulos: ResumenArticulo[];
+}
+
+const { articulos } = Astro.props;
+---
+
+{
+  articulos.length > 0 && (
+    <section aria-labelledby="titulo-ultimos" class="bg-superficie py-seccion">
+      <Contenedor>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <h2 id="titulo-ultimos" class="font-titulos text-titulo-2 font-bold">
+            {landing.blog.titulo}
+          </h2>
+          <Boton href="/blog" variante="secundaria">
+            Ver todos los artículos
+          </Boton>
+        </div>
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {articulos.map((articulo) => (
+            <TarjetaArticulo articulo={articulo} nivel={3} />
+          ))}
+        </div>
+      </Contenedor>
+    </section>
+  )
+}

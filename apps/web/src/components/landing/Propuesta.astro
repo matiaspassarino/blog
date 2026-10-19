@@ -1,0 +1,28 @@
+---
+// Propuesta de valor (RF-012).
+import { landing } from '../../contenido/landing';
+import Contenedor from '../ui/Contenedor.astro';
+
+const { propuesta } = landing;
+---
+
+<section aria-labelledby="titulo-propuesta" class="py-seccion">
+  <Contenedor class="grid gap-8 lg:grid-cols-2">
+    <div>
+      <h2 id="titulo-propuesta" class="font-titulos text-titulo-2 font-bold text-balance">{propuesta.titulo}</h2>
+      <p class="mt-4 text-lg text-texto-suave">{propuesta.texto}</p>
+    </div>
+    <ul class="space-y-4 self-center" role="list">
+      {
+        propuesta.puntos.map((punto) => (
+          <li class="flex items-start gap-3 text-lg">
+            <span aria-hidden="true" class="mt-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-marca text-sm text-marca-contraste">
+              ✓
+            </span>
+            {punto}
+          </li>
+        ))
+      }
+    </ul>
+  </Contenedor>
+</section>

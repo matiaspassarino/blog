@@ -1,0 +1,36 @@
+---
+// Migas de pan visibles. La misma lista alimenta el JSON-LD BreadcrumbList (T089).
+export type Miga = { nombre: string; ruta: string };
+
+interface Props {
+  migas: Miga[];
+}
+
+const { migas } = Astro.props;
+---
+
+<nav aria-label="Migas de pan" class="text-sm text-texto-suave">
+  <ol class="flex flex-wrap items-center gap-x-2" role="list">
+    {
+      migas.map((miga, i) => {
+        const ultima = i === migas.length - 1;
+        return (
+          <li class="flex items-center gap-2">
+            {ultima ? (
+              <span aria-current="page" class="line-clamp-1">
+                {miga.nombre}
+              </span>
+            ) : (
+              <>
+                <a href={miga.ruta} class="inline-flex min-h-11 items-center hover:text-texto hover:underline">
+                  {miga.nombre}
+                </a>
+                <span aria-hidden="true">›</span>
+              </>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>

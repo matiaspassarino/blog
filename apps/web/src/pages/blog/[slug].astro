@@ -1,0 +1,156 @@
+---
+// Artículo publicado (H1; contracts/rutas.md): entidad → 301 por slug anterior → 404.
+// HTML cacheado en el CDN e invalidado por tags (research D1–D3).
+import type { Contenido, Imagen } from '@blog/bloques';
+import { Bloques } from '@blog/bloques/render';
+import { listarRelacionados, obtenerArticuloPublicado, resolverRedireccion } from '@blog/db';
+import { Image } from 'astro:assets';
+import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
+import AvatarAutor from '../../components/AvatarAutor.astro';
+import FichaAutor from '../../components/FichaAutor.astro';
+import { crearImagenWeb } from '../../components/ImagenWeb';
+import Migas, { type Miga } from '../../components/Migas.astro';
+import Relacionados from '../../components/Relacionados.astro';
+import Contenedor from '../../components/ui/Contenedor.astro';
+import Etiqueta from '../../components/ui/Etiqueta.astro';
+import Base from '../../layouts/Base.astro';
+import { cacheArticulo, cacheNoEncontrado, cacheRedireccion } from '../../lib/cache';
+import { datos } from '../../lib/datos';
+import { fechaLarga } from '../../lib/fechas';
+import { ANCHOS_IMAGEN } from '../../lib/anchos-imagen';
+import { CALIDAD_IMAGEN, precalcularVariantes, urlImagen } from '../../lib/imagenes';
+import { migasDelBlog } from '../../lib/listados';
+import { blogPosting, migas as migasJsonLd } from '../../lib/json-ld';
+import { resolverEntidad, respuestaNoEncontrado } from '../../lib/resolver';
+import { sitio } from '../../lib/sitio';
+
+const slug = Astro.params.slug ?? '';
+const resultado = await resolverEntidad({
+  buscar: () => obtenerArticuloPublicado(datos, slug),
+  redireccion: () => resolverRedireccion(datos, 'articulo', slug),
+  prefijo: '/blog/',
+});
+
+if (resultado.tipo === 'redireccion') {
+  Astro.cache.set(cacheRedireccion());
+  return Astro.redirect(resultado.destino, 301);
+}
+if (resultado.tipo === 'no_encontrado') {
+  Astro.cache.set(cacheNoEncontrado());
+  return respuestaNoEncontrado();
+}
+
+const articulo = resultado.valor;
+const relacionados = await listarRelacionados(datos, { id: articulo.id, categoriaId: articulo.categoria?.id ?? null });
+Astro.cache.set(cacheArticulo(articulo, relacionados));
+
+/** Imágenes del cuerpo, para precalcular sus variantes (research D7). */
+const imagenesDe = (contenido: Contenido): Imagen[] =>
+  contenido.flatMap((bloque) =>
+    bloque.tipo === 'imagen' ? [bloque.imagen] : bloque.tipo === 'galeria' ? bloque.imagenes : [],
+  );
+const variantes = await precalcularVariantes(imagenesDe(articulo.contenido), PUBLIC_SUPABASE_URL);
+
+const destacada = articulo.imagen_destacada;
+const publicado = fechaLarga(articulo.publicado_en);
+const actualizado = fechaLarga(articulo.actualizado_en);
+
+const migas: Miga[] = migasDelBlog(
+  ...(articulo.categoria
+    ? [{ nombre: articulo.categoria.nombre, ruta: `/blog/categoria/${articulo.categoria.slug}` }]
+    : []),
+  { nombre: articulo.titulo, ruta: `/blog/${articulo.slug}` },
+);
+---
+
+<Base
+  titulo={articulo.seo.titulo}
+  descripcion={articulo.seo.descripcion ?? `${articulo.titulo}. Un artículo del blog.`}
+  ruta={`/blog/${articulo.slug}`}
+  tipo="article"
+  jsonLd={[blogPosting(articulo, sitio), migasJsonLd(migas, sitio.url)]}
+  imagen={destacada
+    ? { url: urlImagen(destacada.ruta, PUBLIC_SUPABASE_URL), ancho: destacada.ancho, alto: destacada.alto, alt: destacada.alt }
+    : undefined}
+  articulo={{
+    publicadoEn: articulo.publicado_en,
+    actualizadoEn: articulo.actualizado_en,
+    seccion: articulo.categoria?.nombre,
+    etiquetas: articulo.etiquetas.map((etiqueta) => etiqueta.nombre),
+  }}
+>
+  <article>
+    <Contenedor ancho="lectura" etiqueta="header" class="pt-8">
+      <Migas migas={migas} />
+      <h1 class="mt-4 font-titulos text-titulo-1 leading-tight font-bold text-balance break-words">{articulo.titulo}</h1>
+      {articulo.extracto && <p class="mt-4 text-xl text-texto-suave">{articulo.extracto}</p>}
+      <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {articulo.autor && <AvatarAutor autor={articulo.autor} decorativo />}
+        <p class="text-texto-suave">
+          {
+            articulo.autor && (
+              <>
+                Por{' '}
+                <a href={`/blog/autor/${articulo.autor.slug}`} class="font-semibold text-texto hover:underline">
+                  {articulo.autor.nombre}
+                </a>{' '}
+                ·{' '}
+              </>
+            )
+          }
+          <time datetime={articulo.publicado_en}>{publicado}</time>
+          {
+            actualizado !== publicado && (
+              <>
+                {' '}
+                · Actualizado el <time datetime={articulo.actualizado_en}>{actualizado}</time>
+              </>
+            )
+          }
+        </p>
+      </div>
+    </Contenedor>
+
+    {
+      destacada && (
+        <Contenedor class="mt-8">
+          <Image
+            quality={CALIDAD_IMAGEN}
+            src={urlImagen(destacada.ruta, PUBLIC_SUPABASE_URL)}
+            alt={destacada.decorativa ? '' : (destacada.alt ?? '')}
+            width={destacada.ancho}
+            height={destacada.alto}
+            widths={ANCHOS_IMAGEN}
+            sizes="(min-width: 1152px) 72rem, 100vw"
+            loading="eager"
+            fetchpriority="high"
+            class="aspect-tarjeta w-full rounded-lg bg-superficie object-cover"
+          />
+        </Contenedor>
+      )
+    }
+
+    <Contenedor ancho="lectura" class="pb-4">
+      <Bloques contenido={articulo.contenido} componentes={{ Imagen: crearImagenWeb(variantes) }} />
+
+      {
+        articulo.etiquetas.length > 0 && (
+          <div class="mt-12">
+            <h2 class="sr-only">Etiquetas</h2>
+            <ul class="flex flex-wrap gap-2" role="list">
+              {articulo.etiquetas.map((etiqueta) => (
+                <li>
+                  <Etiqueta href={`/blog/etiqueta/${etiqueta.slug}`}>{etiqueta.nombre}</Etiqueta>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+
+      {articulo.autor && <FichaAutor autor={articulo.autor} />}
+    </Contenedor>
+  </article>
+
+  <Relacionados articulos={relacionados} />
+</Base>

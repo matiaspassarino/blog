@@ -1,23 +1,34 @@
 ---
-import '../styles/global.css';
+// Portada de la demo (H3, RF-012): seis secciones en orden. Textos en contenido/landing.ts e
+// identidad en packages/ui (§VII.6).
+import { listarArticulosPublicados } from '@blog/db';
+import Contacto from '../components/landing/Contacto.astro';
+import Hero from '../components/landing/Hero.astro';
+import Propuesta from '../components/landing/Propuesta.astro';
+import Servicios from '../components/landing/Servicios.astro';
+import Testimonios from '../components/landing/Testimonios.astro';
+import UltimosArticulos from '../components/landing/UltimosArticulos.astro';
+import { landing } from '../contenido/landing';
+import Base from '../layouts/Base.astro';
+import { cacheListado } from '../lib/cache';
+import { datos } from '../lib/datos';
+import { organizacion, sitioWeb } from '../lib/json-ld';
+import { sitio } from '../lib/sitio';
 
-export const prerender = true;
+const ultimos = await listarArticulosPublicados(datos, { porPagina: 3 });
+Astro.cache.set(cacheListado());
 ---
 
-<html lang="es">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Sitio en construcción</title>
-		<meta name="description" content="Landing y blog en construcción." />
-	</head>
-	<body>
-		<main class="mx-auto max-w-3xl p-8">
-			<h1 class="font-titulos text-3xl text-marca">Sitio en construcción</h1>
-			<p class="text-texto-suave">La landing y el blog llegan con sus specs.</p>
-		</main>
-	</body>
-</html>
+<Base
+  titulo={landing.sitio.lema}
+  descripcion={landing.sitio.descripcion}
+  ruta="/"
+  jsonLd={[organizacion(sitio), sitioWeb(sitio)]}
+>
+  <Hero />
+  <Propuesta />
+  <Servicios />
+  <Testimonios />
+  <UltimosArticulos articulos={ultimos.items} />
+  <Contacto />
+</Base>

@@ -5,21 +5,45 @@
  */
 @theme {
   /* Color */
-  --color-marca: oklch(0.55 0.15 255);
+  --color-marca: oklch(0.53 0.15 255);
+  /* Hover de los botones de marca: más oscuro, nunca con transparencia (contraste AA). */
+  --color-marca-hover: oklch(0.46 0.15 255);
   --color-marca-contraste: oklch(0.99 0 0);
   --color-acento: oklch(0.72 0.16 60);
   --color-fondo: oklch(0.99 0 0);
   --color-superficie: oklch(0.97 0.005 255);
   --color-texto: oklch(0.22 0.02 255);
   --color-texto-suave: oklch(0.45 0.02 255);
-  --color-borde: oklch(0.9 0.01 255);
+  /* Bordes de componentes (inputs, botones secundarios): ≥ 3:1 sobre el fondo (WCAG 1.4.11). */
+  --color-borde: oklch(0.6 0.02 255);
+  /* Separadores decorativos (tarjetas, hr): no transmiten información. */
+  --color-separador: oklch(0.9 0.01 255);
+  --color-marca-suave: oklch(0.95 0.03 255);
+  --color-foco: var(--color-marca);
+  /* Anillo de foco (§VII.4) */
+  --foco-ancho: 3px;
+  --foco-separacion: 3px;
   --color-exito: oklch(0.6 0.15 150);
   --color-error: oklch(0.58 0.2 27);
 
   /* Tipografía */
-  --font-titulos: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
-  --font-cuerpo: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-codigo: ui-monospace, "SFMono-Regular", monospace;
+  /* Las familias coinciden con @blog/ui/identidad; --fuente-* las define la API de
+     fuentes de Astro en apps/web (research D16 de la spec 002). */
+  --font-titulos: var(--fuente-titulos, 'Inter Tight', ui-sans-serif, system-ui, sans-serif);
+  --font-cuerpo: var(--fuente-cuerpo, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  --font-codigo: ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Títulos fluidos (de 360 a 1440 px) */
+  --text-titulo-1: clamp(2rem, 1.6rem + 2vw, 3.25rem);
+  --text-titulo-2: clamp(1.5rem, 1.3rem + 1vw, 2.25rem);
+  --text-titulo-3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+
+  /* Espaciado y anchos */
+  --spacing-seccion: clamp(3rem, 2rem + 4vw, 6rem);
+  --spacing-bloque: 1.5rem;
+  --container-lectura: 68ch;
+  --container-sitio: 72rem;
+  --aspect-tarjeta: 16 / 9;
 
   /* Radios y sombras */
   --radius-sm: 0.375rem;
