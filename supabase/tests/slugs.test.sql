@@ -36,11 +36,11 @@ select is((select slug from public.etiquetas where nombre = 'Diseño Web'), 'dis
 -- ---------------------------------------------------------------------------
 -- Nombres únicos sin distinguir mayúsculas: unique (lower(nombre))
 -- ---------------------------------------------------------------------------
-insert into public.categorias (nombre) values ('SEO');
-select throws_ok($$insert into public.categorias (nombre) values ('seo')$$, '23505', null,
+insert into public.categorias (nombre) values ('Pruebas SEO');
+select throws_ok($$insert into public.categorias (nombre) values ('pruebas seo')$$, '23505', null,
   'una categoría con el mismo nombre en otra capitalización es rechazada');
-insert into public.etiquetas (nombre) values ('SEO');
-select throws_ok($$insert into public.etiquetas (nombre) values ('Seo')$$, '23505', null,
+insert into public.etiquetas (nombre) values ('Pruebas SEO');
+select throws_ok($$insert into public.etiquetas (nombre) values ('Pruebas Seo')$$, '23505', null,
   'una etiqueta con el mismo nombre en otra capitalización es rechazada');
 
 -- ---------------------------------------------------------------------------

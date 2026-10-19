@@ -8,7 +8,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo h3-tax-).
 begin;
 \ir helpers/pruebas.psql
-select plan(64);
+select plan(66);
 
 -- Sin secretos de revalidación al empezar: el armado de datos no notifica.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -309,9 +309,18 @@ select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-0000
   'P0001', 'contenido_invalido', 'A5-M2: más de 100 etiquetas se rechaza');
 select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002', '{}'::uuid[], null)$$,
   'P0001', 'conflicto_version', 'A5-M2: una versión nula da conflicto_version');
+select throws_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002',
+    array[['e3000000-0000-4000-8000-000000000001']]::uuid[], 4)$$,
+  'P0001', 'contenido_invalido', 'A6: un arreglo bidimensional se rechaza');
+-- Caso válido aislado: no altera la versión que esperan los tests siguientes.
+savepoint antes_de_copias;
+select lives_ok($$select public.asignar_etiquetas('a3000000-0000-4000-8000-000000000002',
+    array(select 'e3000000-0000-4000-8000-000000000001'::uuid from generate_series(1, 101)), 4)$$,
+  'A6: 101 copias del mismo id son una sola etiqueta (el tope cuenta distintas)');
+rollback to savepoint antes_de_copias;
 select pruebas.como_postgres();
 select is((select version from public.articulos where id = 'a3000000-0000-4000-8000-000000000002'), 4,
-  'A5-M2: las entradas inválidas no cambian la versión');
+  'A5-M2/A6: las entradas inválidas no cambian la versión');
 
 select pruebas.como('h3-tax-editor@prueba.local');
 select throws_ok($$

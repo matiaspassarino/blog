@@ -116,16 +116,26 @@ begin
     raise exception using errcode = 'P0001', message = 'sin_permiso';
   end if;
   -- Validación de entrada antes de tocar nada (validación A5-M2).
-  if asignar_etiquetas.etiqueta_ids is null or array_position(asignar_etiquetas.etiqueta_ids, null) is not null then
+  if asignar_etiquetas.etiqueta_ids is null
+     or array_ndims(asignar_etiquetas.etiqueta_ids) > 1
+     or array_position(asignar_etiquetas.etiqueta_ids, null) is not null then
     raise exception using errcode = 'P0001', message = 'contenido_invalido', detail = 'etiquetas';
   end if;
-  if cardinality(asignar_etiquetas.etiqueta_ids) > 100 then
+  if (select count(distinct t.id) from unnest(asignar_etiquetas.etiqueta_ids) as t(id)) > 100 then
     raise exception using errcode = 'P0001', message = 'contenido_invalido', detail = 'etiquetas: máximo 100';
   end if;
-  if exists (
-    select 1 from unnest(asignar_etiquetas.etiqueta_ids) as t(id)
-    where not exists (select 1 from public.etiquetas e where e.id = t.id)
-  ) then
+  -- Orden de bloqueo: etiquetas (por id) y después el artículo, igual que el
+  -- borrado de una etiqueta (etiqueta → articulos_etiquetas → artículo). Con el
+  -- orden inverso había deadlock (validación A6-M1). El for key share vuelve
+  -- atómico el chequeo de existencia frente a un borrado concurrente (A6-M3).
+  if (
+    select count(*) from (
+      select 1 from public.etiquetas e
+      where e.id = any (asignar_etiquetas.etiqueta_ids)
+      order by e.id
+      for key share
+    ) as bloqueadas
+  ) <> (select count(distinct t.id) from unnest(asignar_etiquetas.etiqueta_ids) as t(id)) then
     raise exception using errcode = 'P0001', message = 'no_encontrado', detail = 'etiqueta';
   end if;
 

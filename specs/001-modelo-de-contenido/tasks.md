@@ -486,7 +486,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - `privado.recalcular_busqueda(articulo_ids uuid[])`, definer: un `update` que dispara `a50`. Cuando lo invoca un trigger (`pg_trigger_depth() > 1`) conserva la versión; desde el seed la incrementa, lo cual es inocuo. Lo invocan solo los triggers `z20_recalcular_articulos` de `categorias` y `etiquetas` (al cambiar `nombre`) y el seed. `asignar_etiquetas` **no** lo usa, porque su update de versión ya recalcula (I3).
   - Verificar que `z90_notificar_cambio` ignore estos updates (solo cambian `busqueda`, `version` y `actualizado_en`).
   - RPC `public.buscar_articulos(consulta text, limite int default 12, desplazamiento int default 0)`, `stable`, invoker. Devuelve `table(id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria_slug, rango real, total bigint)`, con `q := websearch_to_tsquery('public.es_sin_tildes', consulta) || websearch_to_tsquery('pg_catalog.spanish', consulta)`, el filtro `estado = 'publicado' and publicado_en <= now() and busqueda @@ q`, `order by ts_rank_cd(busqueda, q) desc, publicado_en desc`, `limit least(limite, 50) offset greatest(desplazamiento, 0)` y `count(*) over ()`. `grant execute` a `anon, authenticated`.
-  - `update public.articulos set titulo = titulo` como `postgres`, para poblar la búsqueda de las filas existentes.
+  - Carga inicial de `busqueda` sin subir `version` ni mover `actualizado_en` (validación A6-M2): `alter table public.articulos disable trigger a30_controlar_version; … disable trigger a90_actualizado_en;`, después `update public.articulos set titulo = titulo` y después volver a habilitarlos, todo en la transacción de la migración. Agregar un test de que la carga no cambia `version` ni `actualizado_en`, y un test por tabla (`articulos`, `perfiles`, `categorias`, `etiquetas`) del cambio en `fijar_actualizado_en` con `pg_trigger_depth() > 1`.
 - [ ] T059 [H5] Crear `packages/db/src/consultas/busqueda.ts`, con `buscarArticulos(c, consulta, { pagina, porPagina })`, que mapea a `Pagina<ResumenArticulo>` reutilizando `packages/db/src/paginacion.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T056 y T057.
 - [ ] T060 [H5] Agregar a `supabase/tests/privilegios.test.sql`: `buscar_articulos` (anon y authenticated) y que `privado.recalcular_busqueda` no sea ejecutable por clientes.
 
@@ -531,13 +531,13 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ## Fase 9: Validación y cierre
 
-- [ ] T065 [P] Crear `supabase/tests/seed.test.sql` (RF-028, CE-007). Debe verificar:
+- [X] T065 [P] Crear `supabase/tests/seed.test.sql` (RF-028, CE-007). Debe verificar:
   - 3 perfiles: 1 admin y 2 editores activos;
   - 4 categorías y 10 etiquetas;
   - ≥ 14 artículos: ≥ 9 publicados, 2 programados con fechas futuras, 2 borradores y 1 archivado;
   - los 10 tipos de bloque presentes en los publicados (`jsonb_path_query` sobre `contenido`);
   - toda imagen tiene `ancho` y `alto`.
-- [ ] T066 Completar `supabase/seed.sql` con las categorías (Diseño, Desarrollo, Marketing, Negocios), 10 etiquetas y 14 artículos con textos realistas en español, que cubran los 10 tipos de bloque. Las imágenes son placeholders `https://picsum.photos/seed/<slug>/1600/900` con `ancho: 1600, alto: 900` y su alt. Las fechas de publicación son escalonadas en los últimos 90 días (insertadas como `postgres`, que no es cliente). Etiquetado con `insert into articulos_etiquetas` (como `postgres`), seguido de `select privado.recalcular_busqueda(array_agg(id)) from public.articulos;` para incluir las etiquetas en la búsqueda. Al final, agregar `vault.create_secret('http://172.17.0.1:4321','url_web_revalidacion')` y `vault.create_secret('<valor local de .env.example>','secreto_revalidacion')`, de forma idempotente. Debe pasar T065.
+- [X] T066 Completar `supabase/seed.sql` con las categorías (Diseño, Desarrollo, Marketing, Negocios), 10 etiquetas y 14 artículos con textos realistas en español, que cubran los 10 tipos de bloque. Las imágenes son placeholders `https://picsum.photos/seed/<slug>/1600/900` con `ancho: 1600, alto: 900` y su alt. Las fechas de publicación son escalonadas en los últimos 90 días (insertadas como `postgres`, que no es cliente). Etiquetado con `insert into articulos_etiquetas` (como `postgres`), seguido de `select privado.recalcular_busqueda(array_agg(id)) from public.articulos;` para incluir las etiquetas en la búsqueda. Al final, agregar `vault.create_secret('http://172.17.0.1:4321','url_web_revalidacion')` y `vault.create_secret('<valor local de .env.example>','secreto_revalidacion')`, de forma idempotente. Debe pasar T065.
 - [ ] T067 [P] Crear `packages/db/src/invariantes.test.ts`: `select privado.tipos_bloque()` como `postgres` (vía service role, con un RPC de solo test, o leyendo con `pg` directo desde `DB_URL`) es igual a `TIPOS_BLOQUE` (research D8).
 - [ ] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
 - [ ] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
@@ -561,7 +561,7 @@ Preparación (F1) → Fundacional (F2) → H1 (F3) → H2 (F4) → H3 (F5) ─�
 - **H2** depende de H1 (la tabla `articulos`).
 - **H3** depende de H2: la notificación (T041) y la función genérica de redirecciones (T040).
 - **H4, H5 y H6** dependen de H3 y son **independientes entre sí**: se pueden hacer en paralelo, con cuidado en dos puntos.
-  - H5 (T058) **no** modifica `asignar_etiquetas`: su único update de versión ya recalcula vía `a50` (D22; con `recalcular_busqueda` volvería el doble incremento I3). Hay que mantener en el RPC el orden insert → update.
+  - H5 (T058) **no** modifica `asignar_etiquetas`: su único update de versión ya recalcula vía `a50` (D22; con `recalcular_busqueda` volvería el doble incremento I3). Hay que mantener en el RPC el orden insert → update, y el orden de bloqueo **etiquetas → artículo** (validación A6-M1), que es el mismo del borrado de una etiqueta. Si no, vuelve el deadlock.
   - Las tres agregan objetos a `privilegios.test.sql`. Hacer esas tareas (T060, T033…) en secuencia.
 - **Cierre** depende de todas las historias.
 - Las migraciones tienen timestamps fijos que respetan este orden. Si una historia se adelanta, no cambia su timestamp.
