@@ -42,14 +42,15 @@ X-Blog-Firma: sha256={hex(HMAC-SHA256(secreto_revalidacion, marca + "." + cuerpo
 | Cambio de `nombre`, `biografia` o `avatar` de un autor con artículos publicados | Sí: **un** mensaje `tipo: 'autor'` con `slugs = [slug del autor]` (spec 002) |
 | Updates que solo cambian `busqueda`, `version` o `actualizado_en` | No |
 
-## Rutas que calcula `rutasAfectadas` (`@blog/db`)
+## Qué invalida el sitio (spec 002)
 
-> **Reemplazado en la spec 002**: el sitio usa caché de rutas con tags y `invalidacionesDe(cambio)` (ver `specs/002-sitio-publico/contracts/cache.md`, research D1). Lo que sigue queda como historia; el punto "Pendiente para la spec web" se resuelve con los tags `categoria:<id>` / `etiqueta:<id>` de las páginas de artículos.
+`rutasAfectadas` ya no existe. El sitio usa caché de rutas con tags e `invalidacionesDe(cambio)` de `@blog/db` (ver `specs/002-sitio-publico/contracts/cache.md` y research D1–D3):
 
-- **Artículo**: `/blog/{slug}` por cada slug, `/blog`, `/blog/pagina/*` (las primeras 5 páginas), `/blog/categoria/{c}`, `/blog/etiqueta/{e}`, `/`, `/sitemap.xml`, `/rss.xml`.
-- **Autor**: `/blog/{slug}` por cada slug y `/blog`.
-- **Pendiente para la spec web:** al borrar una etiqueta, o al renombrar una categoría o etiqueta, el mensaje lleva el slug de la taxonomía pero no los de sus artículos, así que las páginas de esos artículos no se revalidan. La spec del sitio público tiene que decidir si esas páginas se revalidan por expiración o si el mensaje se amplía.
-- **Categoría o etiqueta**: `/blog/{categoria|etiqueta}/{slug}` por cada slug, `/blog`, `/sitemap.xml`.
+- cada página declara los tags de lo que muestra (`articulo:<id>`, `categoria:<id>`, `etiqueta:<id>`, `autor:<id>` y la colección `articulos`);
+- el aviso invalida `articulos` más el tag de la entidad, y las rutas de sus slugs (el actual y los anteriores);
+- así se resuelve el pendiente de esta spec: al renombrar o borrar una taxonomía, sus artículos se invalidan por su tag, sin ampliar el mensaje.
+
+`SECRETO_REVALIDACION` solo firma el aviso (HMAC); ya no hay `bypassToken` de ISR. El recorrido base → `/api/revalidar` se verificó de punta a punta en local (spec 002, H4): la firma de `pg_net` valida en el sitio y el cuerpo cumple `esquemaCambioPublico`.
 
 ## Garantías
 

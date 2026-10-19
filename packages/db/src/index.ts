@@ -27,7 +27,7 @@ export {
   type AutorPublico,
   type ReferenciaTaxonomia,
 } from './consultas/articulos-publicos';
-export { rutasAfectadas, type CambioPublico } from './rutas-afectadas';
+export { invalidacionesDe, leerCambioPublico, esquemaCambioPublico, type CambioPublico } from './invalidaciones';
 export { TAG_ARTICULOS, tagArticulo, tagCategoria, tagEtiqueta, tagAutor } from './tags';
 export type { ResumenArticulo } from './consultas/tipos-publicos';
 export type { Pagina, OpcionesPagina } from './paginacion';

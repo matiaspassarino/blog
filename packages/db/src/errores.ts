@@ -11,6 +11,7 @@ export type CodigoError =
   | 'sin_permiso' // RLS / trigger de perfil
   | 'contenido_invalido' // check de contenido / validación Zod
   | 'slug_duplicado' // 23505 tras reintento
+  | 'validacion' // aviso de cambio que no cumple el contrato (spec 002)
   | 'no_encontrado'
   | 'desconocido';
 
