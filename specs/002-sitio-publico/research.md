@@ -148,7 +148,8 @@ Es idempotente: invalidar dos veces es lo mismo que invalidar una (RF-019, H4-E3
 
 - Si una página dinámica no encuentra la entidad, devuelve `Astro.rewrite('/404')` con estado 404. `src/pages/404.astro` se prerenderiza.
 - Los errores de datos (`ErrorDominio` distinto de `no_encontrado`) se propagan a `src/pages/500.astro`, con estado 500. El CDN no cachea 5xx y, mientras tanto, sigue sirviendo la versión anterior por `swr`.
-- **Verificado en la implementación (T058)**: Astro prohíbe `Astro.rewrite('/404')` hacia una página prerenderizada (`ForbiddenRewrite`). Las páginas dinámicas devuelven `new Response(null, { status: 404 })` con el helper `respuestaNoEncontrado()` de `src/lib/resolver.ts`, y Astro renderiza `404.astro` con estado 404. En Vercel se confirma sobre el preview (T099).
+- **Verificado en la implementación (T058)**: Astro prohíbe `Astro.rewrite('/404')` hacia una página prerenderizada (`ForbiddenRewrite`). Las páginas dinámicas devuelven `new Response(null, { status: 404 })` con el helper `respuestaNoEncontrado()` de `src/lib/resolver.ts`, y Astro renderiza `404.astro` con estado 404.
+- **Verificado en el preview (T099)**: con `404.astro` prerenderizada, en Vercel esos 404 salían **vacíos** (la función no puede leer el `404.html` estático), y `/Blog` también: Vercel lo enruta a la función y, sin 404 renderizable, el middleware de minúsculas no llegaba a correr. Por eso `404.astro` se renderiza en la función, con `cacheNoEncontrado()` (una hora).
 
 ## D14. Sitemap y RSS propios (se quita `@astrojs/sitemap`)
 

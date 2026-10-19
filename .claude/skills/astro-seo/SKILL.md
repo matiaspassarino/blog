@@ -19,7 +19,7 @@ trailingSlash: 'never',
 ```
 
 - Cada página declara su política con los helpers de `src/lib/cache.ts`: `cacheArticulo(a, relacionados)`, `cacheListado(entidad?)`, `cacheNoEncontrado()` y `cacheRedireccion()`. **Nunca** escribas tags a mano: el formato sale de `packages/db/src/tags.ts`.
-- Prerender (`export const prerender = true`) solo en `/404`, `/robots.txt` y `/logo.svg`.
+- Prerender (`export const prerender = true`) solo en `/robots.txt` y `/logo.svg`. **La 404 no se prerenderiza**: en Vercel la función no puede leer el `404.html` estático y los 404 dinámicos salían vacíos (T099).
 - `astro dev` no cachea: los E2E locales siempre ven datos frescos.
 
 ## 2. Invalidación (base → web)
@@ -41,7 +41,7 @@ trailingSlash: 'never',
 | `/sitemap.xml`, `/rss.xml`, `/robots.txt`, `/api/revalidar` | endpoints `.ts` |
 
 - **Un solo flujo**: `resolverEntidad` (entidad → 301 por slug anterior → 404) y `resolverListado` (página → 301 de `/pagina/1` → 404 fuera de rango o formato inválido). No lo repitas en las páginas.
-- **404 de una página dinámica**: `return respuestaNoEncontrado()` (`new Response(null, { status: 404 })`). **No** uses `Astro.rewrite('/404')`: Astro lo prohíbe hacia la 404 prerenderizada (`ForbiddenRewrite`).
+- **404 de una página dinámica**: `return respuestaNoEncontrado()` (`new Response(null, { status: 404 })`); Astro renderiza `404.astro`. Comprobalo siempre sobre el preview de Vercel, no solo en `astro dev`.
 - **Middleware**: 301 a minúsculas (salvo `/_astro`) y `X-Robots-Tag: noindex` cuando `VERCEL_ENV !== 'production'`.
 - Un segmento dinámico como `blog/[x]/[y]/[...pagina]` capturaría `/blog/pagina/<n>`: usá segmentos estáticos.
 

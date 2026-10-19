@@ -44,7 +44,7 @@ Detalle en [data-model.md](data-model.md). El bucket `medios` no cambia.
 
 **Rutas públicas afectadas**: todas, en [contracts/rutas.md](contracts/rutas.md).
 - Estrategia: SSR con caché de CDN e invalidación por tags (D1). Equivale a ISR on-demand en términos de la constitución §IV.1: se sirve HTML ya generado y se regenera solo ante un aviso.
-- Prerender (build): `/404` y `/robots.txt`.
+- Prerender (build): `/robots.txt` y `/logo.svg`. La 404 se renderiza en la función (T099: prerenderizada salía vacía en Vercel).
 - Sin caché: `/api/revalidar`.
 
 **Rutas admin afectadas**: ninguna.

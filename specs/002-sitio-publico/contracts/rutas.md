@@ -12,7 +12,7 @@ Todas son dinámicas (`output: 'server'`) y quedan cacheadas en el CDN según [c
 | `/sitemap.xml` | `pages/sitemap.xml.ts` | `listarParaSitemap` | 200 `application/xml` |
 | `/rss.xml` | `pages/rss.xml.ts` | `listarArticulosPublicados({porPagina:20})` | 200 `application/rss+xml` |
 | `/robots.txt` | `pages/robots.txt.ts` (prerender) | `VERCEL_ENV` | 200 `text/plain` |
-| `/404` | `pages/404.astro` (prerender) | — | 404 |
+| `/404` | `pages/404.astro` (en la función, cacheada una hora; T099: prerenderizada salía vacía en Vercel) | — | 404 |
 | `/500` | `pages/500.astro` | — | 500 |
 | `/api/revalidar` | `pages/api/revalidar.ts` | — | ver [cache.md](cache.md) |
 

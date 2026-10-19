@@ -1,12 +1,14 @@
 ---
 // Página "no encontrado" (RF-016, RF-006): misma respuesta para lo no publicado y lo
-// inexistente. Se prerenderiza; las rutas dinámicas la muestran con respuestaNoEncontrado()
-// (src/lib/resolver.ts), porque Astro no permite reescribir hacia una página prerenderizada.
+// inexistente. Las rutas dinámicas la muestran con respuestaNoEncontrado() (src/lib/resolver.ts).
+// NO se prerenderiza (T099): en Vercel la función no puede leer el 404.html estático, y los
+// 404 de las páginas dinámicas y de las rutas sin coincidencia salían vacíos. Se cachea una hora.
 import Base from '../layouts/Base.astro';
 import Boton from '../components/ui/Boton.astro';
 import Contenedor from '../components/ui/Contenedor.astro';
+import { cacheNoEncontrado } from '../lib/cache';
 
-export const prerender = true;
+Astro.cache.set(cacheNoEncontrado());
 ---
 
 <Base
