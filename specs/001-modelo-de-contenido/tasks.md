@@ -524,6 +524,7 @@ description: "Lista de tareas: modelo de contenido del blog"
   - trigger `z10_garantizar_admin` (after update, definer): `perform pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))`; si `not exists (select 1 from public.perfiles where rol = 'admin' and activo)`, lanza `ultimo_admin`;
   - ~~trigger `z90_notificar_cambio_autor`~~: **se trasladó a la spec 002** (`20261019120100_autores_publicos.sql`, data-model 002), con `slugs = [slug del autor]`. No crearlo acá.
   - Nota (spec 002): las migraciones de H4–H6 llevan timestamps posteriores a `20261019120100` para respetar el orden de autoría.
+  - Nota (spec 002, hallazgo en tests): `auth.admin.createUser` guarda `app_metadata` **después** del insert, así que `crear_perfil` no ve el rol y el perfil nace inactivo. Agregar un trigger `after update of raw_app_meta_data on auth.users` (definer) que, cuando `rol` pasa de nulo a un valor, actualice `perfiles.rol` y ponga `activo = true`. Mantiene la regla de D3 (solo el servidor activa una cuenta). Con su pgTAP.
 - [ ] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
 
 **Checkpoint**: Las 6 historias están completas.
