@@ -148,7 +148,7 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 
 - **Artículo sin imagen destacada**: la tarjeta y la vista previa en redes usan una imagen genérica del sitio; el diseño no se rompe.
 - **Título o extracto muy largos** (120 y 300 caracteres): las tarjetas los recortan visualmente sin desbordar y sin perder el texto completo para tecnologías de asistencia.
-- **Galería con una sola imagen o con muchas**: se presenta bien en los cuatro anchos de referencia.
+- **Galería con el mínimo de imágenes (2, según el esquema de la spec 001) o con muchas**: se presenta bien en los cuatro anchos de referencia.
 - **Contenido con texto que parece código** (`<script>`, `{{`, etc.) en cualquier bloque: siempre se muestra como texto.
 - **Enlace de llamada a la acción con un esquema peligroso** (por ejemplo `javascript:`): no se renderiza como enlace activo.
 - **Video de un proveedor caído**: el resto del artículo se ve igual; el bloque muestra su título y un enlace al video original.

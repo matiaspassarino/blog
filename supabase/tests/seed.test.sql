@@ -1,7 +1,7 @@
 -- T065: datos de demo (RF-028, CE-007). Verifica el estado que deja seed.sql
 -- después de `pnpm db:reset`: es el único test que depende del seed, a propósito.
 begin;
-select plan(11);
+select plan(13);
 
 select is(
   (select count(*)::int from public.perfiles p join auth.users u on u.id = p.id where u.email like '%@demo.local'),
@@ -24,6 +24,16 @@ select ok((select count(*) from public.articulos where estado = 'programado' and
   'al menos 2 programados con fecha futura');
 select ok((select count(*) from public.articulos where estado = 'borrador') >= 2, 'al menos 2 borradores');
 select ok((select count(*) from public.articulos where estado = 'archivado') >= 1, 'al menos 1 archivado');
+
+-- Spec 002 (T012): segunda página de /blog y redirecciones de demo en un salto.
+select ok((select count(*) from public.articulos where estado = 'publicado' and publicado_en <= now()) >= 13,
+  'al menos 13 publicados (hay /blog/pagina/2)');
+select ok(exists (
+    select 1 from public.redirecciones r
+    join public.articulos a on a.id = r.entidad_id
+    where r.tipo_entidad = 'articulo'
+    group by r.entidad_id having count(*) >= 2),
+  'un artículo con dos slugs anteriores que apuntan a la misma entidad');
 
 select is(
   (select array_agg(distinct b ->> 'tipo' order by b ->> 'tipo')

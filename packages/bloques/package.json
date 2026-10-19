@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./render": "./src/render/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -12,11 +13,18 @@
   },
   "devDependencies": {
     "@blog/config": "workspace:*",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "eslint": "9.39.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   },
   "dependencies": {
     "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
   }
 }

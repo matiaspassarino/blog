@@ -175,7 +175,7 @@ Ya están cargadas en Vercel. Un único módulo, `src/lib/datos.ts`, crea el cli
 - `fonts: [{ provider: fontProviders.fontsource(), name: identidad.fuentes.cuerpo, cssVariable: '--font-cuerpo' }, { name: identidad.fuentes.titulos, cssVariable: '--font-titulos' }]`.
 - Los nombres de las familias salen de `packages/ui/src/identidad.ts` (`@blog/ui/identidad`), no de `astro.config.mjs`: así la tipografía se cambia solo en `packages/ui` (§VII.6, análisis C1).
 - Las fuentes se descargan en el build y se sirven desde el propio dominio, con `<link rel=preload>` de la fuente del cuerpo. Mejoran el LCP y el CLS (CE-002) y no suman dependencias.
-- `tokens.css` conserva el *fallback* de sistema.
+- Astro expone las fuentes como `--fuente-cuerpo` y `--fuente-titulos`, y `tokens.css` las consume (`--font-cuerpo: var(--fuente-cuerpo, …)`), con el *fallback* de sistema. No se usa el mismo nombre que el token para no pisar el `@theme` de Tailwind, y así el admin, sin la API de fuentes de Astro, sigue funcionando.
 
 ## D17. Fechas
 

@@ -248,6 +248,77 @@ values
 );
 
 -- ---------------------------------------------------------------------------
+-- Artículos para las pruebas del sitio público (spec 002, T012): todos los tipos
+-- de bloque, título y extracto al máximo sin imagen destacada, galería de una
+-- imagen y los publicados necesarios para tener una segunda página de /blog.
+-- ---------------------------------------------------------------------------
+insert into public.articulos
+  (titulo, extracto, imagen_destacada, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)
+values
+(
+  'Guía visual: todos los bloques del blog',
+  'Un artículo de muestra con los diez tipos de bloque que admite el editor, en el orden en que se presentan.',
+  pg_temp.imagen('bloques', 'Piezas de un sistema de diseño ordenadas sobre una mesa'),
+  jsonb_build_array(
+    pg_temp.parrafo('Este artículo reúne todos los bloques del editor.
+
+Sirve para revisar que cada uno se vea bien.
+Este renglón va en la misma línea lógica que el anterior.'),
+    pg_temp.titulo(2, 'Imágenes y citas'),
+    pg_temp.bloque_imagen('bloque-imagen', 'Boceto de una interfaz dibujado a mano', 'Un boceto antes de pasar a la pantalla.'),
+    jsonb_build_object('id', gen_random_uuid(), 'tipo', 'imagen',
+      'imagen', jsonb_build_object('ruta', 'https://picsum.photos/seed/decorativa/1600/900',
+                                   'ancho', 1600, 'alto', 900, 'decorativa', true)),
+    pg_temp.cita('El diseño no es solo cómo se ve, sino cómo funciona.', 'Steve Jobs', 'https://www.nytimes.com'),
+    pg_temp.lista(true, array['Definir el objetivo.', 'Elegir el bloque adecuado.', 'Revisar en el celular.']),
+    jsonb_build_object('id', gen_random_uuid(), 'tipo', 'galeria', 'columnas', 4,
+      'imagenes', jsonb_build_array(
+        pg_temp.imagen('galeria-1', 'Paleta de colores impresa'),
+        pg_temp.imagen('galeria-2', 'Tarjetas personales sobre papel kraft'),
+        pg_temp.imagen('galeria-3', 'Pantalla con una grilla de diseño'),
+        pg_temp.imagen('galeria-4', 'Cuaderno con tipografías dibujadas'))),
+    pg_temp.cta('Conocé la documentación de accesibilidad', 'Las pautas WCAG explican cómo hacer sitios para todas las personas.', 'Ver las pautas', 'https://www.w3.org/WAI/standards-guidelines/wcag/'),
+    pg_temp.separador(),
+    pg_temp.titulo(3, 'Código y video'),
+    pg_temp.codigo('html', '<script>alert(1)</script>
+<p>Este código se muestra como texto y nunca se ejecuta.</p>'),
+    pg_temp.video('dQw4w9WgXcQ', 'Video de muestra del bloque de video')
+  ),
+  pg_temp.categoria('Diseño'), '00000000-0000-4000-a000-000000000002', 'publicado', now() - interval '2 days', null
+),
+(
+  'Guía completa para planificar, diseñar, escribir, publicar y evaluar el blog de una pyme de servicios sin perder el foco',
+  'Un recorrido de punta a punta por el blog de una pyme de servicios: cómo definir los temas que buscan tus clientes, armar un calendario realista, escribir notas claras, cuidar el SEO técnico, difundir cada publicación y medir qué contenidos generan consultas para decidir qué escribir el próximo mes.',
+  null,
+  jsonb_build_array(pg_temp.parrafo('Este artículo no tiene imagen destacada: la tarjeta y la vista previa en redes usan la imagen genérica del sitio.')),
+  pg_temp.categoria('Marketing'), '00000000-0000-4000-a000-000000000003', 'publicado', now() - interval '5 days', null
+),
+(
+  'Dos fotos también cuentan una historia',
+  'Cómo elegir las imágenes que resumen un proyecto cuando hay lugar para pocas.',
+  pg_temp.imagen('una-foto', 'Cámara de fotos sobre un escritorio'),
+  jsonb_build_array(
+    pg_temp.parrafo('A veces una galería tiene el mínimo de imágenes, y tiene que verse igual de bien.'),
+    pg_temp.galeria(array['foto-antes', 'foto-despues'], array['Fachada de un local antes de la renovación', 'La misma fachada con su cartel nuevo'])
+  ),
+  pg_temp.categoria('Diseño'), '00000000-0000-4000-a000-000000000002', 'publicado', now() - interval '30 days', null
+),
+(
+  'Cómo responder consultas más rápido',
+  'Plantillas y horarios para que ningún cliente espere demasiado.',
+  pg_temp.imagen('consultas', 'Persona respondiendo mensajes desde una notebook'),
+  jsonb_build_array(pg_temp.parrafo('Responder en menos de una hora multiplica las chances de cerrar una venta.')),
+  pg_temp.categoria('Negocios'), '00000000-0000-4000-a000-000000000001', 'publicado', now() - interval '45 days', null
+),
+(
+  'Fotos de producto con el celular',
+  'Luz, fondo y encuadre: lo básico para que tus productos se vean profesionales.',
+  pg_temp.imagen('producto', 'Producto fotografiado con luz natural'),
+  jsonb_build_array(pg_temp.parrafo('Con luz de ventana y un fondo liso alcanza para empezar.')),
+  pg_temp.categoria('Marketing'), '00000000-0000-4000-a000-000000000002', 'publicado', now() - interval '60 days', null
+);
+
+-- ---------------------------------------------------------------------------
 -- Etiquetado (como postgres; el panel usa asignar_etiquetas)
 -- ---------------------------------------------------------------------------
 insert into public.articulos_etiquetas (articulo_id, etiqueta_id)
@@ -262,10 +333,25 @@ from (values
   ('Primeros pasos con JavaScript moderno', array['JavaScript']),
   ('Cómo validar una idea de negocio en una semana', array['Emprendimiento']),
   ('Redes sociales para pymes: menos es más', array['Redes sociales', 'Contenidos']),
-  ('Tendencias de diseño para el próximo año', array['Branding', 'UX'])
+  ('Tendencias de diseño para el próximo año', array['Branding', 'UX']),
+  ('Guía visual: todos los bloques del blog', array['UX', 'Accesibilidad', 'Tipografía']),
+  ('Dos fotos también cuentan una historia', array['Branding']),
+  ('Cómo responder consultas más rápido', array['Emprendimiento']),
+  ('Fotos de producto con el celular', array['Redes sociales', 'Contenidos'])
 ) as x(titulo, etiquetas)
 join public.articulos a on a.titulo = x.titulo
 join public.etiquetas e on e.nombre = any (x.etiquetas);
+
+-- ---------------------------------------------------------------------------
+-- Cambios de slug para tener redirecciones de demo (spec 002, T012): un artículo
+-- publicado cambia dos veces y una categoría y una etiqueta, una vez cada una.
+-- ---------------------------------------------------------------------------
+update public.articulos set slug = 'escribir-para-la-web'
+  where slug = 'escribir-para-la-web-claridad-antes-que-todo';
+update public.articulos set slug = 'claridad-al-escribir-para-la-web'
+  where slug = 'escribir-para-la-web';
+update public.categorias set slug = 'marketing-digital' where slug = 'marketing';
+update public.etiquetas set slug = 'redes' where slug = 'redes-sociales';
 
 -- ---------------------------------------------------------------------------
 -- Secretos de revalidación (solo local; en la nube se cargan aparte). Al final,

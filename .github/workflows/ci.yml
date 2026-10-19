@@ -13,6 +13,12 @@ jobs:
   calidad:
     name: Lint, tipos, unitarios y calidad
     runs-on: ubuntu-latest
+    # Valores ficticios para que astro build pase la validación de astro:env (spec 002, T011).
+    env:
+      PUBLIC_URL_SITIO: http://localhost:4321
+      PUBLIC_SUPABASE_URL: http://127.0.0.1:56321
+      PUBLIC_SUPABASE_ANON_KEY: clave-anon-ficticia-para-el-build
+      SECRETO_REVALIDACION: secreto-ficticio-de-ci-de-32-caracteres-o-mas
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -65,6 +71,15 @@ jobs:
           version: 2.121.0
       - run: pnpm install --frozen-lockfile
       - run: supabase start
+      - name: Variables de apps/web para los E2E
+        run: |
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY)=')"
+          {
+            echo "PUBLIC_URL_SITIO=http://localhost:4321"
+            echo "PUBLIC_SUPABASE_URL=$API_URL"
+            echo "PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            grep '^SECRETO_REVALIDACION=' .env.example
+          } > apps/web/.env.local
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - if: failure()

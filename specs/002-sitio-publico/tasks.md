@@ -38,16 +38,16 @@ description: "Lista de tareas: sitio público (landing y blog)"
 
 **Propósito**: Dependencias, configuración de Astro, entorno de tests, CI y datos de demo que necesitan las pruebas.
 
-- [ ] T001 Corregir el `typecheck` de `apps/admin`, que hoy falla en CI de `main` (`Cannot find name 'LayoutProps'`): en `apps/admin/package.json` cambiar el script a `"typecheck": "next typegen && tsc --noEmit"`. Confirmar antes que `next typegen` existe en `apps/admin/node_modules/next/dist/docs/` (ver `apps/admin/AGENTS.md`). Verificar que `pnpm typecheck` pase después de borrar `apps/admin/.next`.
-- [ ] T002 Dependencias de `apps/web/package.json`: agregar `@blog/db: workspace:*`, `@blog/bloques: workspace:*` y `@astrojs/rss@4.0.19` (research D14), y **quitar** `@astrojs/sitemap`. Además, fijar sin `^` las versiones que ya usa (las que resuelve `pnpm-lock.yaml`), porque §II pide versiones fijas (análisis C5). Si `minimumReleaseAge` bloquea una versión, elegir la anterior; no agregar exclusiones.
-- [ ] T003 [P] Agregar `zod@4.6.7` a `packages/db/package.json` (la misma versión que `@blog/bloques`, research D4).
-- [ ] T004 [P] Preparar `packages/bloques` para los renderers (research D5, [contracts/bloques-render.md](contracts/bloques-render.md)):
+- [X] T001 Corregir el `typecheck` de `apps/admin`, que hoy falla en CI de `main` (`Cannot find name 'LayoutProps'`): en `apps/admin/package.json` cambiar el script a `"typecheck": "next typegen && tsc --noEmit"`. Confirmar antes que `next typegen` existe en `apps/admin/node_modules/next/dist/docs/` (ver `apps/admin/AGENTS.md`). Verificar que `pnpm typecheck` pase después de borrar `apps/admin/.next`.
+- [X] T002 Dependencias de `apps/web/package.json`: agregar `@blog/db: workspace:*`, `@blog/bloques: workspace:*` y `@astrojs/rss@4.0.19` (research D14), y **quitar** `@astrojs/sitemap`. Además, fijar sin `^` las versiones que ya usa (las que resuelve `pnpm-lock.yaml`), porque §II pide versiones fijas (análisis C5). Si `minimumReleaseAge` bloquea una versión, elegir la anterior; no agregar exclusiones.
+- [X] T003 [P] Agregar `zod@4.6.7` a `packages/db/package.json` (la misma versión que `@blog/bloques`, research D4).
+- [X] T004 [P] Preparar `packages/bloques` para los renderers (research D5, [contracts/bloques-render.md](contracts/bloques-render.md)):
   - en `package.json`: `peerDependencies` `react: ^19.3.0` (web usa 19.3.1 y admin 19.3.0); `devDependencies` `react@19.3.0`, `react-dom@19.3.0` y `@types/react`/`@types/react-dom` (19.x, la misma que usa `apps/web`); en `exports`, agregar `"./render": "./src/render/index.ts"`;
   - en `tsconfig.json`: `"jsx": "react-jsx"` y que `include` cubra `src/**/*.tsx`.
-- [ ] T005 [P] En `packages/bloques/eslint.config.js`, prohibir `dangerouslySetInnerHTML` (RF-003, research D5) con `no-restricted-syntax` sobre `JSXAttribute[name.name='dangerouslySetInnerHTML']` y un mensaje en español. No agregar plugins nuevos.
-- [ ] T006 [P] Agregar `@axe-core/playwright` como devDependency de la raíz (`package.json`), en la última versión que permita `minimumReleaseAge` (justificado en plan.md, "Plan de pruebas").
-- [ ] T007 [P] Crear `apps/web/vitest.config.ts` con `getViteConfig()` de `astro/config`, para que los tests de `src/lib`, `src/middleware.ts` y `src/pages/api` resuelvan los módulos virtuales (`astro:env/server`, `astro:middleware`). Excluir `e2e/`.
-- [ ] T008 Reescribir `apps/web/astro.config.mjs` (research D1, D7, D12, D15, D16). Verificar cada nombre de API contra `apps/web/node_modules/astro/dist` y `@astrojs/vercel/dist` antes de escribirlo:
+- [X] T005 [P] En `packages/bloques/eslint.config.js`, prohibir `dangerouslySetInnerHTML` (RF-003, research D5) con `no-restricted-syntax` sobre `JSXAttribute[name.name='dangerouslySetInnerHTML']` y un mensaje en español. No agregar plugins nuevos.
+- [X] T006 [P] Agregar `@axe-core/playwright` como devDependency de la raíz (`package.json`), en la última versión que permita `minimumReleaseAge` (justificado en plan.md, "Plan de pruebas").
+- [X] T007 [P] Crear `apps/web/vitest.config.ts` con `getViteConfig()` de `astro/config`, para que los tests de `src/lib`, `src/middleware.ts` y `src/pages/api` resuelvan los módulos virtuales (`astro:env/server`, `astro:middleware`). Excluir `e2e/`.
+- [X] T008 Reescribir `apps/web/astro.config.mjs` (research D1, D7, D12, D15, D16). Verificar cada nombre de API contra `apps/web/node_modules/astro/dist` y `@astrojs/vercel/dist` antes de escribirlo:
   - `adapter: vercel({ imageService: true })`, **sin** `isr` y sin `bypassToken`;
   - caché de rutas con el proveedor `cacheVercel()` de `@astrojs/vercel/cache`;
   - `env.schema` con `PUBLIC_URL_SITIO`, `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_ANON_KEY` (`context: 'server', access: 'public'`) y `SECRETO_REVALIDACION` (`context: 'server', access: 'secret'`, mínimo de 32 caracteres);
@@ -56,18 +56,18 @@ description: "Lista de tareas: sitio público (landing y blog)"
   - `trailingSlash: 'never'`;
   - `integrations: [react()]` (sin `sitemap()`);
   - reemplazar el comentario de cabecera para que apunte a research D1 y no a "ISR".
-- [ ] T009 [P] En `apps/web/src/styles/global.css`, agregar `@source` hacia `packages/bloques/src/render` para que Tailwind vea sus clases y la regla `@media (prefers-reduced-motion: reduce)` que anula transiciones y animaciones. (El estilo de `:focus-visible` va en T031, cuando exista `--color-foco`.)
-- [ ] T010 [P] Variables de entorno:
+- [X] T009 [P] En `apps/web/src/styles/global.css`, agregar `@source` hacia `packages/bloques/src/render` para que Tailwind vea sus clases y la regla `@media (prefers-reduced-motion: reduce)` que anula transiciones y animaciones. (El estilo de `:focus-visible` va en T031, cuando exista `--color-foco`.)
+- [X] T010 [P] Variables de entorno:
   - en `.env.example`, cambiar el comentario de `SECRETO_REVALIDACION` a "firma HMAC de los avisos de la base (≥ 32 caracteres)" (ya no hay ISR ni `bypassToken`, research D1);
   - crear `apps/web/.env.local` (ignorado por git) con los valores de `supabase status`, como dice [quickstart.md](quickstart.md#requisitos-previos).
-- [ ] T011 [P] En `.github/workflows/ci.yml`:
+- [X] T011 [P] En `.github/workflows/ci.yml`:
   - job `calidad`: definir en `env` valores ficticios de `PUBLIC_URL_SITIO`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY` y `SECRETO_REVALIDACION` (32 caracteres o más) para que `astro build` pase la validación de `astro:env`;
   - job `e2e`: después de `supabase start`, generar `apps/web/.env.local` a partir de `supabase status -o env` (URL y clave anon) y `SECRETO_REVALIDACION` de `.env.example`.
-- [ ] T012 Completar `supabase/seed.sql` con los datos que necesitan las pruebas de esta spec. **Es un desvío del data-model.md original, ya documentado en su sección "Seed" (análisis I5)**, justificado porque la prueba independiente de H1, H2-E1 y CE-005 no tienen datos con el seed actual:
+- [X] T012 Completar `supabase/seed.sql` con los datos que necesitan las pruebas de esta spec. **Es un desvío del data-model.md original, ya documentado en su sección "Seed" (análisis I5)**, justificado porque la prueba independiente de H1, H2-E1 y CE-005 no tienen datos con el seed actual:
   - un artículo publicado **"Guía visual: todos los bloques del blog"** con los 10 tipos de bloque, en este orden: párrafo, título nivel 2, imagen con leyenda, imagen decorativa (`decorativa: true`), cita con autor y fuente, lista ordenada, galería de 4 imágenes, CTA con URL externa `https://…`, separador, título nivel 3, código cuyo texto incluya `<script>alert(1)</script>` y video de YouTube;
   - un artículo publicado **sin imagen destacada**, con un título de 120 caracteres y un extracto de 300 caracteres (casos borde);
   - los artículos publicados que falten para llegar a **13 o más publicados** (H2-E1: hace falta `/blog/pagina/2`);
-  - una galería de **una sola imagen** en otro artículo publicado (caso borde de galerías);
+  - una galería con el **mínimo de 2 imágenes** (el esquema de la 001 no admite menos) en otro artículo publicado (caso borde de galerías);
   - después de insertar, cambiar como `postgres` la columna **`slug`** (`update … set slug = …`) de un artículo **publicado** dos veces (a → b → c) y de una categoría y una etiqueta una vez, para que `redirecciones` tenga entradas (H4-E4, H4-E5, CE-005). El trigger `z10_registrar_redireccion` de artículos solo actúa si `publicado_en` no es nulo. El seed ya desactiva las notificaciones durante la carga: mantenerlo así.
   - `supabase/tests/seed.test.sql` usa `>=` y debería seguir valiendo; agregar una afirmación de que existe al menos una redirección de artículo con dos saltos resueltos a la misma entidad, y ajustar `plan()`.
 
@@ -311,7 +311,7 @@ description: "Lista de tareas: sitio público (landing y blog)"
 **Propósito**: Accesibilidad, responsive, documentación, verificación en Vercel y gates.
 
 - [ ] T094 [P] Crear `e2e/web/accesibilidad.spec.ts` (CE-006, CE-008, RSEO-008, RF-017): con `@axe-core/playwright` (etiquetas `wcag2a`, `wcag2aa`, `wcag21aa`), cero violaciones en `/`, `/blog`, la guía de bloques, una categoría, un autor y la 404; un único `h1` y sin saltos de nivel de encabezado en cada página; el primer `Tab` enfoca "Saltar al contenido" y lleva a `#contenido`; recorrer con `Tab` todos los enlaces muestra un foco visible; ningún `<script>` salvo `type="application/ld+json"` (sin JS de cliente).
-- [ ] T095 [P] Crear `e2e/web/responsive.spec.ts` (CE-007, caso borde de galerías): en 360, 768, 1024 y 1440 px, `/`, `/blog`, la guía de bloques (con la galería de 4 imágenes), el artículo con la galería de una imagen y un autor no tienen desborde horizontal (`document.documentElement.scrollWidth <= innerWidth`).
+- [ ] T095 [P] Crear `e2e/web/responsive.spec.ts` (CE-007, caso borde de galerías): en 360, 768, 1024 y 1440 px, `/`, `/blog`, la guía de bloques (con la galería de 4 imágenes), el artículo con la galería de 2 imágenes y un autor no tienen desborde horizontal (`document.documentElement.scrollWidth <= innerWidth`).
 - [ ] T096 Actualizar `.claude/skills/astro-seo/SKILL.md` (plan.md, "Seguimiento de complejidad"): reemplazar la estrategia de ISR por ruta (§1–2) por el caché de rutas con tags (research D1–D3), los helpers de `lib/cache.ts`, `invalidacionesDe`, el sitemap propio (D14), el `iframe srcdoc` del video (D6) y los renderers de `@blog/bloques/render` (D5).
 - [ ] T097 Ejecutar `pnpm formato && pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build && pnpm test:e2e --project=web`. Corregir lo que falle. knip no debe reportar `rutasAfectadas` ni `@astrojs/sitemap`; jscpd ≤ 3 %. Buscar colores y medidas literales (`#[0-9a-f]{3,8}`, `oklch(`, `rgb(`, `[0-9]+px`) en `apps/web/src` y `packages/bloques/src/render`: no debe haber ninguno fuera de `tokens.css` (§VII.2, RF-013).
 - [ ] T098 Recorrer [quickstart.md](quickstart.md) §1–4 y confirmar cada "Esperado". Corregir el quickstart si algo cambió.
