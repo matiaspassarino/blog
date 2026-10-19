@@ -24,8 +24,8 @@ const { articulos, rutaBase } = Astro.props;
       <EstadoVacio />
     ) : (
       <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {articulos.items.map((articulo) => (
-          <TarjetaArticulo articulo={articulo} />
+        {articulos.items.map((articulo, i) => (
+          <TarjetaArticulo articulo={articulo} prioridad={i === 0} />
         ))}
       </div>
     )

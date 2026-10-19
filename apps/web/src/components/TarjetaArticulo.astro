@@ -11,9 +11,11 @@ interface Props {
   articulo: ResumenArticulo;
   /** Nivel del título según la página (sin saltos de encabezado, RSEO-008). */
   nivel?: 2 | 3;
+  /** La primera tarjeta de un listado es el LCP: carga sin diferir (RF-026, T099). */
+  prioridad?: boolean;
 }
 
-const { articulo, nivel = 2 } = Astro.props;
+const { articulo, nivel = 2, prioridad = false } = Astro.props;
 const Titulo = `h${nivel}` as const;
 const imagen = articulo.imagen_destacada;
 const SIZES = '(min-width: 1024px) 23rem, (min-width: 640px) 50vw, 100vw';
@@ -31,6 +33,8 @@ const SIZES = '(min-width: 1024px) 23rem, (min-width: 640px) 50vw, 100vw';
         height={imagen.alto}
         widths={[400, 800]}
         sizes={SIZES}
+        loading={prioridad ? 'eager' : 'lazy'}
+        fetchpriority={prioridad ? 'high' : undefined}
         class="aspect-tarjeta w-full bg-superficie object-cover"
       />
     ) : (
