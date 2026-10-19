@@ -229,6 +229,17 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
       esperarPaginaCoherente(segunda, 2, 1);
     });
 
+    it('spec 002 (H2-E5): una página fuera de rango devuelve items vacíos y el total real, sin lanzar', async () => {
+      const total = (await listarArticulosPublicados(anon)).total;
+
+      const fuera = await listarArticulosPublicados(anon, { pagina: 999 });
+
+      expect(fuera.items).toEqual([]);
+      expect(fuera.total).toBeGreaterThanOrEqual(total);
+      expect(fuera.pagina).toBe(999);
+      expect(fuera.totalPaginas).toBe(Math.ceil(fuera.total / 12));
+    });
+
     it('incluye los publicados propios en orden y nunca los borradores', async () => {
       const pagina = await listarArticulosPublicados(anon, { porPagina: 50 });
 

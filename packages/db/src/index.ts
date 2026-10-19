@@ -35,6 +35,7 @@ export {
   listarArticulosPublicados,
   listarPorCategoria,
   listarPorEtiqueta,
+  listarPorAutor,
   listarParaSitemap,
   listarRelacionados,
   type EntradaSitemap,

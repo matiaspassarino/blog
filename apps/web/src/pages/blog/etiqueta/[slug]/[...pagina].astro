@@ -1,0 +1,11 @@
+---
+// /blog/etiqueta/<slug> y sus páginas (contracts/rutas.md). La lógica está en lib/taxonomias.ts.
+import PaginaTaxonomia from '../../../../components/PaginaTaxonomia.astro';
+import { resolverTaxonomia } from '../../../../lib/taxonomias';
+
+const resultado = await resolverTaxonomia('etiqueta', Astro.params.slug ?? '', Astro.params.pagina);
+Astro.cache.set(resultado.cache);
+if (resultado.tipo === 'respuesta') return resultado.respuesta;
+---
+
+<PaginaTaxonomia {...resultado} />

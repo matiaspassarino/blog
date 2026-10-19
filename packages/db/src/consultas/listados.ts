@@ -5,8 +5,8 @@ import type { ClienteBlog } from '../cliente';
 import { traducirError } from '../errores';
 import { aPagina, rangoDe, type OpcionesPagina, type Pagina } from '../paginacion';
 import { TABLA_TAXONOMIA, type Categoria, type Etiqueta, type TipoEntidad, type TipoTaxonomia } from '../tipos-dominio';
-import { aEntradasSitemap, aResumen } from './mapeo';
-import type { ResumenArticulo } from './tipos-publicos';
+import { aAutor, aEntradasSitemap, aResumen } from './mapeo';
+import type { AutorPublico, ResumenArticulo } from './tipos-publicos';
 
 export type EntradaSitemap = { tipo: TipoEntidad; slug: string; actualizadoEn: string };
 
@@ -15,7 +15,10 @@ const COLUMNAS_RESUMEN =
 // El embebido !inner filtra por etiqueta sin traer columnas extra al resultado útil.
 const COLUMNAS_POR_ETIQUETA = `${COLUMNAS_RESUMEN}, filtro:articulos_etiquetas!inner(etiqueta_id)` as const;
 
-type Filtro = { categoriaId?: string; etiquetaId?: string };
+type Filtro = { categoriaId?: string; etiquetaId?: string; autorId?: string };
+
+/** PostgREST responde 416 (PGRST103) cuando el offset supera la cantidad de filas. */
+const RANGO_FUERA_DE_LIMITE = 'PGRST103';
 
 /** Publicados, del más reciente al más antiguo (desempate estable por id). */
 async function paginaDeArticulos(
@@ -24,16 +27,27 @@ async function paginaDeArticulos(
   filtro: Filtro,
 ): Promise<Pagina<ResumenArticulo>> {
   const { pagina, porPagina, desde, hasta } = rangoDe(opciones);
-  let consulta = filtro.etiquetaId
-    ? c.from('articulos').select(COLUMNAS_POR_ETIQUETA, { count: 'exact' }).eq('filtro.etiqueta_id', filtro.etiquetaId)
-    : c.from('articulos').select(COLUMNAS_RESUMEN, { count: 'exact' });
-  consulta = consulta.eq('estado', 'publicado');
-  if (filtro.categoriaId) consulta = consulta.eq('categoria_id', filtro.categoriaId);
+  const consultar = (cabecera: boolean) => {
+    const conteo = { count: 'exact', head: cabecera } as const;
+    let consulta = filtro.etiquetaId
+      ? c.from('articulos').select(COLUMNAS_POR_ETIQUETA, conteo).eq('filtro.etiqueta_id', filtro.etiquetaId)
+      : c.from('articulos').select(COLUMNAS_RESUMEN, conteo);
+    consulta = consulta.eq('estado', 'publicado');
+    if (filtro.categoriaId) consulta = consulta.eq('categoria_id', filtro.categoriaId);
+    if (filtro.autorId) consulta = consulta.eq('autor_id', filtro.autorId);
+    return consulta;
+  };
 
-  const { data, error, count } = await consulta
+  const { data, error, count } = await consultar(false)
     .order('publicado_en', { ascending: false })
     .order('id', { ascending: false })
     .range(desde, hasta);
+  if (error?.code === RANGO_FUERA_DE_LIMITE) {
+    // Página más allá del final (spec 002, H2-E5): vacía, con el total real para el 404.
+    const total = await consultar(true);
+    if (total.error) throw traducirError(total.error);
+    return aPagina([], total.count ?? 0, pagina, porPagina);
+  }
   if (error) throw traducirError(error);
   return aPagina(data.map(aResumen), count ?? 0, pagina, porPagina);
 }
@@ -70,6 +84,27 @@ export async function listarPorEtiqueta(
   const etiqueta = await taxonomiaPorSlug(c, 'etiqueta', slug);
   if (!etiqueta) return null;
   return { etiqueta, articulos: await paginaDeArticulos(c, opciones, { etiquetaId: etiqueta.id }) };
+}
+
+/**
+ * Autor por slug con sus publicados (spec 002, H2-E4, RF-011). Pasa por la vista
+ * autores_publicos: un autor sin publicados no existe para el público y nunca se exponen
+ * correo, rol ni estado. Hasta 2 peticiones.
+ */
+export async function listarPorAutor(
+  c: ClienteBlog,
+  slug: string,
+  opciones: OpcionesPagina = {},
+): Promise<{ autor: AutorPublico; articulos: Pagina<ResumenArticulo> } | null> {
+  const { data, error } = await c
+    .from('autores_publicos')
+    .select('id, slug, nombre, biografia, avatar')
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw traducirError(error);
+  const autor = aAutor(data);
+  if (!autor) return null;
+  return { autor, articulos: await paginaDeArticulos(c, opciones, { autorId: autor.id }) };
 }
 
 /**

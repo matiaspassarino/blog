@@ -1,0 +1,57 @@
+---
+// Paginación accesible (RF-010): página actual, anterior y siguiente. Con una sola página no
+// se muestra.
+import { rutaDePagina } from '../lib/listados';
+
+interface Props {
+  rutaBase: string;
+  pagina: number;
+  totalPaginas: number;
+}
+
+const { rutaBase, pagina, totalPaginas } = Astro.props;
+const numeros = Array.from({ length: totalPaginas }, (_, i) => i + 1);
+const claseEnlace =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-separador px-3 font-medium hover:bg-superficie';
+---
+
+{
+  totalPaginas > 1 && (
+    <nav aria-label="Paginación" class="mt-12">
+      <ul class="flex flex-wrap items-center justify-center gap-2" role="list">
+        {pagina > 1 && (
+          <li>
+            <a href={rutaDePagina(rutaBase, pagina - 1)} class={claseEnlace} rel="prev">
+              ← Anterior
+            </a>
+          </li>
+        )}
+        {numeros.map((numero) => (
+          <li>
+            {numero === pagina ? (
+              <span
+                aria-current="page"
+                class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-marca px-3 font-semibold text-marca-contraste"
+              >
+                <span class="sr-only">Página </span>
+                {numero}
+              </span>
+            ) : (
+              <a href={rutaDePagina(rutaBase, numero)} class={claseEnlace}>
+                <span class="sr-only">Página </span>
+                {numero}
+              </a>
+            )}
+          </li>
+        ))}
+        {pagina < totalPaginas && (
+          <li>
+            <a href={rutaDePagina(rutaBase, pagina + 1)} class={claseEnlace} rel="next">
+              Siguiente →
+            </a>
+          </li>
+        )}
+      </ul>
+    </nav>
+  )
+}

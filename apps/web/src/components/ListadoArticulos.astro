@@ -1,0 +1,34 @@
+---
+// Listado único (RF-008, RF-009): /blog, categoría, etiqueta y autor. El encabezado (h1 y
+// presentación) va en el slot "encabezado"; las variaciones se resuelven por composición.
+import type { Pagina, ResumenArticulo } from '@blog/db';
+import EstadoVacio from './EstadoVacio.astro';
+import Paginacion from './Paginacion.astro';
+import TarjetaArticulo from './TarjetaArticulo.astro';
+import Contenedor from './ui/Contenedor.astro';
+
+interface Props {
+  articulos: Pagina<ResumenArticulo>;
+  rutaBase: string;
+}
+
+const { articulos, rutaBase } = Astro.props;
+---
+
+<Contenedor class="pt-10">
+  <header class="max-w-lectura">
+    <slot name="encabezado" />
+  </header>
+  {
+    articulos.items.length === 0 ? (
+      <EstadoVacio />
+    ) : (
+      <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {articulos.items.map((articulo) => (
+          <TarjetaArticulo articulo={articulo} />
+        ))}
+      </div>
+    )
+  }
+  <Paginacion rutaBase={rutaBase} pagina={articulos.pagina} totalPaginas={articulos.totalPaginas} />
+</Contenedor>
