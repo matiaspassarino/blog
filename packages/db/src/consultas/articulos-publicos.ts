@@ -11,9 +11,9 @@ export type { ArticuloPublico, AutorPublico, ReferenciaTaxonomia } from './tipos
 const COLUMNAS_PUBLICAS = `
   id, titulo, slug, extracto, titulo_seo, descripcion_seo, imagen_destacada, contenido,
   publicado_en, actualizado_en,
-  categoria:categorias(nombre, slug),
-  etiquetas:articulos_etiquetas(etiqueta:etiquetas(nombre, slug)),
-  autor:autores_publicos!autor_id(nombre, biografia, avatar)
+  categoria:categorias(id, nombre, slug),
+  etiquetas:articulos_etiquetas(etiqueta:etiquetas(id, nombre, slug)),
+  autor:autores_publicos!autor_id(id, slug, nombre, biografia, avatar)
 `;
 
 /**

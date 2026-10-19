@@ -1,0 +1,37 @@
+---
+// Layout único del sitio: metadatos, fuentes, enlace para saltar al contenido (RF-017),
+// cabecera y pie (RF-015).
+import { Font } from 'astro:assets';
+import Cabecera from '../components/Cabecera.astro';
+import Pie from '../components/Pie.astro';
+import Seo, { type Props as PropsSeo } from '../components/Seo.astro';
+import '../styles/global.css';
+
+type Props = PropsSeo;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <Font cssVariable="--fuente-cuerpo" preload />
+    <Font cssVariable="--fuente-titulos" />
+    <Seo {...Astro.props} />
+  </head>
+  <body class="flex min-h-dvh flex-col antialiased">
+    <a
+      href="#contenido"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-fondo focus:px-4 focus:py-3 focus:font-semibold focus:shadow-tarjeta"
+    >
+      Saltar al contenido
+    </a>
+    <Cabecera />
+    <main id="contenido" tabindex="-1" class="flex-1">
+      <slot />
+    </main>
+    <Pie />
+  </body>
+</html>

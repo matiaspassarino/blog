@@ -1,0 +1,26 @@
+---
+// Página "no encontrado" (RF-016, RF-006): misma respuesta para lo no publicado y lo
+// inexistente. Se prerenderiza; las rutas dinámicas llegan acá con Astro.rewrite.
+import Base from '../layouts/Base.astro';
+import Boton from '../components/ui/Boton.astro';
+import Contenedor from '../components/ui/Contenedor.astro';
+
+export const prerender = true;
+---
+
+<Base
+  titulo="Página no encontrada"
+  descripcion="La página que buscás no existe o ya no está disponible. Volvé a la portada o recorré los artículos del blog."
+  ruta="/404"
+  noindex
+>
+  <Contenedor ancho="lectura" class="py-seccion text-center">
+    <p class="font-titulos text-sm font-semibold tracking-wide text-marca uppercase">Error 404</p>
+    <h1 class="mt-3 font-titulos text-titulo-1 font-bold text-balance">No encontramos esta página</h1>
+    <p class="mt-4 text-lg text-texto-suave">Puede que el enlace esté mal escrito o que el contenido ya no esté publicado.</p>
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+      <Boton href="/">Ir a la portada</Boton>
+      <Boton href="/blog" variante="secundaria">Ver el blog</Boton>
+    </div>
+  </Contenedor>
+</Base>

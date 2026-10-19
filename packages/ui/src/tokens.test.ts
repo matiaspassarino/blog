@@ -11,9 +11,10 @@ const css = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
 
 /** Valores de las variables CSS declaradas en tokens.css (sin comentarios). */
 const tokens = new Map<string, string>(
-  [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g)].map(
-    ([, nombre, valor]) => [nombre ?? '', (valor ?? '').trim()],
-  ),
+  [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/g)].map(([, nombre, valor]) => [
+    nombre ?? '',
+    (valor ?? '').trim(),
+  ]),
 );
 
 /** Valor de un token, resolviendo `var(--otro)` dentro de tokens.css. */

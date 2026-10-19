@@ -111,14 +111,14 @@ isOneToOne: false
                   ]
                 },"perfiles": {
                   Row: {
-                    "activo": boolean,"actualizado_en": string,"avatar": Json | null,"biografia": string | null,"creado_en": string,"id": string,"nombre": string,"rol": Database["public"]['Enums']["rol_miembro"]
+                    "activo": boolean,"actualizado_en": string,"avatar": Json | null,"biografia": string | null,"creado_en": string,"id": string,"nombre": string,"rol": Database["public"]['Enums']["rol_miembro"],"slug": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "activo"?: boolean,"actualizado_en"?: string,"avatar"?: Json | null,"biografia"?: string | null,"creado_en"?: string,"id": string,"nombre": string,"rol"?: Database["public"]['Enums']["rol_miembro"]
+                    "activo"?: boolean,"actualizado_en"?: string,"avatar"?: Json | null,"biografia"?: string | null,"creado_en"?: string,"id": string,"nombre": string,"rol"?: Database["public"]['Enums']["rol_miembro"],"slug"?: string
                   }
                   Update: {
-                    "activo"?: boolean,"actualizado_en"?: string,"avatar"?: Json | null,"biografia"?: string | null,"creado_en"?: string,"id"?: string,"nombre"?: string,"rol"?: Database["public"]['Enums']["rol_miembro"]
+                    "activo"?: boolean,"actualizado_en"?: string,"avatar"?: Json | null,"biografia"?: string | null,"creado_en"?: string,"id"?: string,"nombre"?: string,"rol"?: Database["public"]['Enums']["rol_miembro"],"slug"?: string
                   }
                   Relationships: [
                     
@@ -142,14 +142,14 @@ isOneToOne: false
           Views: {
             "autores_publicos": {
                   Row: {
-                    "avatar": Json | null,"biografia": string | null,"id": string | null,"nombre": string | null
+                    "actualizado_en": string | null,"avatar": Json | null,"biografia": string | null,"id": string | null,"nombre": string | null,"slug": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                           "avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null
+                           "actualizado_en"?: string | null,"avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null,"slug"?: string | null
                          }
                         Update: {
-                           "avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null
+                           "actualizado_en"?: string | null,"avatar"?: Json | null,"biografia"?: string | null,"id"?: string | null,"nombre"?: string | null,"slug"?: string | null
                          }
                         Relationships: [
                     
@@ -171,7 +171,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "estado_articulo": "borrador"|"programado"|"publicado"|"archivado","rol_miembro": "admin"|"editor","tipo_entidad": "articulo"|"categoria"|"etiqueta"
+            "estado_articulo": "borrador"|"programado"|"publicado"|"archivado","rol_miembro": "admin"|"editor","tipo_entidad": "articulo"|"categoria"|"etiqueta"|"autor"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -291,7 +291,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "estado_articulo": ["borrador", "programado", "publicado", "archivado"],"rol_miembro": ["admin", "editor"],"tipo_entidad": ["articulo", "categoria", "etiqueta"]
+            "estado_articulo": ["borrador", "programado", "publicado", "archivado"],"rol_miembro": ["admin", "editor"],"tipo_entidad": ["articulo", "categoria", "etiqueta", "autor"]
           }
         }
 } as const

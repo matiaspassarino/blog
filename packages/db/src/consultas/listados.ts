@@ -11,7 +11,7 @@ import type { ResumenArticulo } from './tipos-publicos';
 export type EntradaSitemap = { tipo: TipoEntidad; slug: string; actualizadoEn: string };
 
 const COLUMNAS_RESUMEN =
-  'id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria:categorias(nombre, slug)';
+  'id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria:categorias(id, nombre, slug)';
 // El embebido !inner filtra por etiqueta sin traer columnas extra al resultado útil.
 const COLUMNAS_POR_ETIQUETA = `${COLUMNAS_RESUMEN}, filtro:articulos_etiquetas!inner(etiqueta_id)` as const;
 

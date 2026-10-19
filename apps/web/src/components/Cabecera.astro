@@ -1,0 +1,49 @@
+---
+// Cabecera común (RF-015): logo, navegación y contacto por WhatsApp (RF-013b).
+import { identidad } from '@blog/ui/identidad';
+import { landing } from '../contenido/landing';
+import { enlaceWhatsapp } from '../lib/contacto';
+import Icono from './iconos/Icono.astro';
+import Boton from './ui/Boton.astro';
+import Contenedor from './ui/Contenedor.astro';
+
+const ruta = Astro.url.pathname;
+const enlaces = [
+  { href: '/', texto: 'Inicio', actual: ruta === '/' },
+  { href: '/blog', texto: 'Blog', actual: ruta === '/blog' || ruta.startsWith('/blog/') },
+  { href: '/#contacto', texto: 'Contacto', actual: false },
+];
+const whatsapp = enlaceWhatsapp(landing.contacto.whatsapp, landing.contacto.mensaje);
+---
+
+<header class="border-b border-separador bg-fondo">
+  <Contenedor class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
+    <a href="/" class="inline-flex min-h-11 items-center" aria-label={`${landing.sitio.nombre}, ir al inicio`}>
+      <img src={identidad.logo.src} alt="" width={identidad.logo.ancho} height={identidad.logo.alto} />
+    </a>
+    <nav aria-label="Principal" class="order-last w-full sm:order-none sm:w-auto">
+      <ul class="flex gap-1" role="list">
+        {
+          enlaces.map((enlace) => (
+            <li>
+              <a
+                href={enlace.href}
+                aria-current={enlace.actual ? 'page' : undefined}
+                class:list={[
+                  'inline-flex min-h-11 items-center rounded-md px-3 font-medium text-texto-suave hover:text-texto',
+                  enlace.actual && 'text-texto underline decoration-marca decoration-2 underline-offset-8',
+                ]}
+              >
+                {enlace.texto}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <Boton href={whatsapp} externo>
+      <Icono nombre="whatsapp" class="size-5" />
+      <span>WhatsApp</span>
+    </Boton>
+  </Contenedor>
+</header>

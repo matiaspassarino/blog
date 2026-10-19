@@ -7,7 +7,13 @@ import type { TipoEntidad } from '../tipos-dominio';
 import type { AutorPublico, ReferenciaTaxonomia, ResumenArticulo } from './tipos-publicos';
 
 type FilaSeo = { titulo: string; extracto: string | null; titulo_seo: string | null; descripcion_seo: string | null };
-type AutorEmbebido = { nombre: string | null; biografia: string | null; avatar: Json | null } | null;
+type AutorEmbebido = {
+  id: string | null;
+  slug: string | null;
+  nombre: string | null;
+  biografia: string | null;
+  avatar: Json | null;
+} | null;
 
 /** Respaldo de RF-006: sin campos SEO propios se usan el título y el extracto. */
 export function aSeo(fila: FilaSeo) {

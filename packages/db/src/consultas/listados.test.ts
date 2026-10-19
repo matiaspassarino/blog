@@ -285,7 +285,7 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
       const propia = entradas.find((e) => e.tipo === 'categoria' && e.slug === categoria.slug);
       expect(propia).toMatchObject({ tipo: 'categoria', slug: categoria.slug });
       expect(Number.isNaN(new Date(propia?.actualizadoEn ?? '').getTime())).toBe(false);
-      expect(entradas.every((e) => ['articulo', 'categoria', 'etiqueta'].includes(e.tipo))).toBe(true);
+      expect(entradas.every((e) => ['articulo', 'categoria', 'etiqueta', 'autor'].includes(e.tipo))).toBe(true);
     });
   });
 });

@@ -20,3 +20,9 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Foco visible en todo elemento interactivo (§VII.4). */
+:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 3px;
+}
