@@ -135,6 +135,11 @@ describe('contraste WCAG 2.1 AA de los tokens de color (§VII.4)', () => {
     ['--color-texto-suave', '--color-superficie'],
     ['--color-marca-contraste', '--color-marca'],
     ['--color-texto', '--color-marca-suave'],
+    // Validación de la 002 (U-B2, U-M1): pares que el sitio usa.
+    ['--color-marca-contraste', '--color-marca-hover'],
+    ['--color-marca', '--color-fondo'],
+    ['--color-marca', '--color-superficie'],
+    ['--color-texto-suave', '--color-marca-suave'],
   ])('texto: %s sobre %s tiene contraste ≥ 4,5:1', (primerPlano, fondo) => {
     expect(contraste(primerPlano, fondo)).toBeGreaterThanOrEqual(4.5);
   });
@@ -142,6 +147,7 @@ describe('contraste WCAG 2.1 AA de los tokens de color (§VII.4)', () => {
   it.each([
     ['--color-foco', '--color-fondo'],
     ['--color-borde', '--color-fondo'],
+    ['--color-borde', '--color-marca-suave'],
   ])('no textual: %s sobre %s tiene contraste ≥ 3:1', (primerPlano, fondo) => {
     expect(contraste(primerPlano, fondo)).toBeGreaterThanOrEqual(3);
   });

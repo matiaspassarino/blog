@@ -1,8 +1,8 @@
 // T059 (spec 002): paginación única de los listados (contracts/rutas.md, "Reglas transversales";
 // RF-010, H2-E5, H2-E6). `resolverPagina` recibe el parámetro de la ruta tal como llega:
-// - `undefined`: la página 1 de `[...pagina]` (categoría, etiqueta y autor);
-// - `'pagina/<n>'`: las páginas siguientes de `[...pagina]`;
-// - `'<n>'`: el parámetro de `/blog/pagina/[n]`.
+// - `undefined`: la página 1 de `[...pagina]` (/blog, categoría, etiqueta y autor);
+// - `'pagina/<n>'`: las páginas siguientes de `[...pagina]`.
+// Cualquier otro formato es 404: una sola URL por página (validación C-B1).
 // Devuelve qué hacer, no la URL: la página arma la URL sin paginar para la redirección.
 import { describe, expect, it } from 'vitest';
 import { fueraDeRango, resolverPagina } from './paginacion';
@@ -23,21 +23,18 @@ describe('resolverPagina', () => {
     expect(resolverPagina('pagina/2')).toEqual(pagina(2));
   });
 
-  it('RF-010: "2" (formato de /blog/pagina/[n]) es la página 2', () => {
-    expect(resolverPagina('2')).toEqual(pagina(2));
+  it('RF-010: un número grande es una página válida (el rango se verifica con fueraDeRango)', () => {
+    expect(resolverPagina('pagina/99')).toEqual(pagina(99));
   });
 
-  it('RF-010: un número grande es una página válida (el rango se verifica con fueraDeRango)', () => {
-    expect(resolverPagina('99')).toEqual(pagina(99));
-    expect(resolverPagina('pagina/99')).toEqual(pagina(99));
+  it('validación C-B1: el número solo ("2", "1", "99") es 404, no duplica /pagina/<n>', () => {
+    expect(resolverPagina('2')).toEqual(noEncontrado);
+    expect(resolverPagina('1')).toEqual(noEncontrado);
+    expect(resolverPagina('99')).toEqual(noEncontrado);
   });
 
   it('H2-E6: "pagina/1" redirige a la URL sin paginar', () => {
     expect(resolverPagina('pagina/1')).toEqual(redireccion);
-  });
-
-  it('H2-E6: "1" redirige a la URL sin paginar', () => {
-    expect(resolverPagina('1')).toEqual(redireccion);
   });
 
   describe('H2-E5: lo que no es un entero positivo responde 404', () => {

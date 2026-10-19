@@ -1,6 +1,7 @@
 // T049: lo que no está publicado responde 404, y casos borde de la tarjeta y de la imagen OG
 // (spec 002, H1-E5, RF-006, RF-009, RF-016; casos borde "sin imagen destacada" y "título largo").
 import { expect, test, type Page } from '@playwright/test';
+import { abrir, esperar404 } from './ayudas';
 
 // Slugs del seed (supabase/seed.sql), derivados del título con privado.slugificar.
 const NO_PUBLICADOS = {
@@ -20,35 +21,6 @@ const RUTA_TITULO_LARGO =
 // Otro publicado de Marketing: el de título largo es el más reciente de la categoría, así que
 // aparece primero entre sus relacionados (RF-005) y ahí se ve su tarjeta.
 const RUTA_CON_TARJETA_LARGA = '/blog/redes-sociales-para-pymes-menos-es-mas';
-
-/** Abre un artículo publicado y verifica que responde 200. */
-async function abrirPublicado(page: Page, ruta: string) {
-  const respuesta = await page.goto(ruta);
-  expect(respuesta?.status(), `${ruta} debería responder 200`).toBe(200);
-}
-
-/** Lo que identifica a la página 404, para compararla entre casos. */
-async function huellaDe404(page: Page) {
-  return {
-    titulo: await page.title(),
-    principal: await page.getByRole('main').innerText(),
-    robots: await page.locator('meta[name="robots"]').getAttribute('content'),
-  };
-}
-
-/** Abre la ruta y verifica la página "no encontrado" completa (RF-016). */
-async function esperar404(page: Page, ruta: string) {
-  const respuesta = await page.goto(ruta);
-  expect(respuesta?.status(), `${ruta} debería responder 404`).toBe(404);
-
-  await expect(page.getByRole('heading', { level: 1, name: 'No encontramos esta página' })).toBeVisible();
-  await expect(page.getByRole('banner')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Principal' })).toBeAttached();
-  await expect(page.getByRole('contentinfo')).toBeVisible();
-  await expect(page.getByRole('main').getByRole('link', { name: 'Ir a la portada' })).toHaveAttribute('href', '/');
-  await expect(page.getByRole('main').getByRole('link', { name: 'Ver el blog' })).toHaveAttribute('href', '/blog');
-  return huellaDe404(page);
-}
 
 test.describe('H1-E5 / RF-006: lo no publicado responde 404', () => {
   for (const [caso, ruta] of Object.entries(NO_PUBLICADOS)) {
@@ -73,14 +45,14 @@ test.describe('H1-E5 / RF-006: lo no publicado responde 404', () => {
 
 test.describe('casos borde: artículo sin imagen destacada y con título de 120 caracteres', () => {
   test('caso borde: sin imagen destacada, og:image usa la imagen genérica', async ({ page }) => {
-    await abrirPublicado(page, RUTA_TITULO_LARGO);
+    await abrir(page, RUTA_TITULO_LARGO);
 
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /\/og-generica\.png$/);
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'article');
   });
 
   test('caso borde: el h1 de 120 caracteres no desborda la página del artículo', async ({ page }) => {
-    await abrirPublicado(page, RUTA_TITULO_LARGO);
+    await abrir(page, RUTA_TITULO_LARGO);
 
     const titulo = page.getByRole('heading', { level: 1 });
     await expect(titulo).toHaveText(TITULO_LARGO);
@@ -93,7 +65,7 @@ test.describe('casos borde: artículo sin imagen destacada y con título de 120 
   });
 
   test('RF-009: en su tarjeta, el artículo sin imagen destacada muestra la imagen genérica', async ({ page }) => {
-    await abrirPublicado(page, RUTA_CON_TARJETA_LARGA);
+    await abrir(page, RUTA_CON_TARJETA_LARGA);
 
     const tarjeta = page
       .getByRole('region', { name: /relacionados/i })
@@ -110,7 +82,7 @@ test.describe('casos borde: artículo sin imagen destacada y con título de 120 
   test('caso borde: el título de 120 caracteres no desborda la tarjeta y conserva el texto completo', async ({
     page,
   }) => {
-    await abrirPublicado(page, RUTA_CON_TARJETA_LARGA);
+    await abrir(page, RUTA_CON_TARJETA_LARGA);
 
     const tarjeta = page
       .getByRole('region', { name: /relacionados/i })

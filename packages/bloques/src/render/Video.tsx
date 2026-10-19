@@ -1,4 +1,6 @@
 import type { BloqueDe } from '../esquema';
+import { AvisoOtraPestania } from './AvisoOtraPestania';
+import { CLASE_ENLACE } from './enlaces';
 
 // Video sin JS (research D6): el iframe carga un documento propio (srcdoc) con la miniatura
 // y un enlace al reproductor con autoplay. El reproductor del proveedor recién se descarga
@@ -37,7 +39,7 @@ function documentoVistaPrevia(titulo: string, reproductor: string, miniatura: st
 *{margin:0;box-sizing:border-box}html,body{height:100%;background:#000;font-family:system-ui,sans-serif}
 a{position:relative;display:flex;height:100%;align-items:center;justify-content:center;color:#fff;text-decoration:none}
 img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-span{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px;text-align:center;text-shadow:0 1px 4px #000}
+span{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;margin:16px;padding:16px 20px;border-radius:12px;background:rgba(0,0,0,.72);text-align:center}
 b{display:flex;width:72px;height:72px;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.75);font-size:28px}
 a:focus-visible b,a:hover b{background:#000;outline:3px solid #fff}
 </style></head><body><a href="${escaparHtml(reproductor)}">${fondo}<span><b aria-hidden="true">▶</b>Reproducir: ${t}</span></a></body></html>`;
@@ -58,14 +60,9 @@ export function Video({ bloque }: { bloque: BloqueDe<'video'> }) {
       />
       <figcaption className="mt-2 text-sm text-texto-suave">
         {bloque.titulo} ·{' '}
-        <a
-          href={proveedor.original(id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-4 hover:text-texto"
-        >
+        <a href={proveedor.original(id)} target="_blank" rel="noopener noreferrer" className={CLASE_ENLACE}>
           Ver en {proveedor.nombre}
-          <span className="sr-only"> (se abre en otra pestaña)</span>
+          <AvisoOtraPestania />
         </a>
       </figcaption>
     </figure>

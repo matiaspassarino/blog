@@ -9,7 +9,7 @@ import { landing } from '../../../../contenido/landing';
 import { cacheListado } from '../../../../lib/cache';
 import { datos } from '../../../../lib/datos';
 import { migas, perfil } from '../../../../lib/json-ld';
-import { resolverListado, rutaDePagina } from '../../../../lib/listados';
+import { migasDelBlog, resolverListado, rutaDePagina, sufijoPagina } from '../../../../lib/listados';
 import { sitio } from '../../../../lib/sitio';
 
 const slug = Astro.params.slug ?? '';
@@ -27,18 +27,11 @@ if (resultado.tipo === 'respuesta') {
 const { autor, articulos } = resultado.valor;
 Astro.cache.set(cacheListado({ tipo: 'autor', id: autor.id }));
 
-const sufijo = resultado.pagina > 1 ? ` — página ${resultado.pagina}` : '';
+const sufijo = sufijoPagina(resultado.pagina);
 const descripcion = autor.biografia ?? `Artículos de ${autor.nombre} en el blog de ${landing.sitio.nombre}.`;
 const jsonLd = [
   perfil(autor, sitio.url),
-  migas(
-    [
-      { nombre: 'Inicio', ruta: '/' },
-      { nombre: 'Blog', ruta: '/blog' },
-      { nombre: autor.nombre, ruta: rutaBase },
-    ],
-    sitio.url,
-  ),
+  migas(migasDelBlog({ nombre: autor.nombre, ruta: rutaBase }), sitio.url),
 ];
 ---
 

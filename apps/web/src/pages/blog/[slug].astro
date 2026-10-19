@@ -18,6 +18,7 @@ import { cacheArticulo, cacheNoEncontrado, cacheRedireccion } from '../../lib/ca
 import { datos } from '../../lib/datos';
 import { fechaLarga } from '../../lib/fechas';
 import { precalcularVariantes, urlImagen } from '../../lib/imagenes';
+import { migasDelBlog } from '../../lib/listados';
 import { blogPosting, migas as migasJsonLd } from '../../lib/json-ld';
 import { resolverEntidad, respuestaNoEncontrado } from '../../lib/resolver';
 import { sitio } from '../../lib/sitio';
@@ -53,14 +54,12 @@ const destacada = articulo.imagen_destacada;
 const publicado = fechaLarga(articulo.publicado_en);
 const actualizado = fechaLarga(articulo.actualizado_en);
 
-const migas: Miga[] = [
-  { nombre: 'Inicio', ruta: '/' },
-  { nombre: 'Blog', ruta: '/blog' },
+const migas: Miga[] = migasDelBlog(
   ...(articulo.categoria
     ? [{ nombre: articulo.categoria.nombre, ruta: `/blog/categoria/${articulo.categoria.slug}` }]
     : []),
   { nombre: articulo.titulo, ruta: `/blog/${articulo.slug}` },
-];
+);
 ---
 
 <Base
@@ -85,7 +84,7 @@ const migas: Miga[] = [
       <h1 class="mt-4 font-titulos text-titulo-1 leading-tight font-bold text-balance break-words">{articulo.titulo}</h1>
       {articulo.extracto && <p class="mt-4 text-xl text-texto-suave">{articulo.extracto}</p>}
       <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1">
-        {articulo.autor && <AvatarAutor autor={articulo.autor} />}
+        {articulo.autor && <AvatarAutor autor={articulo.autor} decorativo />}
         <p class="text-texto-suave">
           {
             articulo.autor && (

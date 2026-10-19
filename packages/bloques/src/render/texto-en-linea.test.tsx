@@ -23,7 +23,7 @@ describe('Markdown inline en párrafos, citas y listas', () => {
   it('D9: [texto](url) produce un enlace interno sin target', () => {
     const html = parrafo('Mirá [el blog](/blog) primero.');
 
-    expect(html).toContain('<a href="/blog">el blog</a>');
+    expect(html).toMatch(/<a href="\/blog"[^>]*>el blog<\/a>/);
     expect(html).not.toContain('target=');
   });
 
@@ -31,6 +31,17 @@ describe('Markdown inline en párrafos, citas y listas', () => {
     expect(parrafo('Leé [la guía](https://www.w3.org/WAI/).')).toMatch(
       /<a href="https:\/\/www\.w3\.org\/WAI\/"[^>]*rel="noopener noreferrer"[^>]*>la guía/,
     );
+  });
+
+  it('validación U-B1: los enlaces del texto se distinguen con subrayado (WCAG 1.4.1)', () => {
+    expect(parrafo('Mirá [el blog](/blog).')).toMatch(/<a href="\/blog"[^>]*class="[^"]*underline[^"]*"/);
+  });
+
+  it('validación U-M6: un enlace externo avisa a los lectores de pantalla que abre otra pestaña', () => {
+    expect(parrafo('Leé [la guía](https://www.w3.org/WAI/).')).toMatch(
+      /la guía<span class="sr-only">[^<]*se abre en otra pestaña[^<]*<\/span><\/a>/,
+    );
+    expect(parrafo('Mirá [el blog](/blog).')).not.toContain('otra pestaña');
   });
 
   it('RF-003: un enlace con esquema peligroso queda como texto, sin href', () => {

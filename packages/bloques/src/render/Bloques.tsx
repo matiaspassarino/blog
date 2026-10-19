@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import type { Bloque, Contenido } from '../esquema';
+import { anclaDe } from '../utilidades';
 import { Cita } from './Cita';
 import { Codigo } from './Codigo';
 import { Cta } from './Cta';
@@ -12,12 +13,38 @@ import { Titulo } from './Titulo';
 import type { ComponentesBloques } from './tipos';
 import { Video } from './Video';
 
-function renderBloque(bloque: Bloque, componentes: ComponentesBloques): ReactNode {
+/** id reservados por el layout del sitio (el <main id="contenido"> del enlace para saltar). */
+const IDS_RESERVADOS = ['contenido'];
+
+/** id único por título (sufijo -2, -3…); un título sin letras ni números no lleva id. */
+function anclasUnicas(contenido: Contenido): Map<string, string | undefined> {
+  const usados = new Set(IDS_RESERVADOS);
+  const anclas = new Map<string, string | undefined>();
+  for (const bloque of contenido) {
+    if (bloque.tipo !== 'titulo') continue;
+    const base = anclaDe(bloque.texto);
+    if (!base) {
+      anclas.set(bloque.id, undefined);
+      continue;
+    }
+    let candidato = base;
+    for (let n = 2; usados.has(candidato); n++) candidato = `${base}-${n}`;
+    usados.add(candidato);
+    anclas.set(bloque.id, candidato);
+  }
+  return anclas;
+}
+
+function renderBloque(
+  bloque: Bloque,
+  componentes: ComponentesBloques,
+  anclas: Map<string, string | undefined>,
+): ReactNode {
   switch (bloque.tipo) {
     case 'parrafo':
       return <Parrafo bloque={bloque} />;
     case 'titulo':
-      return <Titulo bloque={bloque} />;
+      return <Titulo bloque={bloque} ancla={anclas.get(bloque.id)} />;
     case 'imagen':
       return <ImagenBloque bloque={bloque} componentes={componentes} />;
     case 'cita':
@@ -45,10 +72,11 @@ function renderBloque(bloque: Bloque, componentes: ComponentesBloques): ReactNod
 
 /** Contenido de un artículo en el orden del arreglo, sin contenedores por bloque. */
 export function Bloques({ contenido, componentes }: { contenido: Contenido; componentes: ComponentesBloques }) {
+  const anclas = anclasUnicas(contenido);
   return (
     <>
       {contenido.map((bloque) => (
-        <Fragment key={bloque.id}>{renderBloque(bloque, componentes)}</Fragment>
+        <Fragment key={bloque.id}>{renderBloque(bloque, componentes, anclas)}</Fragment>
       ))}
     </>
   );

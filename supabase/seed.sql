@@ -249,8 +249,8 @@ values
 
 -- ---------------------------------------------------------------------------
 -- Artículos para las pruebas del sitio público (spec 002, T012): todos los tipos
--- de bloque, título y extracto al máximo sin imagen destacada, galería de una
--- imagen y los publicados necesarios para tener una segunda página de /blog.
+-- de bloque, título y extracto al máximo sin imagen destacada, galería con el
+-- mínimo de dos imágenes y los publicados necesarios para tener una segunda página de /blog.
 -- ---------------------------------------------------------------------------
 insert into public.articulos
   (titulo, extracto, imagen_destacada, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)

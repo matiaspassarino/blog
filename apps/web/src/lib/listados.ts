@@ -10,7 +10,7 @@ import { respuestaNoEncontrado, resolverEntidad } from './resolver';
 type ConArticulos = { articulos: Pagina<ResumenArticulo> };
 
 type Opciones<T extends ConArticulos> = {
-  /** Parámetro de la ruta: el de `[...pagina]` o el de `/blog/pagina/[n]`. */
+  /** Parámetro de `[...pagina]`: undefined o 'pagina/<n>'. */
   param: string | undefined;
   /** URL sin paginar del listado, por ejemplo '/blog/categoria/diseno'. */
   rutaBase: string;
@@ -35,6 +35,16 @@ const noEncontrado = (): ResultadoListado<never> => ({
   respuesta: respuestaNoEncontrado(),
   cache: cacheNoEncontrado(),
 });
+
+/** " — página n" en títulos y encabezados de las páginas siguientes (RSEO-004). */
+export const sufijoPagina = (pagina: number) => (pagina > 1 ? ` — página ${pagina}` : '');
+
+/** Migas Inicio › Blog › … de las páginas del blog (visibles y BreadcrumbList). */
+export const migasDelBlog = (...resto: { nombre: string; ruta: string }[]) => [
+  { nombre: 'Inicio', ruta: '/' },
+  { nombre: 'Blog', ruta: '/blog' },
+  ...resto,
+];
 
 /** URL de una página del listado: la 1 es la URL sin paginar. */
 export const rutaDePagina = (rutaBase: string, pagina: number) =>

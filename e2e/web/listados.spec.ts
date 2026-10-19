@@ -8,7 +8,7 @@
 // sufijo aleatorio, y las borra al terminar. No tienen artículos, así que no cambian ningún
 // listado ni el sitemap de las demás suites.
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { taxonomiasVacias } from './ayudas';
+import { abrir, esperar404, taxonomiasVacias } from './ayudas';
 
 const TITULOS_DISENO = [
   'Guía visual: todos los bloques del blog',
@@ -39,19 +39,6 @@ const TITULOS_PAGINA_2 = [
   'Cómo elegir una tipografía para tu marca',
 ];
 const BIOGRAFIA_EVA = 'Diseñadora de identidad visual. Le interesan la tipografía y la accesibilidad.';
-
-/** Abre la ruta y verifica que responde 200. */
-async function abrir(page: Page, ruta: string) {
-  const respuesta = await page.goto(ruta);
-  expect(respuesta?.status(), `${ruta} debería responder 200`).toBe(200);
-}
-
-/** Abre la ruta y verifica la página "no encontrado". */
-async function esperar404(page: Page, ruta: string) {
-  const respuesta = await page.goto(ruta);
-  expect(respuesta?.status(), `${ruta} debería responder 404`).toBe(404);
-  await expect(page.getByRole('heading', { level: 1, name: 'No encontramos esta página' })).toBeVisible();
-}
 
 /** Pide la ruta sin seguir redirecciones y verifica el 301 al destino. */
 async function esperar301(page: Page, ruta: string, destino: string) {
@@ -237,6 +224,12 @@ test.describe('H2-E2 / RF-008: página de categoría', () => {
 
   test('H2-E5: /blog/categoria/diseno/pagina/2 (fuera de rango) responde 404', async ({ page }) => {
     await esperar404(page, '/blog/categoria/diseno/pagina/2');
+  });
+
+  test('validación C-B1: el número sin "pagina/" no es una URL válida (404, sin duplicados)', async ({ page }) => {
+    await esperar404(page, '/blog/categoria/diseno/1');
+    await esperar404(page, '/blog/autor/eva-editora/1');
+    await esperar404(page, '/blog/2');
   });
 });
 

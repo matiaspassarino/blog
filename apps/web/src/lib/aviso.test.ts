@@ -10,7 +10,7 @@
 //   - ahora: milisegundos epoch (`Date.now()`).
 // Devuelve true solo si la firma es HMAC-SHA256(marca + '.' + cuerpo, secreto) en hex con el
 // prefijo `sha256=` y |ahora - marca| <= 300 s. Nunca lanza.
-import { createHmac } from 'node:crypto';
+import { firmarAviso } from './pruebas/firmar-aviso';
 import { describe, expect, it } from 'vitest';
 import { verificarAviso } from './aviso';
 
@@ -22,9 +22,7 @@ const CUERPO =
   '{"id": "5b0c0000-0000-4000-8000-000000000001", "tipo": "articulo", "slugs": ["b", "a"], "ocurrido_en": "2026-10-19T12:00:00+00:00"}';
 
 /** Firma como notificar_cambio_publico (supabase/migrations/20261018120500_notificacion.sql). */
-function firmar(cuerpo: string, marca: string | number, secreto = SECRETO) {
-  return 'sha256=' + createHmac('sha256', secreto).update(`${marca}.${cuerpo}`).digest('hex');
-}
+const firmar = (cuerpo: string, marca: string | number, secreto = SECRETO) => firmarAviso(cuerpo, marca, secreto);
 
 function aviso(campos: Partial<Parameters<typeof verificarAviso>[0]> = {}) {
   return {

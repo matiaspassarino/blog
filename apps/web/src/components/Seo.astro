@@ -77,5 +77,6 @@ const serializar = (dato: object) => JSON.stringify(dato).replace(/</g, '\\u003c
 <meta name="twitter:title" content={tituloFinal} />
 <meta name="twitter:description" content={descripcionFinal} />
 <meta name="twitter:image" content={urlImagenOg} />
+{imagenOg.alt && <meta name="twitter:image:alt" content={imagenOg.alt} />}
 
 {jsonLd.map((dato) => <script type="application/ld+json" set:html={serializar(dato)} />)}

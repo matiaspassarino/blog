@@ -79,6 +79,8 @@ Detalle en [data-model.md](data-model.md). El bucket `medios` no cambia.
 | Redirecciones | `resolverRedireccion` (RPC `resolver_redireccion`) | `apps/web/src/lib/resolver.ts` (entidad → 301 → 404) | Une las 3 ramas para artículo, categoría y etiqueta en un solo lugar. |
 | Listados | `listarArticulosPublicados`, `listarPorCategoria`, `listarPorEtiqueta`, `paginaDeArticulos` (privada) | `listarPorAutor`, `listarRelacionados` en `packages/db/src/consultas/listados.ts` | Reutilizan `paginaDeArticulos` con el filtro `autorId`. |
 | Paginación | `Pagina<T>`, `rangoDe`, `aPagina` (`packages/db/src/paginacion.ts`) | `apps/web/src/lib/paginacion.ts` (`resolverPagina(param)`: página, 301 o 404) | Lógica de rutas que no existe en `db`. |
+| Flujo de los listados *(implementación)* | `resolverPagina`, `resolverEntidad` | `apps/web/src/lib/listados.ts` (`resolverListado`, `rutaDePagina`, `sufijoPagina`, `migasDelBlog`) | Un solo flujo página → entidad → 301/404 para `/blog`, categoría, etiqueta y autor. |
+| Categoría y etiqueta *(implementación)* | `listarPorCategoria`, `listarPorEtiqueta` | `apps/web/src/lib/taxonomias.ts` (`resolverTaxonomia`) + `components/PaginaTaxonomia.astro` | Las dos páginas son finas; un segmento dinámico `[taxonomia]` capturaba `/blog/pagina/<n>`. |
 | Sitemap | `listarParaSitemap` + RPC `entradas_sitemap` | `apps/web/src/lib/sitemap.ts` (`xmlSitemap`, pura) | Reemplaza la integración `@astrojs/sitemap`, que no ve rutas dinámicas. |
 | Invalidación | `CambioPublico`, `rutasAfectadas` (`packages/db/src/rutas-afectadas.ts`) | `packages/db/src/invalidaciones.ts` (`invalidacionesDe`, `esquemaCambioPublico`, `leerCambioPublico`) y `packages/db/src/tags.ts` | **Reemplaza** a `rutas-afectadas.ts` (se borra junto con su test, D1). No convive con él. |
 | Esquema de imagen y contenido | `esquemaImagen`, `Imagen`, `Contenido`, `TIPOS_BLOQUE` (`@blog/bloques`) | `packages/bloques/src/render/*` | Los renderers no existían. Se comparten con el admin (D5). |
@@ -86,11 +88,13 @@ Detalle en [data-model.md](data-model.md). El bucket `medios` no cambia.
 | Slug de autor | `privado.slugificar`, `slug_disponible`, `asignar_slug` | `privado.impedir_cambio_slug`, `privado.notificar_cambio_autor` | Inmutabilidad y aviso propios del autor (D10 y D11). |
 | Envío del aviso | `privado.notificar_cambio_publico`, `privado.es_publico` | — | El trigger de autor los reutiliza. |
 | Tokens | `packages/ui/src/tokens.css` | tokens de espaciado, ancho de lectura y foco (ver "Impacto en UI") | Hoy no hay escala de espaciado ni ancho de lectura. |
-| Identidad (fuentes y logo) | `packages/ui` | `packages/ui/src/identidad.ts` + `packages/ui/src/assets/logo.svg` | §VII.6: la identidad se cambia solo en `packages/ui`. `astro.config.mjs` lee las fuentes y la cabecera lee el logo de ahí (análisis C1). |
+| Identidad (fuentes y logo) | `packages/ui` | `packages/ui/src/identidad.ts` (logo como data URI) y `apps/web/src/pages/logo.svg.ts`, que lo sirve como archivo para el JSON-LD | §VII.6: la identidad se cambia solo en `packages/ui`. `astro.config.mjs` lee las fuentes y la cabecera lee el logo de ahí (análisis C1). |
 | Metadatos | — | `apps/web/src/components/Seo.astro` y `src/lib/json-ld.ts` | Componente único (skill `astro-seo` §3). |
 | Tarjeta de artículo | — | `apps/web/src/components/TarjetaArticulo.astro` | Una sola, para `/`, listados y relacionados (RF-009). |
 | Listado paginado | — | `apps/web/src/components/ListadoArticulos.astro` + `Paginacion.astro` | Uno solo para `/blog`, categoría, etiqueta y autor. |
-| Primitivas web | — | `apps/web/src/components/ui/{Boton,Contenedor,Etiqueta}.astro` | Para Astro sin JS. El admin usará shadcn sobre los mismos tokens (§VII.3). |
+| Primitivas web | — | `apps/web/src/components/ui/{Boton,Contenedor,Etiqueta}.astro`; clases del botón en `packages/ui/src/clases.ts` (`clasesBoton`), compartidas con el bloque CTA | Para Astro sin JS. El admin usará shadcn sobre los mismos tokens (§VII.3). Las clases del botón tienen una sola fuente (validación U-M2). |
+| Autor en el sitio *(implementación)* | `AutorPublico` | `apps/web/src/components/AvatarAutor.astro` (foto o iniciales, `decorativo`) | Lo usan la cabecera del artículo, la ficha y la página de autor. |
+| Ayudas de E2E *(implementación)* | — | `e2e/web/ayudas.ts` (`abrir`, `esperar404`, taxonomías vacías) | Compartidas por los specs; `e2e/` entra en jscpd. |
 
 **Revisado y sin equivalente**: no existen en el repo componentes Astro, helpers de fechas, JSON-LD, firma HMAC del lado receptor ni enlaces de contacto. Se buscó en `apps/`, `packages/` y `.claude/skills/astro-seo`.
 
@@ -234,16 +238,17 @@ apps/web/
     ├── contenido/          # landing.ts, esquema.ts
     ├── assets/landing/     # imágenes de la landing
     ├── layouts/Base.astro
-    ├── components/         # Seo, Cabecera, Pie, TarjetaArticulo, ListadoArticulos, Paginacion, Migas,
-    │   ├── landing/        #   FichaAutor, Relacionados, EstadoVacio, ImagenWeb.tsx
+    ├── components/         # Seo, Cabecera, Pie, TarjetaArticulo, ListadoArticulos, Paginacion, Migas, PaginaTaxonomia,
+    │   ├── landing/        #   FichaAutor, AvatarAutor, Relacionados, EstadoVacio, ImagenWeb.tsx
     │   ├── iconos/
     │   └── ui/
-    ├── lib/                # datos, resolver, paginacion, cache, aviso, contacto, imagenes, json-ld, sitemap, fechas
+    ├── lib/                # datos, resolver, paginacion, listados, taxonomias, cache, aviso, revalidar, contacto,
+    │                       # imagenes, json-ld, sitio, sitemap, fechas
     └── pages/
-        ├── index.astro, 404.astro, 500.astro, robots.txt.ts, sitemap.xml.ts, rss.xml.ts
+        ├── index.astro, 404.astro, 500.astro, robots.txt.ts, sitemap.xml.ts, rss.xml.ts, logo.svg.ts
         ├── api/revalidar.ts
         └── blog/
-            ├── index.astro, [slug].astro, pagina/[n].astro
+            ├── [...pagina].astro (/blog y /blog/pagina/<n>), [slug].astro
             ├── categoria/[slug]/[...pagina].astro
             ├── etiqueta/[slug]/[...pagina].astro
             └── autor/[slug]/[...pagina].astro
@@ -251,7 +256,7 @@ packages/
 ├── db/src/                 # invalidaciones.ts, tags.ts (nuevos); rutas-afectadas.ts (se borra);
 │                           # consultas/listados.ts (+listarPorAutor, listarRelacionados); tipos-publicos.ts
 ├── bloques/src/render/     # un componente por tipo + Bloques (subpath ./render)
-└── ui/src/tokens.css       # tokens nuevos
+└── ui/src/                 # tokens.css (tokens nuevos), identidad.ts, clases.ts
 supabase/
 ├── migrations/20261019120000_tipo_entidad_autor.sql
 ├── migrations/20261019120100_autores_publicos.sql

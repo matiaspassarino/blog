@@ -5,7 +5,9 @@
  */
 @theme {
   /* Color */
-  --color-marca: oklch(0.55 0.15 255);
+  --color-marca: oklch(0.53 0.15 255);
+  /* Hover de los botones de marca: más oscuro, nunca con transparencia (contraste AA). */
+  --color-marca-hover: oklch(0.46 0.15 255);
   --color-marca-contraste: oklch(0.99 0 0);
   --color-acento: oklch(0.72 0.16 60);
   --color-fondo: oklch(0.99 0 0);

@@ -52,6 +52,7 @@ Pasos, en orden:
   - `a90_actualizado_en` corre después de los anteriores.
 - `crear_perfil` (`after insert on auth.users`) inserta en `perfiles`, y el trigger `a10` completa el slug. No hace falta tocar `crear_perfil`.
 - Si `postgres` o `service_role` mandan un slug en el insert, `asignar_slug` lo normaliza. Un cambio de mantenimiento en un update no pasa por `slug_disponible`: lo protegen el `unique` y el check.
+- **Mantenimiento** (validación A-obs.): si alguna vez `postgres` o `service_role` corrigen el slug de un autor, hay que insertar también la fila en `redirecciones` (`tipo_entidad = 'autor'`, `slug_anterior`, `entidad_id`): no hay trigger que lo haga, y sin ella la URL vieja da 404 en lugar del 301 que pide §IV.5. `resolver_redireccion` ya acepta `'autor'`.
 - **Riesgo aceptado**: dos altas simultáneas con el mismo nombre pueden chocar en `perfiles_slug_key`. Es el mismo riesgo que ya se aceptó para las taxonomías, y las invitaciones son poco frecuentes.
 - **Por qué `impedir_cambio_slug` es un trigger propio**: la H6 de la spec 001 va a reemplazar `proteger_perfil` (`create or replace`) para dejar que el admin cambie el rol. Si la inmutabilidad viviera ahí, esa migración la borraría (research D10).
 

@@ -3,7 +3,7 @@
 import { landing } from '../contenido/landing';
 import Base from '../layouts/Base.astro';
 import { coleccion, migas } from '../lib/json-ld';
-import { rutaDePagina } from '../lib/listados';
+import { migasDelBlog, rutaDePagina, sufijoPagina } from '../lib/listados';
 import { sitio } from '../lib/sitio';
 import type { ListadoTaxonomia } from '../lib/taxonomias';
 import ListadoArticulos from './ListadoArticulos.astro';
@@ -12,21 +12,14 @@ type Props = ListadoTaxonomia;
 
 const { valor, pagina, rutaBase, tipoTaxonomia } = Astro.props;
 const { entidad, articulos } = valor;
-const sufijo = pagina > 1 ? ` — página ${pagina}` : '';
+const sufijo = sufijoPagina(pagina);
 const descripcion =
   entidad.descripcion ??
   `Artículos sobre ${entidad.nombre} en el blog de ${landing.sitio.nombre}: guías, consejos y novedades.`;
 const ruta = rutaDePagina(rutaBase, pagina);
 const jsonLd = [
   coleccion({ nombre: `${entidad.nombre}${sufijo}`, descripcion, ruta }, sitio.url),
-  migas(
-    [
-      { nombre: 'Inicio', ruta: '/' },
-      { nombre: 'Blog', ruta: '/blog' },
-      { nombre: entidad.nombre, ruta: rutaBase },
-    ],
-    sitio.url,
-  ),
+  migas(migasDelBlog({ nombre: entidad.nombre, ruta: rutaBase }), sitio.url),
 ];
 ---
 

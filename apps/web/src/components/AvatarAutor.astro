@@ -1,6 +1,6 @@
 ---
-// Foto del autor, o sus iniciales si no tiene. En ambos casos expone el nombre como imagen
-// accesible (RF-001).
+// Foto del autor, o sus iniciales si no tiene (RF-001). Expone "Foto de <nombre>" como imagen
+// accesible, salvo `decorativo` (cuando el nombre ya está al lado y se anunciaría dos veces).
 import type { AutorPublico } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
@@ -10,9 +10,11 @@ interface Props {
   autor: AutorPublico;
   /** Lado en píxeles. */
   tamanio?: 40 | 64;
+  decorativo?: boolean;
 }
 
-const { autor, tamanio = 40 } = Astro.props;
+const { autor, tamanio = 40, decorativo = false } = Astro.props;
+const etiqueta = `Foto de ${autor.nombre}`;
 const iniciales = autor.nombre
   .split(/\s+/)
   .slice(0, 2)
@@ -25,15 +27,16 @@ const clases = tamanio === 64 ? 'size-16 text-xl' : 'size-10 text-sm';
   autor.avatar ? (
     <Image
       src={urlImagen(autor.avatar.ruta, PUBLIC_SUPABASE_URL)}
-      alt={autor.nombre}
+      alt={decorativo ? '' : etiqueta}
       width={tamanio}
       height={tamanio}
       class:list={['shrink-0 rounded-full object-cover', clases]}
     />
   ) : (
     <span
-      role="img"
-      aria-label={autor.nombre}
+      role={decorativo ? undefined : 'img'}
+      aria-label={decorativo ? undefined : etiqueta}
+      aria-hidden={decorativo ? 'true' : undefined}
       class:list={[
         'inline-flex shrink-0 items-center justify-center rounded-full bg-marca font-titulos font-bold text-marca-contraste',
         clases,

@@ -1,6 +1,7 @@
 ---
 // Página "no encontrado" (RF-016, RF-006): misma respuesta para lo no publicado y lo
-// inexistente. Se prerenderiza; las rutas dinámicas llegan acá con Astro.rewrite.
+// inexistente. Se prerenderiza; las rutas dinámicas la muestran con respuestaNoEncontrado()
+// (src/lib/resolver.ts), porque Astro no permite reescribir hacia una página prerenderizada.
 import Base from '../layouts/Base.astro';
 import Boton from '../components/ui/Boton.astro';
 import Contenedor from '../components/ui/Contenedor.astro';

@@ -1,5 +1,6 @@
 import type { BloqueDe } from '../esquema';
-import { atributosEnlace, hrefSeguro } from './enlaces';
+import { AvisoOtraPestania } from './AvisoOtraPestania';
+import { atributosEnlace, CLASE_ENLACE, esExterno, hrefSeguro } from './enlaces';
 import { TextoEnLinea } from './TextoEnLinea';
 
 export function Cita({ bloque }: { bloque: BloqueDe<'cita'> }) {
@@ -15,8 +16,9 @@ export function Cita({ bloque }: { bloque: BloqueDe<'cita'> }) {
           {fuente && (
             <>
               {bloque.autor && ', '}
-              <a {...atributosEnlace(fuente)} className="underline underline-offset-4 hover:text-texto">
-                fuente
+              <a {...atributosEnlace(fuente)} className={CLASE_ENLACE}>
+                ver la fuente
+                {esExterno(fuente) && <AvisoOtraPestania />}
               </a>
             </>
           )}

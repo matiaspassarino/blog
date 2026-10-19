@@ -9,8 +9,8 @@
 //   - secreto: SECRETO_REVALIDACION.
 //   - ahora: milisegundos epoch (Date.now()), igual que verificarAviso.
 // Respuestas JSON; todas llevan Cache-Control: no-store.
-import { createHmac } from 'node:crypto';
 import { TAG_ARTICULOS, tagArticulo, tagCategoria } from '@blog/db';
+import { firmarAviso } from './pruebas/firmar-aviso';
 import { describe, expect, it, vi } from 'vitest';
 import { procesarAviso } from './revalidar';
 
@@ -26,9 +26,8 @@ const CUERPO_VALIDO = JSON.stringify({
 });
 const URL_REVALIDAR = 'http://localhost/api/revalidar';
 
-function firmar(cuerpo: string, marca: string | number = MARCA, secreto = SECRETO) {
-  return 'sha256=' + createHmac('sha256', secreto).update(`${marca}.${cuerpo}`).digest('hex');
-}
+const firmar = (cuerpo: string, marca: string | number = MARCA, secreto = SECRETO) =>
+  firmarAviso(cuerpo, marca, secreto);
 
 /** Un POST como el que emite notificar_cambio_publico. */
 function avisoFirmado(cuerpo = CUERPO_VALIDO, encabezados: Record<string, string> = {}) {

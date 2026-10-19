@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
-    "./identidad": "./src/identidad.ts"
+    "./identidad": "./src/identidad.ts",
+    "./clases": "./src/clases.ts"
   },
   "scripts": {
     "typecheck": "tsc",

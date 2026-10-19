@@ -2,7 +2,8 @@
 // _cursiva_, `código` y [texto](url). Genera elementos React, nunca HTML: todo lo demás
 // sale escapado (RF-003). Una marca sin cerrar se muestra literal.
 import type { ReactNode } from 'react';
-import { atributosEnlace, hrefSeguro } from './enlaces';
+import { AvisoOtraPestania } from './AvisoOtraPestania';
+import { atributosEnlace, CLASE_ENLACE, esExterno, hrefSeguro } from './enlaces';
 
 const esPalabra = (caracter: string | undefined) => caracter !== undefined && /[\p{L}\p{N}]/u.test(caracter);
 
@@ -74,8 +75,9 @@ function analizar(texto: string, prefijo: string): ReactNode[] {
         const href = hrefSeguro(texto.slice(cierre + 2, fin));
         empujar(
           href ? (
-            <a key={k} {...atributosEnlace(href)}>
+            <a key={k} {...atributosEnlace(href)} className={CLASE_ENLACE}>
               {etiqueta}
+              {esExterno(href) && <AvisoOtraPestania />}
             </a>
           ) : (
             <span key={k}>{etiqueta}</span>

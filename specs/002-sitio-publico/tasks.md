@@ -323,6 +323,9 @@ description: "Lista de tareas: sitio público (landing y blog)"
   - aplicar `20261019120000_tipo_entidad_autor.sql` y `20261019120100_autores_publicos.sql` en el SQL Editor **en dos corridas separadas** (o, si antes se hizo `supabase migration repair`, con `supabase db push`). Aplicar antes las migraciones de la 001 que la nube no tenga (ver D1 en "Dependencias");
   - crear los secretos de Vault `url_web_revalidacion` (URL de producción de `blog-web`) y `secreto_revalidacion` (igual a la variable de Vercel);
   - medir CE-004 (menos de 60 s) y H4-E6, y anotarlo en `validacion.md`.
+- [ ] T103 [P] Enmienda PARCHE de `constitucion.md`: quitar `@astrojs/sitemap` de la tabla §II, porque el sitemap es propio (research D14; validación C-M2).
+- [ ] T104 [P] Teléfono del pie con formato legible: campo `contacto.whatsappVisible` (por ejemplo "+54 9 11 0000-0000") en `contracts/landing.md`, `esquema.ts`, `landing.ts` y `Pie.astro` (validación U-M11).
+- [ ] T105 [P] Spec 001: corregir el encabezado de `supabase/migrations/20261018120100_perfiles.sql:4`, que nombra `20261018120900_equipo.sql`; el archivo real será `20261019120900_equipo.sql` (validación, observación fuera de alcance).
 - [ ] T102 Actualizar la sección "Estado actual" de `CLAUDE.md` (spec 002 completa, Vault cargado, pendientes de la 001) y quitar la nota sobre la skill `astro-seo` desactualizada.
 
 ---

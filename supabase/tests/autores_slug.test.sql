@@ -7,7 +7,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo aslug-).
 begin;
 \ir helpers/pruebas.psql
-select plan(35);
+select plan(41);
 
 -- Sin secretos de revalidación al empezar: la carga de datos no notifica.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -189,6 +189,27 @@ update public.perfiles set activo = false where id = pruebas.id_de('aslug-public
 select is_empty($$select 1 from pruebas.cola_nueva()$$,
   'si solo cambia activo de un autor con publicados, no se encola nada');
 
+-- Validación de la 002 (A-M2): las otras ramas del when de z90.
+-- Como postgres: el caso anterior dejó al autor inactivo y la RLS ya no le deja editar su perfil.
+select pruebas.marcar_cola();
+update public.perfiles set biografia = 'Escribe sobre slugs.' where id = pruebas.id_de('aslug-publica@prueba.local');
+select is((select count(*)::int from pruebas.cola_nueva()), 1,
+  'H4-E7: si cambia la biografía de un autor con publicados, se encola un mensaje');
+
+select pruebas.marcar_cola();
+update public.perfiles set avatar = '{"ruta": "avatares/a.jpg", "ancho": 64, "alto": 64, "alt": "Foto"}'
+  where id = pruebas.id_de('aslug-publica@prueba.local');
+select is((select count(*)::int from pruebas.cola_nueva()), 1,
+  'H4-E7: si cambia la foto de un autor con publicados, se encola un mensaje');
+
+select pruebas.marcar_cola();
+update public.perfiles set slug = 'autora-corregida' where id = pruebas.id_de('aslug-publica@prueba.local');
+select results_eq(
+  $$select cuerpo -> 'slugs' from pruebas.cola_nueva()$$,
+  $$values ('["autora-corregida", "autora-slug-publica"]'::jsonb)$$,
+  'un cambio de slug por mantenimiento encola slugs = [nuevo, anterior]');
+update public.perfiles set slug = 'autora-slug-publica' where id = pruebas.id_de('aslug-publica@prueba.local');
+
 -- Caso borde: un autor desactivado con publicados sigue visible.
 select pruebas.como_anon();
 select is(
@@ -247,6 +268,34 @@ select throws_ok(
 select throws_ok(
   $$update public.perfiles set slug = 'ana-perez' where id = pruebas.id_de('aslug-jose@prueba.local')$$,
   '23505', null, 'perfiles_slug_key rechaza un slug repetido');
+
+-- ---------------------------------------------------------------------------
+-- Validación de la 002 (A-M1): el backfill no pisa actualizado_en (lastmod del sitemap).
+-- Reproduce el bloque de la migración 20261019120100 sobre un perfil con fecha fija (la fecha
+-- también se fija con el trigger apagado: si no, a90 la pisaría con now()).
+-- ---------------------------------------------------------------------------
+select pruebas.como_postgres();
+alter table public.perfiles disable trigger a90_actualizado_en;
+update public.perfiles set actualizado_en = '2026-01-01T00:00:00Z' where id = pruebas.id_de('aslug-otro@prueba.local');
+update public.perfiles
+  set slug = privado.slug_disponible('autor', 'Otro Editor Slug Backfill', id)
+  where id = pruebas.id_de('aslug-otro@prueba.local');
+alter table public.perfiles enable trigger a90_actualizado_en;
+select is(pruebas.slug_de('aslug-otro@prueba.local'), 'otro-editor-slug-backfill',
+  'control: el backfill asignó el slug');
+select is((select actualizado_en from public.perfiles where id = pruebas.id_de('aslug-otro@prueba.local')),
+  '2026-01-01T00:00:00Z'::timestamptz,
+  'data-model: el backfill no cambia actualizado_en');
+
+-- ---------------------------------------------------------------------------
+-- Validación de la 002 (A-M3): a10_asignar_slug normaliza un slug explícito.
+-- ---------------------------------------------------------------------------
+select pruebas.crear_usuario('aslug-explicito@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Explícito"}');
+delete from public.perfiles where id = pruebas.id_de('aslug-explicito@prueba.local');
+insert into public.perfiles (id, nombre, slug)
+  values (pruebas.id_de('aslug-explicito@prueba.local'), 'Explícito', 'Con Mayúsculas Ñandú');
+select is(pruebas.slug_de('aslug-explicito@prueba.local'), 'con-mayusculas-nandu',
+  'data-model: un slug explícito en el alta se normaliza');
 
 select pruebas.como_postgres();
 select * from finish();

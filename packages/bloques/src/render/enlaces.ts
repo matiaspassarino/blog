@@ -16,3 +16,6 @@ export const esExterno = (href: string) => /^https?:\/\//i.test(href);
 /** Atributos de un enlace según su destino. */
 export const atributosEnlace = (href: string) =>
   esExterno(href) ? { href, target: '_blank', rel: 'noopener noreferrer' } : { href };
+
+/** Enlaces dentro del texto: subrayados para no depender solo del color (WCAG 1.4.1). */
+export const CLASE_ENLACE = 'underline decoration-marca underline-offset-4 hover:decoration-2';

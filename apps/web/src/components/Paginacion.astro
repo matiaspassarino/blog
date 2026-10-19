@@ -12,7 +12,7 @@ interface Props {
 const { rutaBase, pagina, totalPaginas } = Astro.props;
 const numeros = Array.from({ length: totalPaginas }, (_, i) => i + 1);
 const claseEnlace =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-separador px-3 font-medium hover:bg-superficie';
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-borde px-3 font-medium hover:bg-superficie';
 ---
 
 {
@@ -22,7 +22,7 @@ const claseEnlace =
         {pagina > 1 && (
           <li>
             <a href={rutaDePagina(rutaBase, pagina - 1)} class={claseEnlace} rel="prev">
-              ← Anterior
+              <span aria-hidden="true">←</span> Anterior
             </a>
           </li>
         )}
@@ -47,7 +47,7 @@ const claseEnlace =
         {pagina < totalPaginas && (
           <li>
             <a href={rutaDePagina(rutaBase, pagina + 1)} class={claseEnlace} rel="next">
-              Siguiente →
+              Siguiente <span aria-hidden="true">→</span>
             </a>
           </li>
         )}
