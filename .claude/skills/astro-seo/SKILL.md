@@ -1,106 +1,89 @@
 ---
 name: astro-seo
-description: Patrones del sitio público en Astro de este proyecto (apps/web): rutas del blog, ISR on-demand en Vercel, revalidación desde el admin, metadatos SEO, JSON-LD, sitemap, RSS, imágenes y renderizado de bloques. Usar SIEMPRE antes de crear o modificar páginas, layouts o componentes en apps/web, o al tocar la revalidación entre admin y web.
+description: Patrones del sitio público en Astro de este proyecto (apps/web): rutas del blog, caché de rutas con tags en Vercel, invalidación por avisos firmados de la base, metadatos SEO, JSON-LD, sitemap, RSS, imágenes y renderizado de bloques. Usar SIEMPRE antes de crear o modificar páginas, layouts o componentes en apps/web, o al tocar la invalidación entre la base y web.
 ---
 
 # Astro + SEO en apps/web
 
-Fuente de verdad: `/constitucion.md` §III, §IV y §VI. Si una API de Astro o de `@astrojs/vercel` no coincide con lo que se describe acá, verificá contra https://docs.astro.build y priorizá la documentación de la versión instalada (`apps/web/package.json`).
+Fuente de verdad: `/constitucion.md` §III, §IV y §VI, y `specs/002-sitio-publico/` (research D1–D18, `contracts/`). Si una API de Astro o de `@astrojs/vercel` no coincide con lo que se describe acá, verificá contra `apps/web/node_modules/astro/dist` (versión fijada en `apps/web/package.json`).
 
-## 1. Estrategia de render por ruta
+## 1. Render y caché
 
-| Ruta | Render | Motivo |
-|---|---|---|
-| `/` (landing) | estático (build) | No depende del blog, o solo de los últimos artículos (ISR) |
-| `/blog`, `/blog/pagina/[n]` | ISR | Listados que cambian al publicar |
-| `/blog/[slug]` | ISR | Artículo |
-| `/blog/categoria/[slug]`, `/blog/etiqueta/[slug]` | ISR | Taxonomías indexables |
-| `/blog/buscar` | SSR (`prerender = false`) + `noindex` | Depende de la query del usuario |
-| `/sitemap.xml`, `/rss.xml` | ISR | Se regeneran al publicar |
-| `/api/revalidar` | SSR | Endpoint protegido |
+Todo es SSR (`output: 'server'`) cacheado en el CDN de Vercel con el **caché de rutas de Astro y tags** (research D1). Equivale a ISR on-demand (constitución 1.0.2, §IV.1): se sirve HTML generado y solo se regenera ante una invalidación.
 
-Configuración base (`apps/web/astro.config.mjs`):
 ```js
-import { defineConfig } from 'astro/config';
-import vercel from '@astrojs/vercel';
-import react from '@astrojs/react';
-import sitemap from '@astrojs/sitemap';
-
-export default defineConfig({
-  site: process.env.PUBLIC_URL_SITIO,
-  output: 'server',            // las rutas estáticas se marcan con `export const prerender = true`
-  adapter: vercel({
-    isr: {
-      expiration: false,       // solo se invalida on-demand
-      bypassToken: process.env.SECRETO_REVALIDACION, // ≥ 32 caracteres
-      exclude: [/^\/api\/.*/, /^\/blog\/buscar/],
-    },
-    imageService: true,
-  }),
-  integrations: [react(), sitemap()],
-});
+// apps/web/astro.config.mjs (resumen)
+adapter: vercel({ imageService: true }),   // sin isr
+cache: { provider: cacheVercel() },        // de '@astrojs/vercel/cache'
+trailingSlash: 'never',
 ```
 
-## 2. Revalidación on-demand (admin → web)
+- Cada página declara su política con los helpers de `src/lib/cache.ts`: `cacheArticulo(a, relacionados)`, `cacheListado(entidad?)`, `cacheNoEncontrado()` y `cacheRedireccion()`. **Nunca** escribas tags a mano: el formato sale de `packages/db/src/tags.ts`.
+- Prerender (`export const prerender = true`) solo en `/404`, `/robots.txt` y `/logo.svg`.
+- `astro dev` no cachea: los E2E locales siempre ven datos frescos.
 
-- Las páginas ISR en Vercel se regeneran cuando reciben un `GET`/`HEAD` con el header `x-prerender-revalidate: <bypassToken>`.
-- Hay un helper ÚNICO en `packages/db` (o `packages/revalidacion` si el plan lo justifica) llamado `rutasAfectadas(articulo)`, que devuelve: `/blog/<slug>`, `/blog`, las páginas de listado, `/blog/categoria/<cat>`, `/blog/etiqueta/<tag>` de cada etiqueta, `/sitemap.xml`, `/rss.xml` y `/` si la landing muestra artículos. Si cambió el slug, también incluye el slug anterior.
-- `apps/admin` llama a `revalidar(rutas)` después de publicar, editar, archivar o borrar.
-- El job de `pg_cron` de los artículos programados llama a la Edge Function o al webhook que hace lo mismo.
-- **Nunca** dupliques la lista de rutas: siempre se usa `rutasAfectadas`.
+## 2. Invalidación (base → web)
 
-## 3. Metadatos: componente único `<Seo />`
+- La base emite un aviso firmado (HMAC-SHA256, contrato de la 001: `X-Blog-Marca-Tiempo`, `X-Blog-Firma: sha256=<hex>`) a `POST /api/revalidar`.
+- `src/pages/api/revalidar.ts` es una capa fina sobre `procesarAviso` (`src/lib/revalidar.ts`): firma → 401, contrato (`leerCambioPublico`) → 400, `invalidacionesDe(cambio)` de `@blog/db` → `cache.invalidate({ tags })` e `invalidate({ path })` → 200 o 502.
+- Los tests nunca van dentro de `src/pages/`: Astro los tomaría como rutas.
+- Para probarlo en local con Docker Desktop en Windows, la URL del Vault apunta a `http://host.docker.internal:4321` y el dev server se levanta con `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=host.docker.internal`.
 
-Hay UN componente, `apps/web/src/components/Seo.astro`, que usan todos los layouts:
-```astro
----
-interface Props {
-  titulo: string;           // ≤ 60 caracteres; el layout agrega " | <Sitio>"
-  descripcion: string;      // 120–160 caracteres
-  canonical?: string;       // por defecto: new URL(Astro.url.pathname, Astro.site)
-  imagen?: string;          // OG 1200×630
-  tipo?: 'website' | 'article';
-  noindex?: boolean;
-  publicadoEn?: string; actualizadoEn?: string; autor?: string;
-  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
-}
----
-```
-Emite `<title>`, `meta description`, `link rel=canonical`, `og:*`, `twitter:*`, `article:*` (si es un artículo), `robots` (si es `noindex`) y `<script type="application/ld+json">`.
+## 3. Rutas y resolución
 
-Los helpers de JSON-LD van en `apps/web/src/lib/json-ld.ts`: `jsonLdArticulo()`, `jsonLdBreadcrumbs()`, `jsonLdOrganizacion()` y `jsonLdSitio()`, con tests en Vitest.
+| Ruta | Archivo |
+|---|---|
+| `/` | `pages/index.astro` |
+| `/blog`, `/blog/pagina/<n>` | `pages/blog/[...pagina].astro` |
+| `/blog/<slug>` | `pages/blog/[slug].astro` |
+| `/blog/categoria/<slug>[/pagina/<n>]`, ídem etiqueta | `pages/blog/{categoria,etiqueta}/[slug]/[...pagina].astro` (finas, sobre `lib/taxonomias.ts` y `PaginaTaxonomia.astro`) |
+| `/blog/autor/<slug>[/pagina/<n>]` | `pages/blog/autor/[slug]/[...pagina].astro` |
+| `/sitemap.xml`, `/rss.xml`, `/robots.txt`, `/api/revalidar` | endpoints `.ts` |
 
-## 4. Datos
+- **Un solo flujo**: `resolverEntidad` (entidad → 301 por slug anterior → 404) y `resolverListado` (página → 301 de `/pagina/1` → 404 fuera de rango o formato inválido). No lo repitas en las páginas.
+- **404 de una página dinámica**: `return respuestaNoEncontrado()` (`new Response(null, { status: 404 })`). **No** uses `Astro.rewrite('/404')`: Astro lo prohíbe hacia la 404 prerenderizada (`ForbiddenRewrite`).
+- **Middleware**: 301 a minúsculas (salvo `/_astro`) y `X-Robots-Tag: noindex` cuando `VERCEL_ENV !== 'production'`.
+- Un segmento dinámico como `blog/[x]/[y]/[...pagina]` capturaría `/blog/pagina/<n>`: usá segmentos estáticos.
 
-- Solo se usa `packages/db` (cliente anon). Nada de `createClient` en `apps/web`.
-- Las consultas seleccionan solo las columnas necesarias e incluyen las relaciones (categoría, etiquetas, autor) en una sola consulta.
-- Si el slug no existe, la respuesta es `404` real (`return new Response(null, { status: 404 })` o `Astro.rewrite('/404')`).
-- Si el slug cambió, se responde con un `301` a la URL nueva (se consulta la tabla de redirecciones).
+## 4. Metadatos: componente único `<Seo />`
 
-## 5. Bloques
+`src/components/Seo.astro`, usado solo a través de `layouts/Base.astro`. Props: `titulo`, `descripcion`, `ruta`, `imagen?`, `tipo` (`website` | `article` | `profile`), `articulo?`, `noindex?`, `jsonLd?: object[]`.
 
-- `apps/web/src/components/bloques/RenderBloques.astro` recorre `contenido` y delega en un componente `.astro` por tipo (`Parrafo.astro`, `Imagen.astro`…).
-- Los tipos se importan de `packages/bloques`. Si aparece un tipo desconocido, no se renderiza y se registra en log; la página no se rompe.
-- Los bloques son HTML estático. Solo `galeria` o `video` pueden usar una isla React, y con `client:visible`.
-- El primer bloque `titulo` del contenido es `h2`, porque el `h1` es el título del artículo.
+- Agrega ` | <sitio>` al título solo si entra en 60 caracteres; recorta la descripción a 160.
+- Canónica absoluta con `PUBLIC_URL_SITIO`, Open Graph (imagen genérica `/og-generica.png` 1200×630), Twitter `summary_large_image`, `article:*` y el `link rel=alternate` del feed.
+- JSON-LD con los helpers puros de `src/lib/json-ld.ts` y los datos del sitio de `src/lib/sitio.ts`: `organizacion` + `sitioWeb` (portada), `blogPosting` + `migas` (artículo), `coleccion` + `migas` (listados), `perfil` + `migas` (autor). Se serializa escapando `<`.
 
-## 6. Imágenes
+## 5. Datos
 
-- Se usa `<Image />` / `<Picture />` de `astro:assets` con `width`/`height` explícitos. Para las imágenes remotas de Supabase Storage hay que configurar `image.remotePatterns`.
-- El `alt` es obligatorio (viene del bloque).
-- La imagen principal (LCP) lleva `loading="eager"` y `fetchpriority="high"`; el resto va `lazy`.
+- Solo `@blog/db`, con la instancia única de `src/lib/datos.ts` (clave anon). Nada de `createClient` en `apps/web`.
+- Una página fuera de rango no lanza: `paginaDeArticulos` devuelve vacía con el total real.
 
-## 7. Islas React
+## 6. Bloques
 
-- Por defecto no hay JS. Cada `client:*` tiene que estar justificado en el plan.
-- Se prefiere `client:visible` o `client:idle` antes que `client:load`.
-- Los componentes compartidos con admin salen de `packages/ui`.
+- Los renderers son React **sin hidratar** en `@blog/bloques/render` (compartidos con el admin). En Astro: `<Bloques contenido componentes={{ Imagen: crearImagenWeb(variantes) }} />`, **sin** directiva `client:`.
+- Párrafos, citas y listas interpretan el Markdown inline de la 001 (`**`, `_`, `` ` ``, `[texto](url)`) con `TextoEnLinea`: nunca HTML crudo. `dangerouslySetInnerHTML` está prohibido por ESLint.
+- Enlaces: solo `/…`, `http(s):` y `mailto:` (`hrefSeguro`); los externos con `rel="noopener noreferrer"`.
+- Video: `iframe srcdoc` con miniatura y enlace al reproductor; cero JS (research D6).
+- Los títulos del cuerpo empiezan en `h2`.
 
-## 8. Checklist antes de dar por terminada una página
+## 7. Imágenes
 
-- [ ] Hay un único `h1` y una jerarquía correcta
-- [ ] `<Seo />` tiene título y descripción propios y no genéricos
-- [ ] JSON-LD válido (verificable con https://validator.schema.org)
-- [ ] La ruta está en el sitemap (o excluida a propósito)
-- [ ] Está cubierta por `rutasAfectadas` si depende del contenido
-- [ ] Lighthouse móvil: SEO ≥ 95, Performance ≥ 90, Accesibilidad ≥ 95
+- Cuerpo del artículo: `precalcularVariantes()` (`src/lib/imagenes.ts`) antes del render y `crearImagenWeb(variantes)`.
+- Tarjetas, destacada, avatar y landing: `<Image>` de `astro:assets` con `width`/`height`. Remotas permitidas en `image.remotePatterns` (Supabase, picsum).
+- La imagen principal lleva `loading="eager"` y `fetchpriority="high"`; el resto, `lazy`. Decorativas con `alt=""`.
+
+## 8. Identidad y contenido
+
+- Colores, tipografía y logo: solo `packages/ui` (`tokens.css` e `identidad.ts`). `/logo.svg` se genera desde `identidad`.
+- Textos de la landing: `src/contenido/landing.ts`, validado con `esquemaLanding` (si falta un campo, falla el build).
+- `public/og-generica.png` repite el nombre del sitio: regenerarlo al adaptar la demo a un cliente.
+
+## 9. Checklist antes de dar por terminada una página
+
+- [ ] Un único `h1` y jerarquía sin saltos (`e2e/web/accesibilidad.spec.ts`)
+- [ ] `<Seo />` con título y descripción propios, y su JSON-LD (`e2e/web/seo.spec.ts`)
+- [ ] Política de caché con los helpers de `lib/cache.ts`
+- [ ] En el sitemap si es indexable, o `noindex` si no
+- [ ] Sin `client:` salvo justificación en el plan
+- [ ] Sin desborde en 360, 768, 1024 y 1440 px (`e2e/web/responsive.spec.ts`)
+- [ ] Lighthouse móvil sobre el preview: SEO ≥ 95, Performance ≥ 90, Accesibilidad ≥ 95

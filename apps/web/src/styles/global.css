@@ -23,6 +23,6 @@ body {
 
 /* Foco visible en todo elemento interactivo (§VII.4). */
 :focus-visible {
-  outline: 3px solid var(--color-foco);
-  outline-offset: 3px;
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
 }

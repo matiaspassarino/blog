@@ -7,6 +7,17 @@ Esta es una guía para comprobar la feature de punta a punta. Los detalles de ca
 - Supabase local levantado y con el seed cargado: `pnpm db:start && pnpm db:reset`.
 - `apps/web/.env.local` con `PUBLIC_URL_SITIO=http://localhost:4321`, `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_ANON_KEY` (sacados de `supabase status`) y `SECRETO_REVALIDACION` (el valor de `.env.example`).
 
+### En Windows
+
+- Docker Desktop necesita la virtualización activada en el BIOS. Desde Git Bash, Docker no está en el `PATH`: `export PATH="$PATH:/c/Program Files/Docker/Docker/resources/bin"`.
+- `astro build` necesita el **Modo de desarrollador** de Windows: el adaptador de Vercel crea *symlinks* en `.vercel/output`.
+- El repo tiene `.gitattributes` con `eol=lf`; si un clon viejo muestra avisos de Prettier por CRLF, volver a hacer checkout.
+- Para recibir avisos de la base en local (sección 5 en local), el contenedor llega al host por `host.docker.internal` y no por `172.17.0.1` (el valor del seed, que es de Linux):
+  ```sql
+  select vault.update_secret(id, 'http://host.docker.internal:4321') from vault.secrets where name = 'url_web_revalidacion';
+  ```
+  y el servidor se levanta con `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=host.docker.internal pnpm --filter web dev --ignore-lock --host`.
+
 ## 1. Base de datos
 
 ```bash
@@ -54,6 +65,8 @@ pnpm test:e2e --project=web
 ```
 
 **Esperado**: pasan todos los `e2e/web/*.spec.ts`, incluidos axe (sin violaciones AA) y los 4 anchos.
+
+**Aviso en local** (opcional, ver "En Windows"): un `update` de un artículo publicado deja en `net._http_response` un `200` con `{"tags":[…],"rutas":[…]}`. Así se comprueba que la firma de `pg_net` valida en el sitio (verificado el 2026-10-19).
 
 ## 5. Aviso firmado y caché (en Vercel, que es donde está activo el caché de rutas)
 
