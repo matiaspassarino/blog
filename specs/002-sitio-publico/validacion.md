@@ -108,6 +108,16 @@ Preview `blog-web-git-002-sitio-publico-…vercel.app`, con Deployment Protectio
 
 **Pendiente para producción (T101)**: validadores de schema.org, sitemap y feed de W3C (necesitan una URL pública) y la medición de CE-004.
 
+## T101: producción (2026-10-19, después del merge de #1)
+
+- **Migraciones** `20261019120000` y `20261019120100` aplicadas en la nube antes del merge (la segunda, desde el SQL Editor): 3 perfiles con slug, vista con `security_barrier`, sitemap con 3 autores; advisors sin hallazgos nuevos.
+- **Vault**: `url_web_revalidacion` = URL de producción y `secreto_revalidacion` rotado (el primer valor no coincidía con Vercel y el sitio respondía 401). El nuevo se cargó en Vercel por la API y se redesplegó producción; el hash del Vault coincide con el valor cargado.
+- **CE-004**: un cambio de título en la base se vio en producción a los **5 s**, en dos muestras (cambio y restauración). `net._http_response`: 200 con `{"tags":["articulos","articulo:<id>"],"rutas":["/blog/<slug>"]}`.
+- **H4-E6**: al renombrar la categoría "Diseño" (nombre y slug), el artículo mostró el nombre nuevo a los **6 s**, y la URL vieja respondió 301 desde la segunda petición (la primera recibe la copia vencida por `swr`, riesgo previsto en research D1). Se restauró la categoría; queda la redirección de prueba `diseno-grafico` → `diseno`, inocua.
+- **Lighthouse móvil en producción**: 100 / 100 / 100 / 100 (rendimiento, accesibilidad, buenas prácticas y SEO) en `/`, `/blog`, un artículo y una categoría; LCP 1,31–1,38 s; CLS 0.
+- **Validadores**: schema.org sin errores ni avisos en portada, artículo, autor y categoría; feed válido en W3C con un aviso (`atom:link rel="self"`, se corrige en el PR de cierre).
+- **Sin `X-Robots-Tag` en producción**; `/api/revalidar` rechaza un aviso sin firma con 401.
+
 ## Acciones
 
 1. ~~Corregir los bloqueantes C-B1, U-B1 y U-B2, con sus tests.~~ Hecho.
