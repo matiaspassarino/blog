@@ -8,7 +8,9 @@ import Base from '../../../../layouts/Base.astro';
 import { landing } from '../../../../contenido/landing';
 import { cacheListado } from '../../../../lib/cache';
 import { datos } from '../../../../lib/datos';
+import { migas, perfil } from '../../../../lib/json-ld';
 import { resolverListado, rutaDePagina } from '../../../../lib/listados';
+import { sitio } from '../../../../lib/sitio';
 
 const slug = Astro.params.slug ?? '';
 const rutaBase = `/blog/autor/${slug}`;
@@ -27,6 +29,17 @@ Astro.cache.set(cacheListado({ tipo: 'autor', id: autor.id }));
 
 const sufijo = resultado.pagina > 1 ? ` — página ${resultado.pagina}` : '';
 const descripcion = autor.biografia ?? `Artículos de ${autor.nombre} en el blog de ${landing.sitio.nombre}.`;
+const jsonLd = [
+  perfil(autor, sitio.url),
+  migas(
+    [
+      { nombre: 'Inicio', ruta: '/' },
+      { nombre: 'Blog', ruta: '/blog' },
+      { nombre: autor.nombre, ruta: rutaBase },
+    ],
+    sitio.url,
+  ),
+];
 ---
 
 <Base
@@ -34,6 +47,7 @@ const descripcion = autor.biografia ?? `Artículos de ${autor.nombre} en el blog
   descripcion={descripcion}
   ruta={rutaDePagina(rutaBase, resultado.pagina)}
   tipo="profile"
+  jsonLd={jsonLd}
 >
   <ListadoArticulos articulos={articulos} rutaBase={rutaBase}>
     <div slot="encabezado" class="flex items-center gap-5">

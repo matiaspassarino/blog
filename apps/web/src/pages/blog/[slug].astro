@@ -18,7 +18,9 @@ import { cacheArticulo, cacheNoEncontrado, cacheRedireccion } from '../../lib/ca
 import { datos } from '../../lib/datos';
 import { fechaLarga } from '../../lib/fechas';
 import { precalcularVariantes, urlImagen } from '../../lib/imagenes';
+import { blogPosting, migas as migasJsonLd } from '../../lib/json-ld';
 import { resolverEntidad, respuestaNoEncontrado } from '../../lib/resolver';
+import { sitio } from '../../lib/sitio';
 
 const slug = Astro.params.slug ?? '';
 const resultado = await resolverEntidad({
@@ -66,6 +68,7 @@ const migas: Miga[] = [
   descripcion={articulo.seo.descripcion ?? `${articulo.titulo}. Un artículo del blog.`}
   ruta={`/blog/${articulo.slug}`}
   tipo="article"
+  jsonLd={[blogPosting(articulo, sitio), migasJsonLd(migas, sitio.url)]}
   imagen={destacada
     ? { url: urlImagen(destacada.ruta, PUBLIC_SUPABASE_URL), ancho: destacada.ancho, alto: destacada.alto, alt: destacada.alt }
     : undefined}

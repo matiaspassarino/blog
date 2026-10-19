@@ -6,7 +6,9 @@ import Base from '../../layouts/Base.astro';
 import { landing } from '../../contenido/landing';
 import { cacheListado } from '../../lib/cache';
 import { datos } from '../../lib/datos';
+import { coleccion, migas } from '../../lib/json-ld';
 import { resolverListado, rutaDePagina } from '../../lib/listados';
+import { sitio } from '../../lib/sitio';
 
 const RUTA = '/blog';
 const resultado = await resolverListado({
@@ -22,9 +24,20 @@ Astro.cache.set(cacheListado());
 
 const { articulos } = resultado.valor;
 const sufijo = resultado.pagina > 1 ? ` — página ${resultado.pagina}` : '';
+const ruta = rutaDePagina(RUTA, resultado.pagina);
+const jsonLd = [
+  coleccion({ nombre: `Blog${sufijo}`, descripcion: landing.blog.descripcion, ruta }, sitio.url),
+  migas(
+    [
+      { nombre: 'Inicio', ruta: '/' },
+      { nombre: 'Blog', ruta: RUTA },
+    ],
+    sitio.url,
+  ),
+];
 ---
 
-<Base titulo={`Blog${sufijo}`} descripcion={landing.blog.descripcion} ruta={rutaDePagina(RUTA, resultado.pagina)}>
+<Base titulo={`Blog${sufijo}`} descripcion={landing.blog.descripcion} ruta={ruta} jsonLd={jsonLd}>
   <ListadoArticulos articulos={articulos} rutaBase={RUTA}>
     <Fragment slot="encabezado">
       <h1 class="font-titulos text-titulo-1 font-bold">Blog{sufijo}</h1>

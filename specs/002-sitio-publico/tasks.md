@@ -297,12 +297,12 @@ description: "Lista de tareas: sitio público (landing y blog)"
 
 ### Implementación de la Historia 5
 
-- [ ] T088 [P] [H5] Crear `apps/web/src/lib/json-ld.ts` con `blogPosting`, `migas`, `organizacion`, `sitioWeb`, `coleccion` y `perfil`, puras. Debe pasar T084.
-- [ ] T089 [H5] Pasar `jsonLd` a `<Seo />` desde cada página, según [contracts/rutas.md](contracts/rutas.md#metadatos-por-ruta-componente-único-seo-rseo-001-a-rseo-009): `pages/index.astro` (`Organization`, `WebSite`), `pages/blog/[slug].astro` (`BlogPosting`, `BreadcrumbList` Inicio › Blog › Categoría › Artículo), las páginas de listado y taxonomía (`CollectionPage`, `BreadcrumbList`) y la de autor (`ProfilePage`, `BreadcrumbList`). Si las migas de `Migas.astro` y las de JSON-LD salen de la misma lista, armarla una sola vez por página.
-- [ ] T090 [P] [H5] Crear `apps/web/src/lib/sitemap.ts` con `xmlSitemap(entradas, sitio)` y `apps/web/src/pages/sitemap.xml.ts` (`listarParaSitemap`, `Content-Type: application/xml`, `Astro.cache.set(cacheListado())`). Debe pasar T085.
-- [ ] T091 [P] [H5] Crear `apps/web/src/pages/rss.xml.ts` con `@astrojs/rss` sobre `listarArticulosPublicados({ porPagina: 20 })`: título y descripción del sitio, `link` absoluto, `description` = extracto, `pubDate`, `categories` = categoría; `cacheListado()`.
-- [ ] T092 [H5] Crear `apps/web/src/pages/robots.txt.ts` (`prerender = true`): `User-agent: *`, `Allow: /`, `Disallow: /api/` y `Sitemap:` absoluto. Agregar a `apps/web/src/middleware.ts` el encabezado `X-Robots-Tag: noindex` cuando `VERCEL_ENV !== 'production'` (depende de T082). Deben pasar T086 y T087.
-- [ ] T093 [P] [H5] Crear `apps/web/public/og-generica.png` (1200 × 630, con los colores de los tokens y el nombre genérico del sitio) y revisar que `favicon.svg` y `favicon.ico` sean genéricos.
+- [X] T088 [P] [H5] Crear `apps/web/src/lib/json-ld.ts` con `blogPosting`, `migas`, `organizacion`, `sitioWeb`, `coleccion` y `perfil`, puras. Debe pasar T084.
+- [X] T089 [H5] Pasar `jsonLd` a `<Seo />` desde cada página, según [contracts/rutas.md](contracts/rutas.md#metadatos-por-ruta-componente-único-seo-rseo-001-a-rseo-009): `pages/index.astro` (`Organization`, `WebSite`), `pages/blog/[slug].astro` (`BlogPosting`, `BreadcrumbList` Inicio › Blog › Categoría › Artículo), las páginas de listado y taxonomía (`CollectionPage`, `BreadcrumbList`) y la de autor (`ProfilePage`, `BreadcrumbList`). Si las migas de `Migas.astro` y las de JSON-LD salen de la misma lista, armarla una sola vez por página.
+- [X] T090 [P] [H5] Crear `apps/web/src/lib/sitemap.ts` con `xmlSitemap(entradas, sitio)` y `apps/web/src/pages/sitemap.xml.ts` (`listarParaSitemap`, `Content-Type: application/xml`, `Astro.cache.set(cacheListado())`). Debe pasar T085.
+- [X] T091 [P] [H5] Crear `apps/web/src/pages/rss.xml.ts` con `@astrojs/rss` sobre `listarArticulosPublicados({ porPagina: 20 })`: título y descripción del sitio, `link` absoluto, `description` = extracto, `pubDate`, `categories` = categoría; `cacheListado()`.
+- [X] T092 [H5] Crear `apps/web/src/pages/robots.txt.ts` (`prerender = true`): `User-agent: *`, `Allow: /`, `Disallow: /api/` y `Sitemap:` absoluto. Agregar a `apps/web/src/middleware.ts` el encabezado `X-Robots-Tag: noindex` cuando `VERCEL_ENV !== 'production'` (depende de T082). Deben pasar T086 y T087.
+- [X] T093 [P] [H5] Crear `apps/web/public/og-generica.png` (1200 × 630, con los colores de los tokens y el nombre genérico del sitio) y revisar que `favicon.svg` y `favicon.ico` sean genéricos.
 
 **Checkpoint**: las 5 historias están completas.
 

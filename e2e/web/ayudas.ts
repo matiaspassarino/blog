@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 
 /** Ejecuta SQL como postgres en la base local y devuelve la salida sin formato. */
-export function sqlComoPostgres(sql: string) {
+function sqlComoPostgres(sql: string) {
   return execFileSync(
     'docker',
     ['exec', 'supabase_db_blog', 'psql', '-U', 'postgres', '-d', 'postgres', '-qtA', '-c', sql],

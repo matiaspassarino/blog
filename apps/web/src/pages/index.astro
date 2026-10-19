@@ -12,12 +12,19 @@ import { landing } from '../contenido/landing';
 import Base from '../layouts/Base.astro';
 import { cacheListado } from '../lib/cache';
 import { datos } from '../lib/datos';
+import { organizacion, sitioWeb } from '../lib/json-ld';
+import { sitio } from '../lib/sitio';
 
 const ultimos = await listarArticulosPublicados(datos, { porPagina: 3 });
 Astro.cache.set(cacheListado());
 ---
 
-<Base titulo={landing.sitio.lema} descripcion={landing.sitio.descripcion} ruta="/">
+<Base
+  titulo={landing.sitio.lema}
+  descripcion={landing.sitio.descripcion}
+  ruta="/"
+  jsonLd={[organizacion(sitio), sitioWeb(sitio)]}
+>
   <Hero />
   <Propuesta />
   <Servicios />
