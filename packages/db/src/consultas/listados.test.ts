@@ -1,4 +1,5 @@
 // T046: listados públicos (contracts/db.md, "Consultas públicas"; H3-E1, H3-E2, H3-E5; RF-017, RSEO-004, D16).
+// Spec 002, T047: listarRelacionados (RF-005, research D18).
 // Integración contra Supabase local como visitante (anon). Los datos los crea y los borra el admin demo
 // del seed (research D18). Otras suites publican en paralelo: los listados globales se verifican por
 // sus invariantes y por la presencia de los artículos propios, nunca por totales exactos.
@@ -7,7 +8,13 @@ import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
 import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
-import { listarArticulosPublicados, listarParaSitemap, listarPorCategoria, listarPorEtiqueta } from './listados';
+import {
+  listarArticulosPublicados,
+  listarParaSitemap,
+  listarPorCategoria,
+  listarPorEtiqueta,
+  listarRelacionados,
+} from './listados';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
 const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
@@ -286,6 +293,137 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
       expect(propia).toMatchObject({ tipo: 'categoria', slug: categoria.slug });
       expect(Number.isNaN(new Date(propia?.actualizadoEn ?? '').getTime())).toBe(false);
       expect(entradas.every((e) => ['articulo', 'categoria', 'etiqueta', 'autor'].includes(e.tipo))).toBe(true);
+    });
+  });
+
+  // Spec 002, T047 (RF-005, research D18): hasta 3 publicados, primero de la misma categoría
+  // y sin el propio artículo; si faltan, se completa con los más recientes sin repetir.
+  describe('listarRelacionados', () => {
+    let categoriaLlena: TaxonomiaDePrueba;
+    let categoriaCorta: TaxonomiaDePrueba;
+    /** 5 publicados de `categoriaLlena`, del más antiguo al más reciente. */
+    const llena: Creado[] = [];
+    /** 2 publicados de `categoriaCorta`, del más antiguo al más reciente. */
+    const corta: Creado[] = [];
+    let borradorCorta: Creado;
+    /** Fecha del publicado más reciente fuera de `categoriaCorta`, antes de consultar (otras suites pueden publicar después). */
+    let masRecienteAntes: number;
+
+    const crearRelacionado = (nombre: string, categoriaId: string, publicar = true) =>
+      crearArticuloDePrueba(admin, creados, {
+        titulo: `002 relacionados: ${nombre}`,
+        slug: `002-relacionados-${nombre}-${sufijo}`,
+        extracto: `Extracto de ${nombre}.`,
+        contenido,
+        categoriaId,
+        publicar,
+      });
+
+    /** El artículo de prueba en la posición pedida (falla si no se creó). */
+    function articulo(lista: Creado[], indice: number) {
+      const encontrado = lista[indice];
+      if (!encontrado) throw new Error('Faltan los artículos de prueba');
+      return encontrado;
+    }
+
+    beforeAll(async () => {
+      categoriaLlena = await insertarTaxonomia('categorias', '002 Relacionados Llena', '002-relacionados-llena');
+      categoriaCorta = await insertarTaxonomia('categorias', '002 Relacionados Corta', '002-relacionados-corta');
+      for (const nombre of ['llena-1', 'llena-2', 'llena-3', 'llena-4', 'llena-5']) {
+        llena.push(await crearRelacionado(nombre, categoriaLlena.id));
+      }
+      corta.push(await crearRelacionado('corta-1', categoriaCorta.id));
+      // Un borrador de la misma categoría: nunca debe aparecer.
+      borradorCorta = await crearRelacionado('corta-borrador', categoriaCorta.id, false);
+      corta.push(await crearRelacionado('corta-2', categoriaCorta.id));
+      const previos = await listarArticulosPublicados(anon, { porPagina: 5 });
+      const ajeno = previos.items.find((item) => !corta.some((propio) => propio.id === item.id));
+      masRecienteAntes = new Date(ajeno?.publicado_en ?? 0).getTime();
+    });
+
+    it('RF-005: con suficientes en la categoría, devuelve 3 de ella, del más reciente al más antiguo', async () => {
+      const propio = articulo(llena, 0);
+
+      const relacionados = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaLlena.id }, 3);
+
+      expect(relacionados.map((r) => r.id)).toEqual([llena[4]?.id, llena[3]?.id, llena[2]?.id]);
+      esperarOrdenDescendente(relacionados);
+    });
+
+    it('RF-005: nunca incluye el propio artículo', async () => {
+      const propio = articulo(llena, 4);
+
+      const relacionados = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaLlena.id }, 3);
+
+      expect(relacionados.map((r) => r.id)).not.toContain(propio.id);
+      expect(relacionados.map((r) => r.id)).toEqual([llena[3]?.id, llena[2]?.id, llena[1]?.id]);
+    });
+
+    it('D18: si faltan en la categoría, completa con los más recientes sin repetir ni incluir el propio', async () => {
+      const propio = articulo(corta, 0);
+
+      const relacionados = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaCorta.id }, 3);
+
+      const ids = relacionados.map((r) => r.id);
+      expect(ids).toHaveLength(3);
+      // Primero el único otro publicado de la misma categoría.
+      expect(ids[0]).toBe(corta[1]?.id);
+      expect(new Set(ids).size).toBe(3);
+      expect(ids).not.toContain(propio.id);
+      expect(ids).not.toContain(borradorCorta.id);
+      // Los que completan son de otras categorías y los más recientes del sitio.
+      const completados = relacionados.slice(1);
+      for (const completado of completados) {
+        expect(completado.categoria?.id).not.toBe(categoriaCorta.id);
+      }
+      esperarOrdenDescendente(completados);
+      expect(new Date(completados[0]?.publicado_en ?? 0).getTime()).toBeGreaterThanOrEqual(masRecienteAntes);
+    });
+
+    it('D18: el relleno sale del listado general de publicados más recientes', async () => {
+      const propio = articulo(corta, 0);
+
+      const relacionados = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaCorta.id }, 3);
+      const recientes = await listarArticulosPublicados(anon, { porPagina: 12 });
+
+      const idsRecientes = recientes.items.map((item) => item.id);
+      for (const completado of relacionados.slice(1)) {
+        expect(idsRecientes).toContain(completado.id);
+      }
+    });
+
+    it('RF-005: respeta la cantidad pedida', async () => {
+      const propio = articulo(llena, 0);
+
+      const relacionados = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaLlena.id }, 2);
+
+      expect(relacionados.map((r) => r.id)).toEqual([llena[4]?.id, llena[3]?.id]);
+    });
+
+    it('RF-009: cada relacionado es un resumen con id, título, slug, extracto, imagen, fecha y categoría', async () => {
+      const propio = articulo(llena, 0);
+
+      const [primero] = await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaLlena.id }, 3);
+
+      expect(primero).toMatchObject({
+        id: llena[4]?.id,
+        titulo: '002 relacionados: llena-5',
+        slug: llena[4]?.slug,
+        extracto: 'Extracto de llena-5.',
+        imagen_destacada: null,
+        publicado_en: expect.any(String),
+        categoria: { id: categoriaLlena.id, nombre: categoriaLlena.nombre, slug: categoriaLlena.slug },
+      });
+    });
+
+    it('D18: hace a lo sumo 2 peticiones, aunque tenga que completar', async () => {
+      const propio = articulo(corta, 0);
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+
+      await listarRelacionados(anon, { id: propio.id, categoriaId: categoriaCorta.id }, 3);
+
+      expect(espiaFetch.mock.calls.length).toBeLessThanOrEqual(2);
+      espiaFetch.mockRestore();
     });
   });
 });
