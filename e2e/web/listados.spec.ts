@@ -7,8 +7,8 @@
 // tiene: cada worker crea las suyas como postgres (docker exec sobre supabase_db_blog), con un
 // sufijo aleatorio, y las borra al terminar. No tienen artículos, así que no cambian ningún
 // listado ni el sitemap de las demás suites.
-import { execFileSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { taxonomiasVacias } from './ayudas';
 
 const TITULOS_DISENO = [
   'Guía visual: todos los bloques del blog',
@@ -325,38 +325,21 @@ test.describe('H2-E4 / RF-008 / RF-011: página de autor', () => {
   });
 });
 
-/** Ejecuta SQL como postgres en la base local y devuelve la salida sin formato. */
-function sqlComoPostgres(sql: string) {
-  return execFileSync(
-    'docker',
-    ['exec', 'supabase_db_blog', 'psql', '-U', 'postgres', '-d', 'postgres', '-qtA', '-c', sql],
-    {
-      encoding: 'utf8',
-    },
-  ).trim();
-}
-
 test.describe('H2-E7 / RSEO-009: categoría y etiqueta sin publicados', () => {
-  const sufijo = crypto.randomUUID().slice(0, 8);
-  const nombre = `E2E Vacía ${sufijo}`;
-  let slugCategoria = '';
-  let slugEtiqueta = '';
+  const vacias = taxonomiasVacias();
+  const nombre = vacias.nombre;
 
   test.beforeAll(() => {
-    slugCategoria = sqlComoPostgres(
-      `insert into public.categorias (nombre, descripcion) values ('${nombre}', 'Categoría sin artículos.') returning slug`,
-    );
-    slugEtiqueta = sqlComoPostgres(`insert into public.etiquetas (nombre) values ('${nombre}') returning slug`);
+    vacias.crear();
   });
 
   test.afterAll(() => {
-    sqlComoPostgres(`delete from public.categorias where nombre = '${nombre}'`);
-    sqlComoPostgres(`delete from public.etiquetas where nombre = '${nombre}'`);
+    vacias.borrar();
   });
 
   for (const tipo of ['categoria', 'etiqueta'] as const) {
     test(`H2-E7: una ${tipo} sin publicados muestra el estado vacío con un enlace al blog`, async ({ page }) => {
-      const slug = tipo === 'categoria' ? slugCategoria : slugEtiqueta;
+      const slug = tipo === 'categoria' ? vacias.slugCategoria : vacias.slugEtiqueta;
       await abrir(page, `/blog/${tipo}/${slug}`);
       const principal = page.getByRole('main');
 
@@ -367,7 +350,7 @@ test.describe('H2-E7 / RSEO-009: categoría y etiqueta sin publicados', () => {
     });
 
     test(`RSEO-009: una ${tipo} sin publicados tiene meta robots noindex`, async ({ page }) => {
-      const slug = tipo === 'categoria' ? slugCategoria : slugEtiqueta;
+      const slug = tipo === 'categoria' ? vacias.slugCategoria : vacias.slugEtiqueta;
       await abrir(page, `/blog/${tipo}/${slug}`);
 
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
