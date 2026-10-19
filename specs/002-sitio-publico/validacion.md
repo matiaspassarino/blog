@@ -1,8 +1,8 @@
 # Validación: 002-sitio-publico
 
-**Fecha**: 2026-10-19 · **Commit**: fa9f572 · **Ronda**: 1
+**Fecha**: 2026-10-19 · **Commit**: 07a61d8 · **Ronda**: 2 (la ronda 1 fue sobre fa9f572)
 **Alcance**: `git diff 61e92f4...HEAD` (61e92f4 es la punta de la 001, ya validada; la PR a `main` es conjunta 001 + 002).
-**Resultado global**: CAMBIOS REQUERIDOS (3 bloqueantes)
+**Resultado global**: ✅ **APROBADO** (ronda 2). La ronda 1 dio CAMBIOS REQUERIDOS con 3 bloqueantes, todos corregidos.
 
 ## Verificaciones automáticas
 
@@ -74,9 +74,19 @@ Límites de capas, convenciones y cobertura (§IX.5: todo criterio tiene al meno
 - Observación de mantenimiento del slug de autor documentada en `data-model.md`. La observación de la 001 queda como T105.
 - Verificaciones tras las correcciones: lint, typecheck, test, calidad (jscpd 0 % con `e2e/`, knip limpio), test:db (531), build y 146 E2E en verde.
 
+## Ronda 2 (commit 07a61d8)
+
+| Agente | Veredicto | Notas |
+|---|---|---|
+| arquitecto-db | APROBADO | A-M1 a A-M4 resueltos; `autores_slug.test.sql` 41/41. |
+| revisor-ux-ui | APROBADO | U-B1 y U-B2 verificados en el navegador: subrayado de los enlaces a 4,89:1 sobre el fondo y hover del botón a 7,02:1. De acuerdo con U-M4 aceptado y U-M11 en T104. Sin hallazgos nuevos. |
+| consistencia-codigo | APROBADO | C-B1, C-M1, C-M3, C-M4 y C-M5 corregidos; aprueba `@blog/ui` (workspace) como dependencia de `@blog/bloques` y React 19.3.1 en bloques. Sin hallazgos nuevos. |
+
+**Observación para el admin (spec futura)**: cuando `apps/admin` consuma `@blog/bloques/render`, su CSS de Tailwind tiene que incluir `@source` hacia `packages/bloques/src/render` y `packages/ui/src`; si no, el bloque CTA queda sin estilos.
+
 ## Acciones
 
 1. ~~Corregir los bloqueantes C-B1, U-B1 y U-B2, con sus tests.~~ Hecho.
 2. ~~Corregir los menores o registrarlos como tareas (constitución §XI).~~ Hecho (T103–T105).
-3. Volver a ejecutar `/validar` (ronda 2).
+3. ~~Volver a ejecutar `/validar` (ronda 2).~~ APROBADO.
 4. Después: T099 (mediciones sobre el preview de Vercel) y el PR conjunto 001 + 002.
