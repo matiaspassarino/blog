@@ -1,17 +1,19 @@
 // T046: listados públicos (contracts/db.md, "Consultas públicas"; H3-E1, H3-E2, H3-E5; RF-017, RSEO-004, D16).
 // Spec 002, T047: listarRelacionados (RF-005, research D18).
+// Spec 002, T060: listarPorAutor (H2-E4, RF-008, RF-011).
 // Integración contra Supabase local como visitante (anon). Los datos los crea y los borra el admin demo
 // del seed (research D18). Otras suites publican en paralelo: los listados globales se verifican por
 // sus invariantes y por la presencia de los artículos propios, nunca por totales exactos.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
-import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { clienteAnon, clienteComo, crearMiembroDePrueba, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
   listarArticulosPublicados,
   listarParaSitemap,
   listarPorCategoria,
+  listarPorAutor,
   listarPorEtiqueta,
   listarRelacionados,
 } from './listados';
@@ -424,6 +426,159 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
 
       expect(espiaFetch.mock.calls.length).toBeLessThanOrEqual(2);
       espiaFetch.mockRestore();
+    });
+  });
+
+  // Spec 002, T060 (H2-E4, RF-008): el autor público y sus publicados. Los artículos propios los
+  // escribe Eva Editora, a quien ninguna otra suite de integración usa como autora; aun así, su
+  // listado se compara con lo que lee el admin en el mismo momento, no con un total fijo.
+  describe('listarPorAutor', () => {
+    const ID_EVA = '00000000-0000-4000-a000-000000000002';
+    const SLUG_EVA = 'eva-editora';
+    let editora: ClienteBlog;
+    let categoriaAutor: TaxonomiaDePrueba;
+    /** Publicados propios de Eva, del más antiguo al más reciente. */
+    const propios: Creado[] = [];
+    let borradorPropio: Creado;
+    /** Miembro con un borrador y ningún publicado: no tiene página de autor. */
+    let sinPublicados: Awaited<ReturnType<typeof crearMiembroDePrueba>> | undefined;
+    let slugSinPublicados: string;
+    const creadosAutor = registroDePrueba();
+
+    const crearDeAutor = (autor: ClienteBlog, nombre: string, publicar: boolean) =>
+      crearArticuloDePrueba(autor, creadosAutor, {
+        titulo: `002 autor: ${nombre}`,
+        slug: `002-autor-${nombre}-${sufijo}`,
+        extracto: `Extracto de ${nombre}.`,
+        contenido,
+        categoriaId: categoriaAutor.id,
+        publicar,
+      });
+
+    /** Ids de los publicados de Eva según el admin, en el orden del listado público. */
+    async function publicadosDeEva() {
+      const { data, error } = await admin
+        .from('articulos')
+        .select('id')
+        .eq('autor_id', ID_EVA)
+        .eq('estado', 'publicado')
+        .order('publicado_en', { ascending: false })
+        .order('id', { ascending: false });
+      if (error) throw new Error(`No se pudieron leer los artículos de Eva: ${error.message}`);
+      return data.map((fila) => fila.id);
+    }
+
+    beforeAll(async () => {
+      editora = await clienteComo('editora@demo.local', 'demo-editora-2026');
+      categoriaAutor = await insertarTaxonomia('categorias', '002 Autor', '002-autor');
+      propios.push(await crearDeAutor(editora, 'primero', true));
+      borradorPropio = await crearDeAutor(editora, 'borrador', false);
+      propios.push(await crearDeAutor(editora, 'segundo', true));
+
+      sinPublicados = await crearMiembroDePrueba(`Autor Sin Publicados ${sufijo}`);
+      await crearDeAutor(sinPublicados.sesion, 'sin-publicados-borrador', false);
+      const { data, error } = await admin.from('perfiles').select('slug').eq('id', sinPublicados.id).single();
+      if (error) throw new Error(`No se pudo leer el slug del miembro de prueba: ${error.message}`);
+      slugSinPublicados = data.slug;
+    });
+
+    // Los artículos antes que el perfil (FK restrict); la categoría la borra el afterAll general.
+    afterAll(async () => {
+      await creadosAutor.limpiar(admin);
+      await sinPublicados?.eliminar();
+    });
+
+    it('H2-E4: devuelve el autor con id, slug, nombre, biografía y avatar', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA);
+
+      expect(resultado?.autor).toEqual({
+        id: ID_EVA,
+        slug: SLUG_EVA,
+        nombre: 'Eva Editora',
+        biografia: 'Diseñadora de identidad visual. Le interesan la tipografía y la accesibilidad.',
+        avatar: null,
+      });
+    });
+
+    it('H2-E4: el autor nunca expone su correo, su rol ni su estado', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA);
+
+      expect(resultado).not.toBeNull();
+      const autor = resultado?.autor ?? {};
+      expect(Object.keys(autor).sort()).toEqual(['avatar', 'biografia', 'id', 'nombre', 'slug']);
+      expect(autor).not.toHaveProperty('email');
+      expect(autor).not.toHaveProperty('rol');
+      expect(autor).not.toHaveProperty('activo');
+    });
+
+    it('H2-E4: lista solo sus publicados, del más reciente al más antiguo', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA, { porPagina: 50 });
+
+      const ids = resultado?.articulos.items.map((item) => item.id);
+      expect(ids).toEqual(await publicadosDeEva());
+      esperarOrdenDescendente(resultado?.articulos.items ?? []);
+    });
+
+    it('H2-E4: incluye sus publicados nuevos primero y nunca su borrador', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA, { porPagina: 50 });
+
+      const ids = resultado?.articulos.items.map((item) => item.id) ?? [];
+      expect(ids.slice(0, 2)).toEqual([propios[1]?.id, propios[0]?.id]);
+      expect(ids).not.toContain(borradorPropio.id);
+    });
+
+    it('H2-E4: no incluye artículos de otros autores', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA, { porPagina: 50 });
+
+      // Los publicados de la suite general los escribió Ana Admin.
+      const ids = resultado?.articulos.items.map((item) => item.id) ?? [];
+      expect(ids).not.toContain(publicados[0]?.id);
+      expect(resultado?.articulos.total).toBe((await publicadosDeEva()).length);
+    });
+
+    it('CE-002: con una sesión del equipo tampoco lista borradores', async () => {
+      const resultado = await listarPorAutor(admin, SLUG_EVA, { porPagina: 50 });
+
+      const ids = resultado?.articulos.items.map((item) => item.id);
+      expect(ids).not.toContain(borradorPropio.id);
+      expect(ids).toEqual(await publicadosDeEva());
+    });
+
+    it('RF-009: cada item es el mismo resumen que en los demás listados', async () => {
+      const resultado = await listarPorAutor(anon, SLUG_EVA);
+
+      expect(resultado?.articulos.items[0]).toMatchObject({
+        id: propios[1]?.id,
+        titulo: '002 autor: segundo',
+        slug: propios[1]?.slug,
+        extracto: 'Extracto de segundo.',
+        imagen_destacada: null,
+        publicado_en: expect.any(String),
+        categoria: { id: categoriaAutor.id, nombre: categoriaAutor.nombre, slug: categoriaAutor.slug },
+      });
+    });
+
+    it('RF-008: pagina igual que los demás listados (12 por defecto y tamaño configurable)', async () => {
+      const porDefecto = await listarPorAutor(anon, SLUG_EVA);
+      const segunda = await listarPorAutor(anon, SLUG_EVA, { pagina: 2, porPagina: 2 });
+
+      expect(porDefecto).not.toBeNull();
+      expect(segunda).not.toBeNull();
+      if (!porDefecto || !segunda) return;
+      esperarPaginaCoherente(porDefecto.articulos, 1, 12);
+      esperarPaginaCoherente(segunda.articulos, 2, 2);
+      expect(segunda.articulos.items.map((item) => item.id)).toEqual((await publicadosDeEva()).slice(2, 4));
+    });
+
+    it('un slug inexistente devuelve null', async () => {
+      await expect(listarPorAutor(anon, `002-autor-no-existe-${sufijo}`)).resolves.toBeNull();
+    });
+
+    it('H2-E4: un autor sin publicados (solo un borrador) devuelve null, también con sesión del equipo', async () => {
+      expect(slugSinPublicados).toMatch(/^autor-sin-publicados/);
+
+      await expect(listarPorAutor(anon, slugSinPublicados)).resolves.toBeNull();
+      await expect(listarPorAutor(admin, slugSinPublicados)).resolves.toBeNull();
     });
   });
 });

@@ -6,6 +6,8 @@ import type { TestProject } from 'vitest/node';
 export type EntornoSupabase = {
   url: string;
   claveAnon: string;
+  /** Solo para crear y borrar usuarios de prueba (auth admin); null si no está disponible. */
+  claveServicio: string | null;
 };
 
 declare module 'vitest' {
@@ -15,9 +17,9 @@ declare module 'vitest' {
 }
 
 function desdeVariables(): EntornoSupabase | null {
-  const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
+  const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  return { url: SUPABASE_URL, claveAnon: SUPABASE_ANON_KEY };
+  return { url: SUPABASE_URL, claveAnon: SUPABASE_ANON_KEY, claveServicio: SUPABASE_SERVICE_ROLE_KEY ?? null };
 }
 
 function desdeSupabaseStatus(): EntornoSupabase | null {
@@ -34,7 +36,7 @@ function desdeSupabaseStatus(): EntornoSupabase | null {
         .map((m) => [m[1], m[2]]),
     );
     if (!valores.API_URL || !valores.ANON_KEY) return null;
-    return { url: valores.API_URL, claveAnon: valores.ANON_KEY };
+    return { url: valores.API_URL, claveAnon: valores.ANON_KEY, claveServicio: valores.SERVICE_ROLE_KEY ?? null };
   } catch {
     return null;
   }
