@@ -24,7 +24,7 @@ export function Bloques(props: { contenido: Contenido; componentes: ComponentesB
 | `cita` | `<figure><blockquote cite?>…</blockquote><figcaption>— autor, <a fuente></figcaption></figure>` | — |
 | `lista` | `<ol>` o `<ul>` | — |
 | `galeria` | `<ul role="list">` en grilla de `columnas` (2, 3 o 4) desde 768 px, y de 1 o 2 columnas en móvil | Cada imagen es un `<li>`. |
-| `cta` | `<aside>` con título, texto y `<a class=boton>` | `url` interna: `<a href>`. Externa (`https:`): `rel="noopener noreferrer"` y `target="_blank"`, con un aviso para lectores de pantalla ("se abre en otra pestaña"). |
+| `cta` | `<aside>` con título, texto y `<a class=boton>` | `url` interna: `<a href>`. Externa (`http:` o `https:`): `rel="noopener noreferrer"` y `target="_blank"`, con un aviso para lectores de pantalla ("se abre en otra pestaña"). |
 | `separador` | `<hr>` | — |
 | `codigo` | `<figure><pre tabindex="0"><code data-lenguaje>…</code></pre><figcaption>lenguaje</figcaption></figure>` | Texto escapado, sin resaltado (D5). `tabindex` permite desplazarse con el teclado. |
 | `video` | `<figure><iframe title srcdoc loading="lazy" allow…>` + enlace "Ver en …" | research D6 |
@@ -33,6 +33,6 @@ export function Bloques(props: { contenido: Contenido; componentes: ComponentesB
 ## Garantías (con tests en `packages/bloques/src/render/*.test.tsx`, `renderToStaticMarkup`)
 
 - Ningún texto produce etiquetas: si un párrafo contiene `<script>`, la salida tiene `&lt;script&gt;`. Una regla de ESLint del paquete prohíbe `dangerouslySetInnerHTML`.
-- Solo se emiten `href` con estos esquemas: `/` interno, `https:`, `mailto:`. Cualquier otro valor, aunque lo hubiera dejado pasar una validación anterior, se renderiza como texto, no como enlace.
+- Solo se emiten `href` con estos esquemas (RF-003): `/` interno, `http:`, `https:` y `mailto:`. Cualquier otro valor, aunque lo hubiera dejado pasar una validación anterior, se renderiza como texto, no como enlace.
 - El orden de salida es el del arreglo.
 - Las clases son utilidades de Tailwind sobre tokens. No hay colores ni medidas literales (constitución §VII.2).

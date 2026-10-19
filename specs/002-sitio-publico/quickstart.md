@@ -39,13 +39,13 @@ pnpm --filter web dev --ignore-lock
 | Abrir | Esperado |
 |---|---|
 | `/` | Hero, propuesta, servicios, testimonios ("de ejemplo"), 3 artículos y la sección de contacto. El botón abre `wa.me/…`. |
-| `/blog` → `/blog/pagina/2` | 9 publicados del seed: entran en una sola página. `/blog/pagina/2` da 404 y `/blog/pagina/1` redirige con 301 a `/blog`. |
-| El artículo del seed con los 10 bloques | Todos los bloques se ven en orden, el código aparece literal, el video no hace peticiones a YouTube hasta el clic y la ficha del autor enlaza a `/blog/autor/<slug>`. |
+| `/blog` → `/blog/pagina/2` | 13 o más publicados del seed: 12 en `/blog` y el resto en `/blog/pagina/2`. `/blog/pagina/1` redirige con 301 a `/blog` y `/blog/pagina/99` da 404. |
+| "Guía visual: todos los bloques del blog" | Todos los bloques se ven en orden, el código aparece literal, el video no hace peticiones a YouTube hasta el clic y la ficha del autor enlaza a `/blog/autor/<slug>`. |
 | `/blog/categoria/diseno`, una etiqueta, un autor | Presentación y sus artículos. |
-| Un slug anterior (tras renombrar un artículo en Studio) | 301 a la URL nueva. |
+| Un slug anterior del seed (artículo cambiado dos veces, categoría y etiqueta) | 301 en un salto a la URL vigente. |
 | `/Blog/` | Redirección permanente a `/blog`. |
 | `/blog/no-existe`, `/cualquier-cosa` | 404 con cabecera y pie. |
-| `/sitemap.xml`, `/rss.xml`, `/robots.txt` | XML válido con autores; 9 ítems en el feed; `Sitemap:` declarado. |
+| `/sitemap.xml`, `/rss.xml`, `/robots.txt` | XML válido con autores; tantos ítems en el feed como publicados (hasta 20); `Sitemap:` declarado. |
 
 ## 4. E2E
 
@@ -71,6 +71,6 @@ pnpm test:e2e --project=web
 
 ## 6. Calidad medida (CE-001, CE-002, CE-003, CE-010)
 
-- Lighthouse móvil sobre producción en `/`, `/blog`, un artículo y una categoría. Se anotan los puntajes y las CWV en `validacion.md`.
+- Lighthouse móvil sobre el **preview del PR** (constitución §IV.8), antes de `/validar`, en `/`, `/blog`, un artículo y una categoría. Se anotan los puntajes y las CWV en `validacion.md`.
 - Validar el JSON-LD de un artículo y de la portada en https://validator.schema.org: sin errores.
 - `/sitemap.xml` y `/rss.xml` en los validadores de W3C (feed) y de sitemaps: sin errores.

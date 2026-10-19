@@ -108,7 +108,9 @@ Desde el punto de vista del contrato, `tipo` pasa a ser `'articulo' | 'categoria
 
 ### Seed
 
-No cambia. Los 3 usuarios demo reciben su slug por `a10` a partir del `nombre` de `raw_user_meta_data`.
+Los 3 usuarios demo reciben su slug por `a10` a partir del `nombre` de `raw_user_meta_data`.
+
+Además (análisis I5, tasks T012) el seed suma datos para las pruebas: un artículo con los 10 tipos de bloque, uno sin imagen destacada con título y extracto al máximo, artículos hasta llegar a 13 o más publicados (para `/blog/pagina/2`), una galería de una sola imagen y cambios de `slug` de un artículo publicado (dos veces), una categoría y una etiqueta, para que `redirecciones` tenga datos.
 
 En la nube, la migración 2 hace el backfill de los perfiles existentes.
 

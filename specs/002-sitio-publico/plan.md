@@ -86,6 +86,7 @@ Detalle en [data-model.md](data-model.md). El bucket `medios` no cambia.
 | Slug de autor | `privado.slugificar`, `slug_disponible`, `asignar_slug` | `privado.impedir_cambio_slug`, `privado.notificar_cambio_autor` | Inmutabilidad y aviso propios del autor (D10 y D11). |
 | Envío del aviso | `privado.notificar_cambio_publico`, `privado.es_publico` | — | El trigger de autor los reutiliza. |
 | Tokens | `packages/ui/src/tokens.css` | tokens de espaciado, ancho de lectura y foco (ver "Impacto en UI") | Hoy no hay escala de espaciado ni ancho de lectura. |
+| Identidad (fuentes y logo) | `packages/ui` | `packages/ui/src/identidad.ts` + `packages/ui/src/assets/logo.svg` | §VII.6: la identidad se cambia solo en `packages/ui`. `astro.config.mjs` lee las fuentes y la cabecera lee el logo de ahí (análisis C1). |
 | Metadatos | — | `apps/web/src/components/Seo.astro` y `src/lib/json-ld.ts` | Componente único (skill `astro-seo` §3). |
 | Tarjeta de artículo | — | `apps/web/src/components/TarjetaArticulo.astro` | Una sola, para `/`, listados y relacionados (RF-009). |
 | Listado paginado | — | `apps/web/src/components/ListadoArticulos.astro` + `Paginacion.astro` | Uno solo para `/blog`, categoría, etiqueta y autor. |
@@ -184,8 +185,8 @@ Detalle en [data-model.md](data-model.md). El bucket `medios` no cambia.
 | H3-E4 y RF-013b (WhatsApp y correo) | Vitest + Playwright | `apps/web/src/lib/contacto.test.ts`, `e2e/web/landing.spec.ts` |
 | H3-E5 y RF-013c (contenido inválido rompe el build) | Vitest | `apps/web/src/contenido/esquema.test.ts` |
 | H4-E1 y RF-019 (tags y rutas por aviso) | Vitest | `packages/db/src/invalidaciones.test.ts`, `apps/web/src/lib/cache.test.ts` |
-| H4-E2 y CE-009 (firma inválida o vencida → 401; cuerpo malo → 400) | Vitest | `apps/web/src/lib/aviso.test.ts`, `apps/web/src/pages/api/revalidar.test.ts` |
-| H4-E3 (idempotencia) | Vitest | `apps/web/src/pages/api/revalidar.test.ts` |
+| H4-E2 y CE-009 (firma inválida o vencida → 401; cuerpo malo → 400) | Vitest | `apps/web/src/lib/aviso.test.ts`, `apps/web/src/lib/revalidar.test.ts` |
+| H4-E3 (idempotencia) | Vitest | `apps/web/src/lib/revalidar.test.ts` (el endpoint es una capa fina sobre `procesarAviso` de `lib/revalidar.ts`: un `.test.ts` dentro de `src/pages/` sería una ruta) |
 | H4-E4, H4-E5 y CE-005 (301 en un salto) | Playwright | `e2e/web/redirecciones.spec.ts` |
 | H4-E6 (taxonomía → páginas de artículos) | Vitest | `apps/web/src/lib/cache.test.ts` (el artículo lleva `categoria:<id>`, y el aviso de categoría invalida ese tag) |
 | H4-E7 (aviso de autor) | pgTAP + Vitest | `supabase/tests/autores_slug.test.sql`, `invalidaciones.test.ts` |
@@ -267,5 +268,5 @@ e2e/web/                    # articulo, estados, listados, landing, redireccione
 
 | Excepción | Por qué es necesaria | Alternativa simple descartada porque |
 |---|---|---|
-| §IV.1 y skill `astro-seo` §1–2 prevén "ISR on-demand" por ruta. Acá se usa el caché de rutas de Astro con tags (SSR + CDN). | Es la única forma de cubrir RF-019 (los artículos de una taxonomía renombrada o borrada) y la paginación completa sin ampliar el mensaje de la base (D1). | ISR por ruta: no puede enumerar los artículos de una etiqueta borrada, y obliga a fijar un tope de páginas. La **skill `astro-seo` se actualiza** en esta spec para reflejar el patrón nuevo. |
+| Skill `astro-seo` §1–2 prevé "ISR on-demand" por ruta. Acá se usa el caché de rutas de Astro con tags (SSR + CDN), que la constitución 1.0.2 (§III.6 y §IV.1) reconoce como ISR. | Es la única forma de cubrir RF-019 (los artículos de una taxonomía renombrada o borrada) y la paginación completa sin ampliar el mensaje de la base (D1). | ISR por ruta: no puede enumerar los artículos de una etiqueta borrada, y obliga a fijar un tope de páginas. La **skill `astro-seo` se actualiza** en esta spec para reflejar el patrón nuevo. |
 | §III / §VI.3 piden renderers compartidos, y acá el resaltado de código queda afuera. | Shiki es asíncrono y no encaja en un render React síncrono compartido (D5). | Renderers `.astro`: duplicarían la vista en el admin (§VIII). |

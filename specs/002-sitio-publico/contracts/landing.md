@@ -5,7 +5,7 @@
 ```ts
 // esquema.ts (astro/zod). Si falla, `astro build` muestra la ruta del campo.
 {
-  sitio:      { nombre: string(1..40), lema: string(1..60), descripcion: string(50..160), logo: { src, alt } },
+  sitio:      { nombre: string(1..40), lema: string(1..60), descripcion: string(50..160) },   // el logo vive en @blog/ui/identidad (§VII.6)
   hero:       { titulo: string(1..80), bajada: string(1..200), cta: string(1..30), imagen: { src, alt, ancho, alto } },
   propuesta:  { titulo: string, texto: string(1..400), puntos: string[](1..4) },
   servicios:  { titulo: string, items: { titulo: string(1..60), descripcion: string(1..200), icono: NombreIcono }[](3..6) },

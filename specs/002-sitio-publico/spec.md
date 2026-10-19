@@ -210,7 +210,7 @@ Un buscador encuentra todas las páginas públicas en el mapa del sitio, entiend
 
 ### Requisitos de SEO *(obligatorio si afecta páginas públicas)*
 
-- **RSEO-001**: Toda página pública DEBE tener título único (máx. 60 caracteres, con el nombre del sitio), descripción (máx. 160), URL canónica absoluta, Open Graph (tipo, título, descripción, imagen con dimensiones, URL), Twitter Card `summary_large_image` e idioma `es`.
+- **RSEO-001**: Toda página pública DEBE tener título único (máx. 60 caracteres, con el nombre del sitio cuando entra en ese largo), descripción (máx. 160), URL canónica absoluta, Open Graph (tipo, título, descripción, imagen con dimensiones, URL), Twitter Card `summary_large_image` e idioma `es`.
 - **RSEO-002**: Los artículos DEBEN usar su título y su descripción SEO, con el título y el extracto como respaldo (spec 001, RF-006). Además DEBEN declarar:
   - `og:type` `article`, con las fechas de publicación y modificación, la sección (categoría) y las etiquetas;
   - JSON-LD `BlogPosting`, con titular, imagen, autor, editor, fechas y URL;

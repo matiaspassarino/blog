@@ -111,7 +111,7 @@ Es idempotente: invalidar dos veces es lo mismo que invalidar una (RF-019, H4-E3
 - El contenido vive en `apps/web/src/contenido/landing.ts` y el esquema en `apps/web/src/contenido/esquema.ts`, con `import { z } from 'astro/zod'`. No suma dependencias.
 - El esquema se parsea al cargar el módulo: un campo faltante hace fallar `astro build` con la ruta del campo (RF-013c).
 - El contenido incluye estos campos:
-  - `sitio`: nombre, descripción y logo;
+  - `sitio`: nombre, lema y descripción (el logo es identidad visual y vive en `packages/ui/src/identidad.ts`, §VII.6);
   - `hero`;
   - `propuesta`;
   - `servicios[]`: título, descripción e ícono (un nombre de un set cerrado);
@@ -172,7 +172,8 @@ Ya están cargadas en Vercel. Un único módulo, `src/lib/datos.ts`, crea el cli
 
 ## D16. Tipografías: API de fuentes de Astro 7
 
-- `fonts: [{ provider: fontProviders.fontsource(), name: 'Inter', cssVariable: '--font-cuerpo' }, { …'Inter Tight', '--font-titulos' }]`.
+- `fonts: [{ provider: fontProviders.fontsource(), name: identidad.fuentes.cuerpo, cssVariable: '--font-cuerpo' }, { name: identidad.fuentes.titulos, cssVariable: '--font-titulos' }]`.
+- Los nombres de las familias salen de `packages/ui/src/identidad.ts` (`@blog/ui/identidad`), no de `astro.config.mjs`: así la tipografía se cambia solo en `packages/ui` (§VII.6, análisis C1).
 - Las fuentes se descargan en el build y se sirven desde el propio dominio, con `<link rel=preload>` de la fuente del cuerpo. Mejoran el LCP y el CLS (CE-002) y no suman dependencias.
 - `tokens.css` conserva el *fallback* de sistema.
 
