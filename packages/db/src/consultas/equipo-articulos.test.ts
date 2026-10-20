@@ -6,7 +6,13 @@ import type { ClienteBlog } from '../cliente';
 import type { ErrorDominio } from '../errores';
 import { rechazoDe } from '../pruebas/afirmaciones';
 import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
-import { actualizarArticulo, crearArticulo, eliminarArticulo, previsualizarSlug } from './equipo-articulos';
+import {
+  actualizarArticulo,
+  cambiarEstado,
+  crearArticulo,
+  eliminarArticulo,
+  previsualizarSlug,
+} from './equipo-articulos';
 
 type NuevoArticulo = Parameters<typeof crearArticulo>[1];
 type CambiosArticulo = Parameters<typeof actualizarArticulo>[3];
@@ -179,6 +185,76 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
 
       expect((await rechazoDe(eliminarArticulo(editor, articulo.id))).codigo).toBe('no_encontrado');
       await expect(eliminarArticulo(admin, articulo.id)).resolves.toBeUndefined();
+    });
+  });
+
+  // T055: cambiarEstado con programación (H4-E1, H4-E3, H4-E4, RF-011).
+  describe('cambiarEstado (programación)', () => {
+    const UN_DIA_MS = 24 * 60 * 60 * 1000;
+
+    /** Borrador listo para programar: con categoría (del seed) y un bloque. */
+    async function crearProgramable(titulo: string) {
+      const { data: categoria, error: errorCategoria } = await editor.from('categorias').select('id').limit(1).single();
+      if (errorCategoria) throw new Error(`No hay categorías en el seed: ${errorCategoria.message}`);
+      const articulo = await crearArticulo(editor, {
+        titulo,
+        categoria_id: categoria.id,
+        contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo programable.' }],
+      });
+      creados.push(articulo.id);
+      return articulo;
+    }
+
+    it('H4-E1: programar para mañana deja el artículo programado, envía la versión y el visitante no lo ve', async () => {
+      const articulo = await crearProgramable('H4 integración: programar');
+      const programadoPara = new Date(Date.now() + UN_DIA_MS);
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+
+      const programado = await cambiarEstado(editor, articulo.id, articulo.version, 'programado', { programadoPara });
+
+      const escrituras = peticionesDe(espiaFetch).filter(({ metodo }) => metodo === 'PATCH');
+      expect(escrituras).toHaveLength(1);
+      expect(escrituras[0]?.url.searchParams.get('version')).toBe(`eq.${articulo.version}`);
+      expect(programado).toMatchObject({
+        id: articulo.id,
+        estado: 'programado',
+        publicado_en: null,
+        version: articulo.version + 1,
+      });
+      expect(new Date(programado.programado_para ?? '').getTime()).toBe(programadoPara.getTime());
+
+      vi.restoreAllMocks();
+      const { data: visto } = await clienteAnon().from('articulos').select('id').eq('id', articulo.id);
+      expect(visto).toEqual([]);
+    });
+
+    it('H4-E3: programar para una fecha pasada se traduce a ErrorDominio(fecha_no_futura) y no cambia nada', async () => {
+      const articulo = await crearProgramable('H4 integración: fecha pasada');
+
+      const error = await rechazoDe(
+        cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+          programadoPara: new Date(Date.now() - UN_DIA_MS),
+        }),
+      );
+
+      expect(error.codigo).toBe('fecha_no_futura');
+      const { data } = await editor
+        .from('articulos')
+        .select('estado, programado_para, version')
+        .eq('id', articulo.id)
+        .single();
+      expect(data).toEqual({ estado: 'borrador', programado_para: null, version: articulo.version });
+    });
+
+    it('H4-E4: cancelar la programación (programado → borrador) limpia programado_para', async () => {
+      const articulo = await crearProgramable('H4 integración: cancelar');
+      const programado = await cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+        programadoPara: new Date(Date.now() + UN_DIA_MS),
+      });
+
+      const cancelado = await cambiarEstado(editor, articulo.id, programado.version, 'borrador');
+
+      expect(cancelado).toMatchObject({ estado: 'borrador', programado_para: null, version: programado.version + 1 });
     });
   });
 
