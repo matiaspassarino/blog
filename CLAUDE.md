@@ -52,7 +52,7 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
 - **Spec 002**: `/validar` APROBADO (ronda 2), T099 (preview) y T101 (producción) hechas; detalle en `specs/002-sitio-publico/validacion.md`. En la nube ya están sus migraciones y el Vault (`url_web_revalidacion`, `secreto_revalidacion` rotado el 2026-10-19; el valor lo guarda el usuario).
 - **Rama `002-cierre`** (en GitHub, sin PR todavía): registro de T101. Falta, en esa rama:
   - T102: este archivo (hecho);
-  - T103: enmienda PARCHE de la constitución para quitar `@astrojs/sitemap` de la tabla §II;
+  - T103: enmienda PARCHE de la constitución (1.0.3) para quitar `@astrojs/sitemap` de la tabla §II (hecho);
   - T104: teléfono con formato en el pie (`contacto.whatsappVisible`);
   - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo);
   - `atom:link rel="self"` en `/rss.xml` (aviso del validador de W3C);
