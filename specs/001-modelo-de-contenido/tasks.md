@@ -502,7 +502,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 6 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T061 [P] [H6] Crear `supabase/tests/equipo.test.sql` (H6-E1 a H6-E7, RF-021 a RF-026). Debe verificar:
+- [X] T061 [P] [H6] Crear `supabase/tests/equipo.test.sql` (H6-E1 a H6-E7, RF-021 a RF-026). Debe verificar:
   - el admin cambia el rol de un editor a admin y lo desactiva;
   - un editor que intenta cambiar su propio `rol` o `activo`, o el de otro, recibe `sin_permiso`;
   - un editor no puede cambiar `id` ni `creado_en`;
@@ -514,18 +514,18 @@ description: "Lista de tareas: modelo de contenido del blog"
   - no existe política de delete sobre `perfiles` (el delete afecta 0 filas o falla);
   - cambiar el `nombre` de un autor con publicados encola **un** mensaje `tipo = autor` con sus slugs (con secretos de Vault creados en la transacción);
   - cambiar el `nombre` de alguien sin publicados no encola nada.
-- [ ] T062 [P] [H6] Crear `packages/db/src/consultas/equipo-perfiles.test.ts`: `cambiarRol` sobre el último admin lanza `ErrorDominio('ultimo_admin')`; `actualizarPerfilPropio` valida `avatar` con `esquemaImagen`.
+- [X] T062 [P] [H6] Crear `packages/db/src/consultas/equipo-perfiles.test.ts`: `cambiarRol` sobre el último admin lanza `ErrorDominio('ultimo_admin')`; `actualizarPerfilPropio` valida `avatar` con `esquemaImagen`.
 
 ### Implementación de la Historia 6
 
-- [ ] T063 [H6] Crear `supabase/migrations/20261019120900_equipo.sql`:
+- [X] T063 [H6] Crear `supabase/migrations/20261019120900_equipo.sql`:
   - política `perfiles_update_admin` (update to authenticated, using y check `(select privado.es_admin())`);
   - **`create or replace`** de `privado.proteger_perfil()`: ya existe desde la validación del MVP (A-B1, migración de perfiles), con el trigger `a20_proteger_perfil`, y hoy no deja que ningún cliente cambie rol ni activo. Se amplía para que sí pueda el admin: `if (new.rol, new.activo) is distinct from (old.rol, old.activo) and not privado.es_admin()` lanza `sin_permiso`. **No** crear otro trigger;
   - trigger `z10_garantizar_admin` (after update, definer): `perform pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))`; si `not exists (select 1 from public.perfiles where rol = 'admin' and activo)`, lanza `ultimo_admin`;
   - ~~trigger `z90_notificar_cambio_autor`~~: **se trasladó a la spec 002** (`20261019120100_autores_publicos.sql`, data-model 002), con `slugs = [slug del autor]`. No crearlo acá.
   - Nota (spec 002): las migraciones de H4–H6 llevan timestamps posteriores a `20261019120100` para respetar el orden de autoría.
   - Nota (spec 002, hallazgo en tests): `auth.admin.createUser` guarda `app_metadata` **después** del insert, así que `crear_perfil` no ve el rol y el perfil nace inactivo. Agregar un trigger `after update of raw_app_meta_data on auth.users` (definer) que, cuando `rol` pasa de nulo a un valor, actualice `perfiles.rol` y ponga `activo = true`. Mantiene la regla de D3 (solo el servidor activa una cuenta). Con su pgTAP.
-- [ ] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
+- [X] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
 
 **Checkpoint**: Las 6 historias están completas.
 

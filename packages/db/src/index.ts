@@ -43,6 +43,13 @@ export {
 } from './consultas/listados';
 export { buscarArticulos } from './consultas/busqueda';
 export {
+  actualizarPerfilPropio,
+  cambiarRol,
+  cambiarActivo,
+  type Perfil,
+  type CambiosPerfilPropio,
+} from './consultas/equipo-perfiles';
+export {
   crearTaxonomia,
   actualizarTaxonomia,
   eliminarTaxonomia,

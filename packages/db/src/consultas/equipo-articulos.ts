@@ -1,9 +1,10 @@
 // Operaciones del equipo sobre artículos (contracts/db.md, "Operaciones del equipo").
-import { esquemaImagen, validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
+import { validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
 import type { Database, Json } from '../tipos';
 import type { EstadoArticulo, TipoEntidad } from '../tipos-dominio';
+import { validarImagen } from '../validar-imagen';
 
 type Tablas = Database['public']['Tables'];
 type Insercion = Tablas['articulos']['Insert'];
@@ -52,17 +53,9 @@ function validarCampos(datos: CamposValidables): CamposValidables {
   }
 
   if (datos.imagen_destacada !== undefined && datos.imagen_destacada !== null) {
-    const imagen = esquemaImagen.safeParse(datos.imagen_destacada);
-    if (imagen.success) validados.imagen_destacada = imagen.data as Json;
-    else {
-      errores.push(
-        ...imagen.error.issues.map((problema) => ({
-          indice: -1,
-          campo: ['imagen_destacada', ...problema.path.map(String)].join('.'),
-          mensaje: problema.message,
-        })),
-      );
-    }
+    const validacion = validarImagen(datos.imagen_destacada, 'imagen_destacada');
+    if (validacion.ok) validados.imagen_destacada = validacion.imagen;
+    else errores.push(...validacion.errores);
   } else if (datos.imagen_destacada === null) {
     validados.imagen_destacada = null;
   }
