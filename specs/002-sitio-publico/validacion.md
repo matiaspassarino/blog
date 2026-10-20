@@ -138,10 +138,10 @@ Preview `blog-web-git-002-sitio-publico-…vercel.app`, con Deployment Protectio
 | consistencia-codigo | APROBADO | Enmienda 1.0.3 con versión y justificación; `@astrojs/sitemap` fuera de todo `package.json` y del lockfile. Tests de T104 escritos antes (rojo → verde); commits Conventional en español. |
 
 **Menores (opcionales, no frenan el PR)**:
-- R3-U1 `Pie.astro:31`: envolver el número en `whitespace-nowrap` para que no se parta en dos líneas si el pie se angosta (a 360 px hoy entra).
-- R3-U2 `esquema.ts:80`: el `.refine` sobre `contacto` no corre si otro campo del objeto falla; el error de "mismos dígitos" aparece recién al corregir el primero. Solo afecta cómo se reporta el error del build.
-- R3-C1 `constitucion.md:5-6`: la entrada 1.0.3 no declara el impacto sobre plantillas y código (Gobernanza, punto 2): plantillas sin cambios y ningún workspace depende de `@astrojs/sitemap`.
-- R3-C2 `perfiles.sql:4`: nombra `20261019120900_equipo.sql`, que todavía no existe (H6 pendiente); revisar cuando se cree la migración.
+- [x] R3-U1 **Corregido.** `Pie.astro:31`: envolver el número en `whitespace-nowrap` para que no se parta en dos líneas si el pie se angosta (a 360 px hoy entra).
+- [ ] R3-U2 `esquema.ts:80`: el `.refine` sobre `contacto` no corre si otro campo del objeto falla; el error de "mismos dígitos" aparece recién al corregir el primero. Solo afecta cómo se reporta el error del build.
+- [x] R3-C1 **Corregido.** `constitucion.md:5-6`: la entrada 1.0.3 no declara el impacto sobre plantillas y código (Gobernanza, punto 2): plantillas sin cambios y ningún workspace depende de `@astrojs/sitemap`.
+- [ ] R3-C2 `perfiles.sql:4`: nombra `20261019120900_equipo.sql`, que todavía no existe (H6 pendiente); revisar cuando se cree la migración.
 
 ## Acciones
 

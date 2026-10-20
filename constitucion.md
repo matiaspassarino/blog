@@ -4,6 +4,7 @@
 Informe de sincronización
 - Versión: 1.0.2 → 1.0.3 (PARCHE, 2026-10-19). Aclaración surgida de /validar en la spec 002 (C-M2); no cambia principios:
   - §II: la fila de SEO ya no lista `@astrojs/sitemap`; el sitemap es un endpoint propio (research D14 de la spec 002).
+  - Impacto: plantillas revisadas, sin cambios; código: ningún workspace depende de `@astrojs/sitemap` (se quitó en la 002).
 - Versión: 1.0.1 → 1.0.2 (PARCHE, 2026-10-19). Aclaraciones surgidas de /speckit-analyze en la spec 002; no cambian principios:
   - §III.6 y §IV.1: "ISR on-demand" incluye el caché de rutas en el CDN con invalidación por tags
     (research D1 de la spec 002), y el aviso de invalidación puede emitirlo el admin o la base.
