@@ -30,6 +30,18 @@ describe('esquema de la landing', () => {
     expect(rutasConError(contenido)).toContain('contacto.whatsapp');
   });
 
+  it('T104: contacto.whatsappVisible con otros dígitos que contacto.whatsapp falla y nombra contacto.whatsappVisible', () => {
+    const contenido = { ...landing, contacto: { ...landing.contacto, whatsappVisible: '+54 9 11 9999-9999' } };
+
+    expect(rutasConError(contenido)).toContain('contacto.whatsappVisible');
+  });
+
+  it('T104: contacto.whatsappVisible con letras falla', () => {
+    const contenido = { ...landing, contacto: { ...landing.contacto, whatsappVisible: 'Llamanos al 11 0000-0000' } };
+
+    expect(rutasConError(contenido)).toContain('contacto.whatsappVisible');
+  });
+
   it('contrato: servicios.items con 2 elementos falla (mínimo 3)', () => {
     const contenido = {
       ...landing,

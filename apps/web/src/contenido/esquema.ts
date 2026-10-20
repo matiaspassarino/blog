@@ -63,12 +63,22 @@ export const esquemaLanding = z.object({
     titulo: texto(1, 80),
     descripcion: texto(50, 160),
   }),
-  contacto: z.object({
-    titulo: texto(1, 80),
-    texto: texto(1, 300),
-    whatsapp: z.string().regex(/^\d{8,15}$/, 'Número en formato E.164 sin "+" ni espacios'),
-    mensaje: texto(1, 200),
-    correo: z.email(),
-    asunto: texto(1, 80),
-  }),
+  contacto: z
+    .object({
+      titulo: texto(1, 80),
+      texto: texto(1, 300),
+      whatsapp: z.string().regex(/^\d{8,15}$/, 'Número en formato E.164 sin "+" ni espacios'),
+      /** El mismo número con formato legible, para mostrarlo como texto (por ejemplo, en el pie). */
+      whatsappVisible: z
+        .string()
+        .trim()
+        .regex(/^\+?[\d\s().-]{8,25}$/, 'Solo dígitos, espacios, "+", "-" y paréntesis'),
+      mensaje: texto(1, 200),
+      correo: z.email(),
+      asunto: texto(1, 80),
+    })
+    .refine((contacto) => contacto.whatsappVisible.replace(/\D/g, '') === contacto.whatsapp, {
+      message: 'Debe tener los mismos dígitos que contacto.whatsapp',
+      path: ['whatsappVisible'],
+    }),
 });

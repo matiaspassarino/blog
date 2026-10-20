@@ -88,6 +88,7 @@ export const landing = esquemaLanding.parse({
     titulo: '¿Hablamos de tu proyecto?',
     texto: 'Contanos qué necesitás y te respondemos en el día.',
     whatsapp: '5491100000000',
+    whatsappVisible: '+54 9 11 0000-0000',
     mensaje: 'Hola, vi su sitio y quiero hacer una consulta.',
     correo: 'hola@estudiodemo.com',
     asunto: 'Consulta desde el sitio',

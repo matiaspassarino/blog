@@ -36,6 +36,7 @@ const CONTENIDO = {
   contacto: {
     titulo: '¿Hablamos de tu proyecto?',
     whatsapp: '5491100000000',
+    whatsappVisible: '+54 9 11 0000-0000',
     mensaje: 'Hola, vi su sitio y quiero hacer una consulta.',
     correo: 'hola@estudiodemo.com',
     asunto: 'Consulta desde el sitio',
@@ -157,7 +158,7 @@ test.describe('Portada', () => {
     page,
   }) => {
     const pie = page.getByRole('contentinfo');
-    await expect(pie.getByText(`+${CONTENIDO.contacto.whatsapp}`)).toBeVisible();
+    await expect(pie.getByText(CONTENIDO.contacto.whatsappVisible)).toBeVisible();
     await expect(pie.getByText(CONTENIDO.contacto.correo)).toBeVisible();
     await expect(pie.getByRole('link', { name: 'Blog', exact: true })).toHaveAttribute('href', '/blog');
     await expect(pie.locator('a[href="/rss.xml"]')).toBeVisible();
