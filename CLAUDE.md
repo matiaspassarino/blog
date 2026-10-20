@@ -45,23 +45,26 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
 - Los dos proyectos de Vercel están vinculados al repo: cada push genera un preview y `main` va a producción.
 - **Historial de migraciones en la nube desalineado**: parte se aplicó con el MCP (versiones generadas) y parte con el SQL Editor (sin registro). Hay que ejecutar `supabase migration repair` antes de usar `supabase db push` por primera vez.
 - En el SQL Editor, una migración que agrega un valor a un enum (por ejemplo `20261019120000_tipo_entidad_autor.sql`) se ejecuta **sola**, separada de la siguiente, porque el editor corre todo el texto en una transacción.
-- **Vault en la nube, pendiente**: cuando `/api/revalidar` esté en producción (spec 002), crear `url_web_revalidacion` con la URL de producción de `blog-web` y `secreto_revalidacion` con el mismo valor que la variable de Vercel. Sin estos secretos la base no emite avisos, que es lo normal hasta entonces.
+- **Vault en la nube**: cargado (`url_web_revalidacion` con la URL de producción de `blog-web` y `secreto_revalidacion`, igual a la variable de Vercel; rotado el 2026-10-19, el valor lo guarda el usuario).
 
 ## Estado actual (2026-10-19, fin de la sesión)
-- **PR #1 mergeado a `main`** (commit `ae6a035`): spec 001 (F1, F2, H1–H3, seed) y **spec 002 completa** (sitio público). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100 en todo.
-- **Spec 002**: `/validar` APROBADO (ronda 2), T099 (preview) y T101 (producción) hechas; detalle en `specs/002-sitio-publico/validacion.md`. En la nube ya están sus migraciones y el Vault (`url_web_revalidacion`, `secreto_revalidacion` rotado el 2026-10-19; el valor lo guarda el usuario).
-- **Rama `002-cierre`** (2026-10-19): PR de cierre a `main` con T101–T105 y el `atom:link rel="self"` de `/rss.xml` (aviso del validador de W3C). Al mergearlo, la spec 002 queda cerrada:
-  - T103: enmienda PARCHE de la constitución (1.0.3), sin `@astrojs/sitemap` en §II;
-  - T104: teléfono con formato en el pie (`contacto.whatsappVisible`, con los mismos dígitos que `whatsapp`);
-  - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo).
-- **Spec 001**: H4 (programación), H5 (búsqueda) y H6 (equipo), T067–T072 y los menores C6-M1 a C6-M5 siguen pendientes. Retomar en la rama `001-modelo-de-contenido` rebasada sobre `main`. Leer la nota de T063 sobre la activación de perfiles creados por la API de admin.
+- **`main`** (commit `0c87344`; PR #1 y PR #2 mergeados): spec 001 hasta H3 más el seed, y **spec 002 cerrada** (sitio público; `/validar` ronda 3 APROBADO). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100. En la nube están las migraciones de la 002 y el Vault.
+- **Spec 001, rama `001-modelo-de-contenido`** (en GitHub: `main` más H4–H6, **sin PR todavía**):
+  - **Hechas** H4 (programación, `20261019120700_programacion.sql`), H5 (búsqueda, `20261019120800_busqueda.sql`) y H6 (equipo, `20261019120900_equipo.sql`), con los tests escritos antes por `escritor-tests`. En local todo en verde: 707 pgTAP, 144 Vitest de `@blog/db`, lint, typecheck, calidad, build y 147 E2E.
+  - **Decisiones de la sesión**:
+    - CE-004 da 84,6 % (22 de 26) y queda como **desviación aceptada** (`validacion.md` y research D12); `pg_trgm` para una spec posterior.
+    - `buscar_articulos` devuelve la categoría completa (`categoria_id`, `categoria_nombre`, `categoria_slug`) para mapear a `ResumenArticulo`.
+    - `cambiarRol` y `cambiarActivo` traducen 0 filas a `no_encontrado`.
+    - `z10_garantizar_admin` también aplica a `postgres`.
+  - **Lo que sigue (cierre, Fase 9 de `tasks.md`)**: T067 (`invariantes.test.ts`), T068 (tipos de dominio), T069 (todos los chequeos), T070 (quickstart), T071 (`/validar`), T072 (sección "Modelo de datos" en este archivo), los menores C6-M1 a C6-M5 de `validacion.md` y un test de que la publicación por el cron emite el aviso de revalidación (RF-013, en `notificaciones.test.sql`). Después, PR a `main`.
+  - **Migraciones en la nube**: las tres nuevas (`20261019120700`, `…0800` y `…0900`) se aplican después del merge, y antes hay que correr `supabase migration repair` (ver "Infraestructura en la nube"). La de H4 crea los jobs de `pg_cron` y la de H5 hace la carga inicial de `busqueda`.
 - **Pendientes manuales**: borrar la redirección de prueba `diseno-grafico` en la nube (opcional) y revocar en Vercel el *Protection Bypass for Automation* de `blog-web` si no se usa.
 - **Notas de Windows**: ver `specs/002-sitio-publico/quickstart.md` ("En Windows"). Desde Git Bash, `vercel curl` necesita `MSYS_NO_PATHCONV=1`; el CLI no crea el bypass del preview cuando corre como agente.
 
 ## Retomar en otra PC
 ```bash
 git clone https://github.com/matiaspassarino/blog.git && cd blog
-git checkout main   # o la rama en curso (002-cierre, 001-modelo-de-contenido)
+git checkout 001-modelo-de-contenido     # rama en curso
 corepack enable && pnpm install          # Node 24, pnpm 12
 pnpm exec playwright install chromium
 pnpm db:start && pnpm db:reset           # Docker + Supabase CLI 2.121
@@ -69,4 +72,9 @@ cp .env.example .env.local               # completar las claves con `supabase st
 gh auth login && vercel login            # cuenta matiaspassarino
 ```
 - Spec Kit: `uv` instalado y `specify` v1.2.1 (`uvx --from git+https://github.com/github/spec-kit.git@v1.2.1 specify ...`). Las skills `/speckit-*` ya están en `.claude/skills/`.
+- **Windows** (PC armada el 2026-10-19):
+  - Git, gh, Node 24 LTS y uv con `winget`. Si `corepack enable` falla sin admin: `npm i -g pnpm@12.14.0 vercel`. Supabase CLI 2.121 desde el release de GitHub (no está en winget).
+  - Docker Desktop necesita WSL y no arranca solo: abrirlo antes de `pnpm db:start`.
+  - Si `db:start` falla con "bind: Intento de acceso a un socket no permitido", Windows reservó los puertos 563xx (`netsh interface ipv4 show excludedportrange protocol=tcp`). Como admin: `net stop winnat`, `netsh int ipv4 set dynamic tcp start=57000 num=8536` y `net start winnat`.
+  - El build de web crea symlinks: si da EPERM aunque el Modo de desarrollador figure activo, apagarlo, prenderlo y reiniciar la sesión de Windows.
 - Verificar que esté todo en verde: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`.
