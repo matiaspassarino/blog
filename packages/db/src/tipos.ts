@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "articulos": {
                   Row: {
-                    "actualizado_en": string,"autor_id": string,"categoria_id": string | null,"contenido": NonNullable<Json>,"creado_en": string,"descripcion_seo": string | null,"estado": Database["public"]['Enums']["estado_articulo"],"extracto": string | null,"id": string,"imagen_destacada": Json | null,"programado_para": string | null,"publicado_en": string | null,"slug": string,"titulo": string,"titulo_seo": string | null,"version": number
+                    "actualizado_en": string,"autor_id": string,"busqueda": unknown,"categoria_id": string | null,"contenido": NonNullable<Json>,"creado_en": string,"descripcion_seo": string | null,"estado": Database["public"]['Enums']["estado_articulo"],"extracto": string | null,"id": string,"imagen_destacada": Json | null,"programado_para": string | null,"publicado_en": string | null,"slug": string,"titulo": string,"titulo_seo": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "actualizado_en"?: string,"autor_id"?: string,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo": string,"titulo_seo"?: string | null,"version"?: number
+                    "actualizado_en"?: string,"autor_id"?: string,"busqueda"?: unknown,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo": string,"titulo_seo"?: string | null,"version"?: number
                   }
                   Update: {
-                    "actualizado_en"?: string,"autor_id"?: string,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo"?: string,"titulo_seo"?: string | null,"version"?: number
+                    "actualizado_en"?: string,"autor_id"?: string,"busqueda"?: unknown,"categoria_id"?: string | null,"contenido"?: NonNullable<Json>,"creado_en"?: string,"descripcion_seo"?: string | null,"estado"?: Database["public"]['Enums']["estado_articulo"],"extracto"?: string | null,"id"?: string,"imagen_destacada"?: Json | null,"programado_para"?: string | null,"publicado_en"?: string | null,"slug"?: string,"titulo"?: string,"titulo_seo"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -159,6 +159,11 @@ isOneToOne: false
           Functions: {
             "asignar_etiquetas":
 { Args: { "articulo_id": string,"etiqueta_ids": (string)[],"version": number }; Returns: number
+                           },
+"buscar_articulos":
+{ Args: { "consulta": string,"desplazamiento"?: number,"limite"?: number }; Returns: {
+              "categoria_id": string,"categoria_nombre": string,"categoria_slug": string,"extracto": string,"id": string,"imagen_destacada": Json,"publicado_en": string,"rango": number,"slug": string,"titulo": string,"total": number
+            }[]
                            },
 "entradas_sitemap":
 { Args: Record<PropertyKey, never>; Returns: Json

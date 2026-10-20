@@ -41,6 +41,7 @@ export {
   listarRelacionados,
   type EntradaSitemap,
 } from './consultas/listados';
+export { buscarArticulos } from './consultas/busqueda';
 export {
   crearTaxonomia,
   actualizarTaxonomia,

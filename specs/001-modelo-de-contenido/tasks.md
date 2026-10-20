@@ -460,7 +460,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 5 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T056 [P] [H5] Crear `supabase/tests/busqueda.test.sql` (H5-E1 a H5-E4, RF-018 a RF-020, CE-004). Debe incluir:
+- [X] T056 [P] [H5] Crear `supabase/tests/busqueda.test.sql` (H5-E1 a H5-E4, RF-018 a RF-020, CE-004). Debe incluir:
   - **un conjunto de prueba explícito** de al menos 20 pares (consulta → artículo esperado), que incluye: sin tildes (`diseno` → "Diseño"), plural y singular, conjugaciones, mayúsculas, y los 3 casos difíciles conocidos (`publicaciones` frente a `publicación`, `educaciones` frente a `educación`, `correr` frente a `corrió`). Calcular el % de aciertos en el top 3 y verificar que sea **≥ 95 %**. Si no se llega, el test falla y se registra la desviación en `validacion.md` (research D12).
   - Que un término en el título rankee por encima del mismo término solo en el cuerpo.
   - Que un borrador con el término no aparezca, ni para anon **ni para un editor**, porque el filtro es explícito.
@@ -470,11 +470,11 @@ description: "Lista de tareas: modelo de contenido del blog"
   - Que los bloques `codigo` no se indexen.
   - Que las URLs de `[texto](url)` no se indexen.
   - Que renombrar una etiqueta o categoría actualice `busqueda` de sus artículos **sin** incrementar `version` y **sin** encolar notificaciones por cada artículo.
-- [ ] T057 [P] [H5] Crear `packages/db/src/consultas/busqueda.test.ts`, de integración: `buscarArticulos(c, 'diseno')` devuelve `Pagina` con los items y el total, y responde en menos de 1.000 ms sobre los datos de demo (CE-005).
+- [X] T057 [P] [H5] Crear `packages/db/src/consultas/busqueda.test.ts`, de integración: `buscarArticulos(c, 'diseno')` devuelve `Pagina` con los items y el total, y responde en menos de 1.000 ms sobre los datos de demo (CE-005).
 
 ### Implementación de la Historia 5
 
-- [ ] T058 [H5] Crear `supabase/migrations/20261019120800_busqueda.sql` (research D12):
+- [X] T058 [H5] Crear `supabase/migrations/20261019120800_busqueda.sql` (research D12):
   - `create text search configuration public.es_sin_tildes (copy = pg_catalog.spanish); alter text search configuration public.es_sin_tildes alter mapping for hword, hword_part, word with extensions.unaccent, pg_catalog.spanish_stem;`
   - `privado.bloques_a_texto(jsonb)`, `immutable`: extrae el texto de `parrafo`, `titulo`, `cita` (texto y autor), `lista`, `imagen` (`alt` y leyenda), `galeria` (alts), `cta` (título y texto) y `video` (título); excluye `codigo`; reemplaza `\[([^\]]*)\]\([^)]*\)` por `\1`; trunca a 200.000 caracteres.
   - `privado.documento_busqueda(texto text, peso "char")`: `setweight(to_tsvector('public.es_sin_tildes', coalesce(texto,'')) || to_tsvector('pg_catalog.spanish', coalesce(texto,'')), peso)`.
@@ -487,8 +487,8 @@ description: "Lista de tareas: modelo de contenido del blog"
   - Verificar que `z90_notificar_cambio` ignore estos updates (solo cambian `busqueda`, `version` y `actualizado_en`).
   - RPC `public.buscar_articulos(consulta text, limite int default 12, desplazamiento int default 0)`, `stable`, invoker. Devuelve `table(id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria_slug, rango real, total bigint)`, con `q := websearch_to_tsquery('public.es_sin_tildes', consulta) || websearch_to_tsquery('pg_catalog.spanish', consulta)`, el filtro `estado = 'publicado' and publicado_en <= now() and busqueda @@ q`, `order by ts_rank_cd(busqueda, q) desc, publicado_en desc`, `limit least(limite, 50) offset greatest(desplazamiento, 0)` y `count(*) over ()`. `grant execute` a `anon, authenticated`.
   - Carga inicial de `busqueda` sin subir `version` ni mover `actualizado_en` (validación A6-M2): `alter table public.articulos disable trigger a30_controlar_version; … disable trigger a90_actualizado_en;`, después `update public.articulos set titulo = titulo` y después volver a habilitarlos, todo en la transacción de la migración. Agregar un test de que la carga no cambia `version` ni `actualizado_en`, y un test por tabla (`articulos`, `perfiles`, `categorias`, `etiquetas`) del cambio en `fijar_actualizado_en` con `pg_trigger_depth() > 1`.
-- [ ] T059 [H5] Crear `packages/db/src/consultas/busqueda.ts`, con `buscarArticulos(c, consulta, { pagina, porPagina })`, que mapea a `Pagina<ResumenArticulo>` reutilizando `packages/db/src/paginacion.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T056 y T057.
-- [ ] T060 [H5] Agregar a `supabase/tests/privilegios.test.sql`: `buscar_articulos` (anon y authenticated) y que `privado.recalcular_busqueda` no sea ejecutable por clientes.
+- [X] T059 [H5] Crear `packages/db/src/consultas/busqueda.ts`, con `buscarArticulos(c, consulta, { pagina, porPagina })`, que mapea a `Pagina<ResumenArticulo>` reutilizando `packages/db/src/paginacion.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T056 y T057.
+- [X] T060 [H5] Agregar a `supabase/tests/privilegios.test.sql`: `buscar_articulos` (anon y authenticated) y que `privado.recalcular_busqueda` no sea ejecutable por clientes.
 
 **Checkpoint**: La búsqueda en español funciona.
 

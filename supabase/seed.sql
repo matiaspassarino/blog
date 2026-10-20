@@ -342,6 +342,9 @@ from (values
 join public.articulos a on a.titulo = x.titulo
 join public.etiquetas e on e.nombre = any (x.etiquetas);
 
+-- El insert directo en la tabla puente no recalcula la búsqueda (asignar_etiquetas sí).
+select privado.recalcular_busqueda(array(select id from public.articulos));
+
 -- ---------------------------------------------------------------------------
 -- Cambios de slug para tener redirecciones de demo (spec 002, T012): un artículo
 -- publicado cambia dos veces y una categoría y una etiqueta, una vez cada una.

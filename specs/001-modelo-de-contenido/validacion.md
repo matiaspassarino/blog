@@ -319,5 +319,12 @@ La observación de que "la base no tiene artículos" es lo esperado: hoy el seed
 
 ## Acciones (ronda 6, menores; prioridad: A6-M1 antes de H5)
 - [ ] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks
-- [ ] A6-M2 T058, carga inicial sin `version` ni `actualizado_en`
+- [x] A6-M2 T058, carga inicial sin `version` ni `actualizado_en` (cubierta por `actualizado_en.test.sql`)
 - [ ] A6-M4 · C6-M1 a C6-M5 · bordes opcionales
+
+## Desviación aceptada: CE-004 (H5, 2026-10-19)
+
+- **Medido**: 84,6 % de acierto en el top 3 (22 de 26 pares de `busqueda.test.sql`), por debajo del 95 % de CE-004.
+- **Fallos**: `publicacion` → "publicaciones", `educacion` → "educaciones", `corrio` → "correr" e `imagen` → "imágenes". Son límites del stemmer Snowball sin tildes, previstos en research D12. Las mismas consultas con tilde (`publicación`, `educación`, `corrió`) aciertan.
+- **Decisión del usuario**: implementar D12 tal cual y registrar la desviación. El test exige como mínimo el 84,6 % medido (detecta regresiones) y lista los fallos con `diag`. `pg_trgm` como respaldo queda para una spec posterior.
+- **Relacionado**: el RPC `buscar_articulos` devuelve también `categoria_id` y `categoria_nombre`, para que `buscarArticulos` entregue un `ResumenArticulo` completo, como los listados (decisión del usuario).
