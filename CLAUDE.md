@@ -54,7 +54,7 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
   - T102: este archivo (hecho);
   - T103: enmienda PARCHE de la constitución (1.0.3) para quitar `@astrojs/sitemap` de la tabla §II (hecho);
   - T104: teléfono con formato en el pie (`contacto.whatsappVisible`) (hecho);
-  - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo);
+  - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo) (hecho);
   - `atom:link rel="self"` en `/rss.xml` (aviso del validador de W3C);
   - después, PR de cierre a `main`.
 - **Spec 001**: H4 (programación), H5 (búsqueda) y H6 (equipo), T067–T072 y los menores C6-M1 a C6-M5 siguen pendientes. Retomar en la rama `001-modelo-de-contenido` rebasada sobre `main`. Leer la nota de T063 sobre la activación de perfiles creados por la API de admin.
