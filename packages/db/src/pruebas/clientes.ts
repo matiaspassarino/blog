@@ -44,8 +44,10 @@ function clienteServicio() {
 /**
  * Crea un miembro del equipo (editor) con su perfil y devuelve su sesión. `eliminar` borra el
  * perfil y el usuario: antes hay que borrar sus artículos (las FK son restrict).
+ * Con `activarComoServicio: false` no se activa el perfil a mano: así se prueba el trigger de H6
+ * que lo activa cuando GoTrue guarda `app_metadata.rol` (tasks.md, nota de T063).
  */
-export async function crearMiembroDePrueba(nombre: string) {
+export async function crearMiembroDePrueba(nombre: string, { activarComoServicio = true } = {}) {
   const servicio = clienteServicio();
   const email = `prueba-${crypto.randomUUID().slice(0, 8)}@prueba.local`;
   const contrasenia = `prueba-${crypto.randomUUID()}`;
@@ -60,8 +62,10 @@ export async function crearMiembroDePrueba(nombre: string) {
   const id = data.user.id;
   // GoTrue guarda app_metadata después del alta: el trigger crear_perfil no ve el rol y deja el
   // perfil inactivo. El servicio no es un cliente (privado.es_cliente) y puede activarlo.
-  const { error: errorActivar } = await servicio.from('perfiles').update({ activo: true }).eq('id', id);
-  if (errorActivar) throw new Error(`No se pudo activar el miembro de prueba: ${errorActivar.message}`);
+  if (activarComoServicio) {
+    const { error: errorActivar } = await servicio.from('perfiles').update({ activo: true }).eq('id', id);
+    if (errorActivar) throw new Error(`No se pudo activar el miembro de prueba: ${errorActivar.message}`);
+  }
   return {
     id,
     sesion: await clienteComo(email, contrasenia),
@@ -72,4 +76,13 @@ export async function crearMiembroDePrueba(nombre: string) {
       if (errorUsuario) throw new Error(`No se pudo borrar el usuario de prueba: ${errorUsuario.message}`);
     },
   };
+}
+
+/**
+ * Red de seguridad de los tests de equipo: si una prueba sobre el último admin degradó o
+ * desactivó por error al admin demo, lo restaura (el servicio no es un cliente y puede hacerlo).
+ */
+export async function restaurarAdminDemo(idAdmin: string) {
+  const { error } = await clienteServicio().from('perfiles').update({ rol: 'admin', activo: true }).eq('id', idAdmin);
+  if (error) throw new Error(`No se pudo restaurar el admin demo: ${error.message}`);
 }

@@ -121,8 +121,9 @@ select is_empty($$select 1 from public.perfiles$$,
   'un miembro desactivado no ve perfiles');
 
 -- ---------------------------------------------------------------------------
--- Protección de campos sensibles (validación A-B1; research D4). Hasta H6
--- ningún cliente cambia rol ni activo; id y creado_en son inmutables.
+-- Protección de campos sensibles (validación A-B1; research D4). Un editor no
+-- cambia rol ni activo; id y creado_en son inmutables. Desde H6 el admin sí
+-- puede, salvo que deje el sitio sin admin activo (RF-023, ver equipo.test.sql).
 -- ---------------------------------------------------------------------------
 select pruebas.como('eva@prueba.local');
 select throws_ok($$update public.perfiles set rol = 'admin' where id = auth.uid()$$,
@@ -130,9 +131,13 @@ select throws_ok($$update public.perfiles set rol = 'admin' where id = auth.uid(
 select is(privado.es_admin(), false, 'el editor sigue sin ser admin tras el intento');
 select throws_ok($$update public.perfiles set activo = false where id = auth.uid()$$,
   'P0001', 'sin_permiso', 'un miembro no puede desactivarse a sí mismo');
+-- Ana queda como único admin activo (también se desactiva el admin demo del seed).
+select pruebas.como_postgres();
+update public.perfiles set activo = false
+  where rol = 'admin' and activo and id <> (select id from auth.users where email = 'ana@prueba.local');
 select pruebas.como('ana@prueba.local');
 select throws_ok($$update public.perfiles set activo = false where id = auth.uid()$$,
-  'P0001', 'sin_permiso', 'un admin no puede desactivarse a sí mismo (RF-023)');
+  'P0001', 'ultimo_admin', 'RF-023: el único admin activo no puede desactivarse a sí mismo');
 select pruebas.como('eva@prueba.local');
 update public.perfiles set creado_en = '2000-01-01' where id = auth.uid();
 select pruebas.como_postgres();
@@ -145,7 +150,7 @@ select isnt(
 -- Validación del MVP: casos faltantes de A-B1 (A-M8) y alta (A-M5)
 select pruebas.como('ana@prueba.local');
 select throws_ok($$update public.perfiles set rol = 'editor' where id = auth.uid()$$,
-  'P0001', 'sin_permiso', 'A-M8: un admin no puede cambiar su propio rol');
+  'P0001', 'ultimo_admin', 'A-M8 / RF-023: el único admin activo no puede quitarse su propio rol');
 select throws_ok(
   $$insert into public.perfiles (id, nombre) values (auth.uid(), 'x')
     on conflict (id) do update set rol = 'admin'$$,
