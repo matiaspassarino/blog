@@ -28,7 +28,7 @@ const claseEnlace = 'inline-flex min-h-11 items-center gap-2 hover:text-texto ho
       <ul role="list">
         <li>
           <a class={claseEnlace} href={enlaceWhatsapp(contacto.whatsapp, contacto.mensaje)} target="_blank" rel="noopener noreferrer">
-            <Icono nombre="whatsapp" class="size-5" />+{contacto.whatsapp}
+            <Icono nombre="whatsapp" class="size-5" /><span class="whitespace-nowrap">{contacto.whatsappVisible}</span>
             <span class="sr-only">(WhatsApp, se abre en otra pestaña)</span>
           </a>
         </li>

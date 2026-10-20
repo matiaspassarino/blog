@@ -2,6 +2,9 @@
 
 <!--
 Informe de sincronización
+- Versión: 1.0.2 → 1.0.3 (PARCHE, 2026-10-19). Aclaración surgida de /validar en la spec 002 (C-M2); no cambia principios:
+  - §II: la fila de SEO ya no lista `@astrojs/sitemap`; el sitemap es un endpoint propio (research D14 de la spec 002).
+  - Impacto: plantillas revisadas, sin cambios; código: ningún workspace depende de `@astrojs/sitemap` (se quitó en la 002).
 - Versión: 1.0.1 → 1.0.2 (PARCHE, 2026-10-19). Aclaraciones surgidas de /speckit-analyze en la spec 002; no cambian principios:
   - §III.6 y §IV.1: "ISR on-demand" incluye el caché de rutas en el CDN con invalidación por tags
     (research D1 de la spec 002), y el aviso de invalidación puede emitirlo el admin o la base.
@@ -45,7 +48,7 @@ una justificación en el `plan.md` de la spec y la aprobación del agente `consi
 | Monorepo | pnpm workspaces + Turborepo | pnpm 12 · turbo 2.11 |
 | Lenguaje | TypeScript (strict) — 5.x hasta que typescript-eslint soporte 7 | 5.9 |
 | Sitio público | Astro + `@astrojs/vercel` (ISR) + `@astrojs/react` (islas) | astro 7.4 |
-| SEO | `@astrojs/sitemap`, `@astrojs/rss`, JSON-LD propio | 3.7 / 4.0 |
+| SEO | `@astrojs/rss`, sitemap y JSON-LD propios | 4.0 |
 | Panel admin | Next.js App Router + React | next 16.4 · react 19 |
 | UI admin | shadcn/ui sobre `packages/ui` | — |
 | Estilos | Tailwind CSS v4 con tokens de `packages/ui` | 4.3 |
@@ -246,4 +249,4 @@ documentada.
 3. Las revisiones de PR **DEBEN** verificar el cumplimiento. Toda complejidad adicional se
    justifica en la tabla "Seguimiento de complejidad" del `plan.md`.
 
-**Versión**: 1.0.2 | **Ratificada**: 2026-10-18 | **Última enmienda**: 2026-10-19
+**Versión**: 1.0.3 | **Ratificada**: 2026-10-18 | **Última enmienda**: 2026-10-19

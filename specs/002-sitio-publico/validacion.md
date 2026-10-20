@@ -108,9 +108,45 @@ Preview `blog-web-git-002-sitio-publico-…vercel.app`, con Deployment Protectio
 
 **Pendiente para producción (T101)**: validadores de schema.org, sitemap y feed de W3C (necesitan una URL pública) y la medición de CE-004.
 
+## T101: producción (2026-10-19, después del merge de #1)
+
+- **Migraciones** `20261019120000` y `20261019120100` aplicadas en la nube antes del merge (la segunda, desde el SQL Editor): 3 perfiles con slug, vista con `security_barrier`, sitemap con 3 autores; advisors sin hallazgos nuevos.
+- **Vault**: `url_web_revalidacion` = URL de producción y `secreto_revalidacion` rotado (el primer valor no coincidía con Vercel y el sitio respondía 401). El nuevo se cargó en Vercel por la API y se redesplegó producción; el hash del Vault coincide con el valor cargado.
+- **CE-004**: un cambio de título en la base se vio en producción a los **5 s**, en dos muestras (cambio y restauración). `net._http_response`: 200 con `{"tags":["articulos","articulo:<id>"],"rutas":["/blog/<slug>"]}`.
+- **H4-E6**: al renombrar la categoría "Diseño" (nombre y slug), el artículo mostró el nombre nuevo a los **6 s**, y la URL vieja respondió 301 desde la segunda petición (la primera recibe la copia vencida por `swr`, riesgo previsto en research D1). Se restauró la categoría; queda la redirección de prueba `diseno-grafico` → `diseno`, inocua.
+- **Lighthouse móvil en producción**: 100 / 100 / 100 / 100 (rendimiento, accesibilidad, buenas prácticas y SEO) en `/`, `/blog`, un artículo y una categoría; LCP 1,31–1,38 s; CLS 0.
+- **Validadores**: schema.org sin errores ni avisos en portada, artículo, autor y categoría; feed válido en W3C con un aviso (`atom:link rel="self"`), corregido en la rama `002-cierre` y cubierto por el E2E H5-E2.
+- **Sin `X-Robots-Tag` en producción**; `/api/revalidar` rechaza un aviso sin firma con 401.
+
+## Ronda 3: cierre (rama `002-cierre`, commit 66d093d, 2026-10-19)
+
+**Alcance**: `git diff main...HEAD` (T103–T105 y `atom:link` en `/rss.xml`; 14 archivos, +87/−40).
+**Resultado global**: ✅ **APROBADO**.
+
+| Comando | Resultado |
+|---|---|
+| `pnpm lint` · `typecheck` · `test` | ✅ (147 en web) |
+| `pnpm calidad` | ✅ jscpd 0 clones, knip limpio |
+| `pnpm test:db` | ✅ 531 |
+| `pnpm build` | ✅ |
+| `pnpm test:e2e` | ✅ 147 |
+
+| Agente | Veredicto | Notas |
+|---|---|---|
+| arquitecto-db | APROBADO | `perfiles.sql:4`: solo cambia un comentario; el CLI registra por versión, así que no afecta la nube ni el historial. El nombre coincide con T063 de la 001 y ordena después de `20261019120100`. |
+| revisor-ux-ui | APROBADO | U-M11 resuelto: el lector de pantalla lee el número por grupos; foco, área táctil y aviso de pestaña nueva intactos. `atom:link` válido como hijo de `<channel>`. |
+| consistencia-codigo | APROBADO | Enmienda 1.0.3 con versión y justificación; `@astrojs/sitemap` fuera de todo `package.json` y del lockfile. Tests de T104 escritos antes (rojo → verde); commits Conventional en español. |
+
+**Menores (opcionales, no frenan el PR)**:
+- [x] R3-U1 **Corregido.** `Pie.astro:31`: envolver el número en `whitespace-nowrap` para que no se parta en dos líneas si el pie se angosta (a 360 px hoy entra).
+- [ ] R3-U2 `esquema.ts:80`: el `.refine` sobre `contacto` no corre si otro campo del objeto falla; el error de "mismos dígitos" aparece recién al corregir el primero. Solo afecta cómo se reporta el error del build.
+- [x] R3-C1 **Corregido.** `constitucion.md:5-6`: la entrada 1.0.3 no declara el impacto sobre plantillas y código (Gobernanza, punto 2): plantillas sin cambios y ningún workspace depende de `@astrojs/sitemap`.
+- [ ] R3-C2 `perfiles.sql:4`: nombra `20261019120900_equipo.sql`, que todavía no existe (H6 pendiente); revisar cuando se cree la migración.
+
 ## Acciones
 
 1. ~~Corregir los bloqueantes C-B1, U-B1 y U-B2, con sus tests.~~ Hecho.
 2. ~~Corregir los menores o registrarlos como tareas (constitución §XI).~~ Hecho (T103–T105).
 3. ~~Volver a ejecutar `/validar` (ronda 2).~~ APROBADO.
-4. Después: T099 (mediciones sobre el preview de Vercel) y el PR conjunto 001 + 002.
+4. ~~Después: T099 (mediciones sobre el preview de Vercel) y el PR conjunto 001 + 002.~~ Hecho (PR #1).
+5. ~~Ronda 3 sobre `002-cierre`.~~ APROBADO. Siguiente: PR de cierre a `main` (`gh pr create`).

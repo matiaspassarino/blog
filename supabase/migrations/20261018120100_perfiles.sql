@@ -1,7 +1,7 @@
 -- Perfiles del equipo, roles y RLS base.
 -- Spec 001 · research D2, D3, D4 · data-model "perfiles".
 -- proteger_perfil ya impide que un cliente cambie rol o activo; H6
--- (20261018120900_equipo.sql) agrega perfiles_update_admin y garantizar_admin
+-- (20261019120900_equipo.sql) agrega perfiles_update_admin y garantizar_admin
 -- y la amplía con create or replace para que el admin sí pueda.
 
 create table public.perfiles (

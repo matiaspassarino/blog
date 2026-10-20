@@ -319,15 +319,15 @@ description: "Lista de tareas: sitio público (landing y blog)"
 - [X] T098 Recorrer [quickstart.md](quickstart.md) §1–4 y confirmar cada "Esperado". Corregir el quickstart si algo cambió.
 - [X] T099 Mediciones sobre el **preview del PR** (constitución §IV.8, [quickstart.md](quickstart.md) §6; análisis C3), antes de `/validar`: Lighthouse móvil en `/`, `/blog`, la guía de bloques y una categoría (CE-001, CE-002); schema.org sobre un artículo y la portada, y validadores de sitemap y feed (CE-003, CE-010); `X-Robots-Tag: noindex` (H5-E6); `/blog/` redirige de forma permanente a `/blog` (RF-022); las imágenes de picsum salen optimizadas por `/_vercel/image` (si no, plan B de research D7). Anotar los resultados en `validacion.md`.
 - [X] T100 Ejecutar `/validar` (`arquitecto-db`, `revisor-ux-ui` y `consistencia-codigo`, que debe aprobar las dependencias de T002–T006) y resolver todos los BLOQUEANTES en `specs/002-sitio-publico/validacion.md`.
-- [ ] T101 Nube y producción ([quickstart.md](quickstart.md) §5), después del merge a `main`:
+- [X] T101 Nube y producción ([quickstart.md](quickstart.md) §5), después del merge a `main`:
   - aplicar `20261019120000_tipo_entidad_autor.sql` y `20261019120100_autores_publicos.sql` en el SQL Editor **en dos corridas separadas** (o, si antes se hizo `supabase migration repair`, con `supabase db push`). Aplicar antes las migraciones de la 001 que la nube no tenga (ver D1 en "Dependencias");
   - crear los secretos de Vault `url_web_revalidacion` (URL de producción de `blog-web`) y `secreto_revalidacion` (igual a la variable de Vercel);
   - medir CE-004 (menos de 60 s) y H4-E6, y anotarlo en `validacion.md`;
   - pasar validator.schema.org (artículo y portada) y los validadores de W3C de sitemap y feed sobre producción (CE-003, CE-010), que el preview protegido no permite.
-- [ ] T103 [P] Enmienda PARCHE de `constitucion.md`: quitar `@astrojs/sitemap` de la tabla §II, porque el sitemap es propio (research D14; validación C-M2).
-- [ ] T104 [P] Teléfono del pie con formato legible: campo `contacto.whatsappVisible` (por ejemplo "+54 9 11 0000-0000") en `contracts/landing.md`, `esquema.ts`, `landing.ts` y `Pie.astro` (validación U-M11).
-- [ ] T105 [P] Spec 001: corregir el encabezado de `supabase/migrations/20261018120100_perfiles.sql:4`, que nombra `20261018120900_equipo.sql`; el archivo real será `20261019120900_equipo.sql` (validación, observación fuera de alcance).
-- [ ] T102 Actualizar la sección "Estado actual" de `CLAUDE.md` (spec 002 completa, Vault cargado, pendientes de la 001) y quitar la nota sobre la skill `astro-seo` desactualizada.
+- [X] T103 [P] Enmienda PARCHE de `constitucion.md`: quitar `@astrojs/sitemap` de la tabla §II, porque el sitemap es propio (research D14; validación C-M2).
+- [X] T104 [P] Teléfono del pie con formato legible: campo `contacto.whatsappVisible` (por ejemplo "+54 9 11 0000-0000") en `contracts/landing.md`, `esquema.ts`, `landing.ts` y `Pie.astro` (validación U-M11).
+- [X] T105 [P] Spec 001: corregir el encabezado de `supabase/migrations/20261018120100_perfiles.sql:4`, que nombra `20261018120900_equipo.sql`; el archivo real será `20261019120900_equipo.sql` (validación, observación fuera de alcance).
+- [X] T102 Actualizar la sección "Estado actual" de `CLAUDE.md` (spec 002 completa, Vault cargado, pendientes de la 001) y quitar la nota sobre la skill `astro-seo` desactualizada.
 
 ---
 

@@ -91,7 +91,7 @@ También se incorporaron los hallazgos menores. La revisión sobre el código se
 8. `20261018120600_etiquetado.sql` (H3): `articulos_etiquetas`, `asignar_etiquetas`, categoría en uso y redirecciones de taxonomías.
 9. `20261018120700_programacion.sql` (H4): `publicar_programados` y los jobs de cron.
 10. `20261018120800_busqueda.sql` (H5): `es_sin_tildes`, `busqueda`, `bloques_a_texto` y `buscar_articulos`.
-11. `20261018120900_equipo.sql` (H6): `perfiles_update_admin`, la ampliación de `proteger_perfil` (`create or replace`; ya existe desde la validación del MVP), `garantizar_admin` y la notificación de autor.
+11. `20261019120900_equipo.sql` (H6): `perfiles_update_admin`, la ampliación de `proteger_perfil` (`create or replace`; ya existe desde la validación del MVP), `garantizar_admin` y la notificación de autor.
 
 **Otros cambios**:
 - **Tablas, índices y políticas**: ver [data-model.md](data-model.md). Cada política tiene su test en `supabase/tests/`.
