@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(127);
+select plan(132);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -431,6 +431,23 @@ select ok(
     select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
     where p.oid = to_regprocedure('privado.notificar_cambio_autor()') and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
   'spec 002: PUBLIC no puede ejecutar privado.notificar_cambio_autor');
+
+-- ===========================================================================
+-- H5 (T060): buscar_articulos (anon y authenticated) y recalcular_busqueda (solo el sistema)
+-- ===========================================================================
+select function_privs_are('public', 'buscar_articulos', array['text', 'integer', 'integer'], 'anon', array['EXECUTE'],
+  'H5: anon puede ejecutar buscar_articulos');
+select function_privs_are('public', 'buscar_articulos', array['text', 'integer', 'integer'], 'authenticated', array['EXECUTE'],
+  'H5: authenticated puede ejecutar buscar_articulos');
+select function_privs_are('privado', 'recalcular_busqueda', array['uuid[]'], 'anon', array[]::text[],
+  'H5: anon no puede ejecutar privado.recalcular_busqueda');
+select function_privs_are('privado', 'recalcular_busqueda', array['uuid[]'], 'authenticated', array[]::text[],
+  'H5: authenticated no puede ejecutar privado.recalcular_busqueda');
+select ok(
+  to_regprocedure('privado.recalcular_busqueda(uuid[])') is not null and not exists (
+    select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = to_regprocedure('privado.recalcular_busqueda(uuid[])') and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
+  'H5: PUBLIC no puede ejecutar privado.recalcular_busqueda');
 
 select pruebas.como_postgres();
 select * from finish();
