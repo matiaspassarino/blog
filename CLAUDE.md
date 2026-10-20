@@ -50,13 +50,10 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
 ## Estado actual (2026-10-19, fin de la sesión)
 - **PR #1 mergeado a `main`** (commit `ae6a035`): spec 001 (F1, F2, H1–H3, seed) y **spec 002 completa** (sitio público). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100 en todo.
 - **Spec 002**: `/validar` APROBADO (ronda 2), T099 (preview) y T101 (producción) hechas; detalle en `specs/002-sitio-publico/validacion.md`. En la nube ya están sus migraciones y el Vault (`url_web_revalidacion`, `secreto_revalidacion` rotado el 2026-10-19; el valor lo guarda el usuario).
-- **Rama `002-cierre`** (en GitHub, sin PR todavía): registro de T101. Falta, en esa rama:
-  - T102: este archivo (hecho);
-  - T103: enmienda PARCHE de la constitución (1.0.3) para quitar `@astrojs/sitemap` de la tabla §II (hecho);
-  - T104: teléfono con formato en el pie (`contacto.whatsappVisible`) (hecho);
-  - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo) (hecho);
-  - `atom:link rel="self"` en `/rss.xml` (aviso del validador de W3C);
-  - después, PR de cierre a `main`.
+- **Rama `002-cierre`** (2026-10-19): PR de cierre a `main` con T101–T105 y el `atom:link rel="self"` de `/rss.xml` (aviso del validador de W3C). Al mergearlo, la spec 002 queda cerrada:
+  - T103: enmienda PARCHE de la constitución (1.0.3), sin `@astrojs/sitemap` en §II;
+  - T104: teléfono con formato en el pie (`contacto.whatsappVisible`, con los mismos dígitos que `whatsapp`);
+  - T105: comentario de `20261018120100_perfiles.sql:4` (nombre de la migración de equipo).
 - **Spec 001**: H4 (programación), H5 (búsqueda) y H6 (equipo), T067–T072 y los menores C6-M1 a C6-M5 siguen pendientes. Retomar en la rama `001-modelo-de-contenido` rebasada sobre `main`. Leer la nota de T063 sobre la activación de perfiles creados por la API de admin.
 - **Pendientes manuales**: borrar la redirección de prueba `diseno-grafico` en la nube (opcional) y revocar en Vercel el *Protection Bypass for Automation* de `blog-web` si no se usa.
 - **Notas de Windows**: ver `specs/002-sitio-publico/quickstart.md` ("En Windows"). Desde Git Bash, `vercel curl` necesita `MSYS_NO_PATHCONV=1`; el CLI no crea el bypass del preview cuando corre como agente.

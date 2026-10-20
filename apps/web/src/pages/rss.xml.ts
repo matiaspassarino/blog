@@ -12,11 +12,14 @@ const ARTICULOS_EN_EL_FEED = 20;
 export const GET: APIRoute = async (contexto) => {
   contexto.cache.set(cacheListado());
   const { items } = await listarArticulosPublicados(datos, { porPagina: ARTICULOS_EN_EL_FEED });
+  // atom:link rel="self": la URL del propio feed, que pide el validador de W3C.
+  const urlFeed = new URL('/rss.xml', PUBLIC_URL_SITIO).href;
   return rss({
     title: landing.sitio.nombre,
     description: landing.blog.descripcion,
     site: PUBLIC_URL_SITIO,
-    customData: '<language>es-ar</language>',
+    xmlns: { atom: 'http://www.w3.org/2005/Atom' },
+    customData: `<language>es-ar</language><atom:link href="${urlFeed}" rel="self" type="application/rss+xml"/>`,
     items: items.map((articulo) => ({
       title: articulo.titulo,
       link: new URL(`/blog/${articulo.slug}`, PUBLIC_URL_SITIO).href,

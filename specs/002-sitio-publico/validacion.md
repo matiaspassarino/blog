@@ -115,7 +115,7 @@ Preview `blog-web-git-002-sitio-publico-…vercel.app`, con Deployment Protectio
 - **CE-004**: un cambio de título en la base se vio en producción a los **5 s**, en dos muestras (cambio y restauración). `net._http_response`: 200 con `{"tags":["articulos","articulo:<id>"],"rutas":["/blog/<slug>"]}`.
 - **H4-E6**: al renombrar la categoría "Diseño" (nombre y slug), el artículo mostró el nombre nuevo a los **6 s**, y la URL vieja respondió 301 desde la segunda petición (la primera recibe la copia vencida por `swr`, riesgo previsto en research D1). Se restauró la categoría; queda la redirección de prueba `diseno-grafico` → `diseno`, inocua.
 - **Lighthouse móvil en producción**: 100 / 100 / 100 / 100 (rendimiento, accesibilidad, buenas prácticas y SEO) en `/`, `/blog`, un artículo y una categoría; LCP 1,31–1,38 s; CLS 0.
-- **Validadores**: schema.org sin errores ni avisos en portada, artículo, autor y categoría; feed válido en W3C con un aviso (`atom:link rel="self"`, se corrige en el PR de cierre).
+- **Validadores**: schema.org sin errores ni avisos en portada, artículo, autor y categoría; feed válido en W3C con un aviso (`atom:link rel="self"`), corregido en la rama `002-cierre` y cubierto por el E2E H5-E2.
 - **Sin `X-Robots-Tag` en producción**; `/api/revalidar` rechaza un aviso sin firma con 401.
 
 ## Acciones

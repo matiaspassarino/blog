@@ -207,11 +207,21 @@ async function datosDelFeed(page: Page, xml: string) {
       Array.from(padre.children).find((elemento) => elemento.nodeName === nombre)?.textContent ?? '';
     const canal = documento.getElementsByTagName('channel')[0];
     if (!canal) throw new Error('el feed no tiene <channel>');
+    const atomLink = Array.from(canal.getElementsByTagNameNS('http://www.w3.org/2005/Atom', 'link')).find(
+      (elemento) => elemento.parentElement === canal,
+    );
     return {
       raiz: documento.documentElement.nodeName,
       version: documento.documentElement.getAttribute('version'),
       titulo: hijo(canal, 'title'),
       enlace: hijo(canal, 'link'),
+      atomSelf: atomLink
+        ? {
+            rel: atomLink.getAttribute('rel'),
+            href: atomLink.getAttribute('href'),
+            tipo: atomLink.getAttribute('type'),
+          }
+        : null,
       items: Array.from(canal.getElementsByTagName('item')).map((item) => ({
         titulo: hijo(item, 'title'),
         enlace: hijo(item, 'link'),
@@ -306,6 +316,8 @@ test.describe('H5-E2 / RSEO-006: /rss.xml', () => {
     expect(feed.version).toBe('2.0');
     expect(feed.titulo.length).toBeGreaterThan(0);
     expect(feed.enlace.startsWith(URL_SITIO)).toBe(true);
+    // Aviso del validador de W3C: el canal declara su propia URL con atom:link rel="self".
+    expect(feed.atomSelf).toEqual({ rel: 'self', href: `${URL_SITIO}/rss.xml`, tipo: 'application/rss+xml' });
 
     expect(feed.items).toHaveLength(Math.min(20, publicados.length));
     for (const item of feed.items) {
