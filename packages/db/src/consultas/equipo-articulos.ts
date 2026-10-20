@@ -3,7 +3,7 @@ import { esquemaImagen, validarContenido, type Contenido, type ErrorBloque } fro
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
 import type { Database, Json } from '../tipos';
-import type { TipoEntidad } from '../tipos-dominio';
+import type { EstadoArticulo, TipoEntidad } from '../tipos-dominio';
 
 type Tablas = Database['public']['Tables'];
 type Insercion = Tablas['articulos']['Insert'];
@@ -116,12 +116,42 @@ export async function actualizarArticulo(
     return data;
   });
   if (actualizado) return actualizado;
+  return rechazoSinFilas(c, id);
+}
 
-  // 0 filas: o no existe (o no es visible), o la versión cambió.
+/** Un update con filtro de versión afectó 0 filas: o no existe (o no es visible), o la versión cambió. */
+async function rechazoSinFilas(c: ClienteBlog, id: string): Promise<never> {
   const { data: existente, error } = await c.from('articulos').select('id').eq('id', id).maybeSingle();
   if (error) throw traducirError(error);
   if (!existente) throw new ErrorDominio('no_encontrado', 'El artículo no existe');
   throw new ErrorDominio('conflicto_version', 'El artículo cambió desde que lo abriste');
+}
+
+/**
+ * Transición de estado con bloqueo optimista (RF-009 a RF-011). La matriz, los requisitos
+ * de publicación y la fecha futura los valida la base (a40); acá solo se traducen los errores.
+ * Cancelar una programación es volver a 'borrador': la base limpia programado_para.
+ */
+export async function cambiarEstado(
+  c: ClienteBlog,
+  id: string,
+  version: number,
+  destino: EstadoArticulo,
+  opciones: { programadoPara?: Date } = {},
+): Promise<Articulo> {
+  const { data, error } = await c
+    .from('articulos')
+    .update({
+      estado: destino,
+      version,
+      ...(opciones.programadoPara && { programado_para: opciones.programadoPara.toISOString() }),
+    })
+    .eq('id', id)
+    .eq('version', version)
+    .select()
+    .maybeSingle();
+  if (error) throw traducirError(error);
+  return data ?? rechazoSinFilas(c, id);
 }
 
 export async function eliminarArticulo(c: ClienteBlog, id: string): Promise<void> {

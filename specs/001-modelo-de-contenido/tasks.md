@@ -428,7 +428,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 4 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T053 [P] [H4] Crear `supabase/tests/programacion.test.sql` (H4-E1 a H4-E4, RF-011, CE-003). Debe verificar:
+- [X] T053 [P] [H4] Crear `supabase/tests/programacion.test.sql` (H4-E1 a H4-E4, RF-011, CE-003). Debe verificar:
   - programar para `now() + interval '1 day'` deja `estado = programado`, invisible para anon;
   - programar para una fecha pasada lanza `fecha_no_futura`;
   - cancelar (programado → borrador) limpia `programado_para`;
@@ -440,13 +440,13 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 4
 
-- [ ] T054 [H4] Crear `supabase/migrations/20261019120700_programacion.sql`:
+- [X] T054 [H4] Crear `supabase/migrations/20261019120700_programacion.sql`:
   - índice `(programado_para) where estado = 'programado'`;
   - `privado.publicar_programados()`, definer: `update public.articulos set estado = 'publicado' where id in (select id from public.articulos where estado = 'programado' and programado_para <= now() for update skip locked)`;
   - `select cron.schedule('publicar-programados', '* * * * *', 'select privado.publicar_programados()')`;
   - `select cron.schedule('limpiar-historial-cron', '0 3 * * *', $$delete from cron.job_run_details where end_time < now() - interval '7 days'$$)`.
   Verificar que `a40_validar_estado` asigna `publicado_en = programado_para` cuando `not privado.es_cliente()`.
-- [ ] T055 [H4] Agregar `cambiarEstado(c, id, version, destino, { programadoPara })` en `packages/db/src/consultas/equipo-articulos.ts`, con un test en `equipo-articulos.test.ts` que verifique que `fecha_no_futura` se traduce. Ejecutar `pnpm db:reset`. Debe pasar T053.
+- [X] T055 [H4] Agregar `cambiarEstado(c, id, version, destino, { programadoPara })` en `packages/db/src/consultas/equipo-articulos.ts`, con un test en `equipo-articulos.test.ts` que verifique que `fecha_no_futura` se traduce. Ejecutar `pnpm db:reset`. Debe pasar T053.
 
 **Checkpoint**: La programación funciona sin intervención.
 

@@ -5,6 +5,7 @@ export { ErrorDominio, traducirError, type CodigoError, type ErrorPostgrest } fr
 export {
   crearArticulo,
   actualizarArticulo,
+  cambiarEstado,
   eliminarArticulo,
   previsualizarSlug,
   type Articulo,
