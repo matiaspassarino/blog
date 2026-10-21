@@ -57,15 +57,16 @@ Mejoras (sin hacer, menores): la regla ESLint `no-restricted-imports` no prohíb
 
 ## Pendientes de medición (T103) y de la nube (T106)
 
-- [ ] Recorrer el quickstart (A a F) a mano.
+- [ ] Recorrer el quickstart (A a F) a mano. Los flujos A a F los cubren los 443 E2E, que pasaron en el CI del PR #5; falta el recorrido manual, que se puede hacer junto con CE-001.
 - [ ] CE-001: cronometrar con una persona que no haya usado el panel la creación y publicación de un artículo de 5 bloques con una imagen (menos de 5 minutos).
-- [ ] CE-006: Lighthouse en `/articulos`, el editor y `/equipo` en 360, 768, 1024 y 1440 px (hoy solo `/ingreso` y `/olvide-contrasena`, más axe).
-- [ ] CE-007: navegación menor a 1 s.
-- [ ] T106 (a cargo del usuario, después del merge): ver `quickstart.md`. El SMTP propio queda **pospuesto** (sin hosting de correo): en la nube las invitaciones y la recuperación solo llegan a miembros de la organización de Supabase.
+- [x] CE-006: Lighthouse 13.5 (solo Accesibilidad), 2026-10-21, sobre `next start` local con el seed y sesión de admin. `/ingreso`, `/articulos`, el editor (`/articulos/[id]`) y `/equipo` dan **100 en los 16 casos** (360 y 768 px como móvil; 1024 y 1440 px como escritorio).
+- [x] CE-007: navegación con el menú, medida dentro de la página (del clic hasta que aparece el `h1` de la pantalla nueva), 7 vueltas tras una de calentamiento, `next start` local, 1440 px. Medianas: Categorías 91 ms, Etiquetas 51 ms, Equipo 57 ms, Mi perfil 57 ms, Artículos 309 ms y el editor unos 100 ms; **máximo 311 ms**. Artículos da siempre unos 300 ms porque React deja visible el esqueleto de `loading.tsx` un mínimo de 300 ms; el servidor la responde en unos 35 ms.
+- [x] `X-Robots-Tag: noindex, nofollow` en `/ingreso` y `robots.txt` con `Disallow: /`.
+- [ ] T106 (a cargo del usuario, después del merge): ver `quickstart.md`. Variables de Vercel `blog-admin` cargadas el 2026-10-21 (`SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_URL_ADMIN` y `NEXT_PUBLIC_URL_SITIO`, solo en *Production*). El SMTP propio queda **pospuesto** (sin hosting de correo): en la nube las invitaciones y la recuperación solo llegan a miembros de la organización de Supabase.
 
 ## Acciones
 
 - [x] Corregir `esCorreoExistente` y los contratos desfasados.
 - [x] Alinear `data-model.md` con la migración.
 - [x] `git fetch` y comparar contra `origin/main` antes del PR.
-- [ ] Registrar los advisors y la regla de `service_role` en `CLAUDE.md` (T105).
+- [x] Registrar los advisors y la regla de `service_role` en `CLAUDE.md` (T105).
