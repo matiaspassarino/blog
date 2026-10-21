@@ -113,21 +113,67 @@ export async function listarAutores(c: ClienteBlog): Promise<{ id: string; nombr
   return data;
 }
 
-export type TaxonomiaConConteo = Taxonomia & { conteo: number };
+export type TaxonomiaConConteo = Taxonomia & {
+  /** Artículos que la usan, en cualquier estado (así cuenta `categoria_en_uso`). */
+  conteo: number;
+  /** De esos, los publicados: solo ellos tienen una dirección pública que cambiar (RF-019). */
+  publicados: number;
+};
+
+/** Cuántas veces aparece cada id: sirve para contar filas agrupadas por taxonomía. */
+function contarPorId(ids: (string | null)[]): Map<string, number> {
+  const cuentas = new Map<string, number>();
+  for (const id of ids) if (id) cuentas.set(id, (cuentas.get(id) ?? 0) + 1);
+  return cuentas;
+}
+
+/** Artículos publicados por categoría o etiqueta, como mapa id -> cantidad. */
+async function publicadosPorTaxonomia(c: ClienteBlog, tipo: TipoTaxonomia): Promise<Map<string, number>> {
+  if (tipo === 'categoria') {
+    const { data, error } = await c.from('articulos').select('categoria_id').eq('estado', 'publicado');
+    if (error) throw traducirError(error);
+    return contarPorId(data.map((fila) => fila.categoria_id));
+  }
+  const { data, error } = await c
+    .from('articulos_etiquetas')
+    .select('etiqueta_id, articulos!inner(estado)')
+    .eq('articulos.estado', 'publicado');
+  if (error) throw traducirError(error);
+  return contarPorId(data.map((fila) => fila.etiqueta_id));
+}
 
 /** Categorías o etiquetas con la cantidad de artículos que las usan (H5). */
 export async function listarTaxonomiasConConteo(c: ClienteBlog, tipo: TipoTaxonomia): Promise<TaxonomiaConConteo[]> {
+  const publicados = await publicadosPorTaxonomia(c, tipo);
   if (tipo === 'categoria') {
     const { data, error } = await c.from('categorias').select('*, articulos(count)').order('nombre');
     if (error) throw traducirError(error);
-    return data.map(({ articulos, ...taxonomia }) => ({ ...taxonomia, conteo: articulos[0]?.count ?? 0 }));
+    return data.map(({ articulos, ...taxonomia }) => ({
+      ...taxonomia,
+      conteo: articulos[0]?.count ?? 0,
+      publicados: publicados.get(taxonomia.id) ?? 0,
+    }));
   }
   const { data, error } = await c.from('etiquetas').select('*, articulos_etiquetas(count)').order('nombre');
   if (error) throw traducirError(error);
   return data.map(({ articulos_etiquetas, ...taxonomia }) => ({
     ...taxonomia,
     conteo: articulos_etiquetas[0]?.count ?? 0,
+    publicados: publicados.get(taxonomia.id) ?? 0,
   }));
+}
+
+/** Una categoría o etiqueta con sus artículos publicados; `null` si no existe. */
+export async function leerTaxonomiaConPublicados(
+  c: ClienteBlog,
+  tipo: TipoTaxonomia,
+  id: string,
+): Promise<{ taxonomia: Taxonomia; publicados: number } | null> {
+  const tabla = tipo === 'categoria' ? 'categorias' : 'etiquetas';
+  const { data, error } = await c.from(tabla).select('*').eq('id', id).maybeSingle();
+  if (error) throw traducirError(error);
+  if (!data) return null;
+  return { taxonomia: data, publicados: (await publicadosPorTaxonomia(c, tipo)).get(id) ?? 0 };
 }
 
 async function listarReferencias(c: ClienteBlog, tabla: 'categorias' | 'etiquetas'): Promise<ReferenciaTaxonomia[]> {

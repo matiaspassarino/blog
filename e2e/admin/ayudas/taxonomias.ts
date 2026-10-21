@@ -22,7 +22,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import { publicarComoServicio, sembrarArticulo } from './articulos';
 import { servicio } from './servicio';
 
-export const URL_SITIO = 'http://localhost:4321';
+const URL_SITIO = 'http://localhost:4321';
 
 export type Tipo = 'categoria' | 'etiqueta';
 
@@ -132,7 +132,7 @@ export async function redireccionDe(tipo: Tipo, slugAnterior: string) {
 
 // --- Sitio público ------------------------------------------------------------------------------------------------
 
-export const urlEnElSitio = (tipo: Tipo, slug: string) => `${URL_SITIO}${TEXTOS[tipo].rutaSitio}/${slug}`;
+const urlEnElSitio = (tipo: Tipo, slug: string) => `${URL_SITIO}${TEXTOS[tipo].rutaSitio}/${slug}`;
 
 /** Espera (hasta 60 s, CE-003) a que la página pública de la taxonomía responda 200 y contenga `texto`. */
 export async function esperarTextoEnElSitio(page: Page, tipo: Tipo, slug: string, texto: string) {

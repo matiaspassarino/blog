@@ -8,7 +8,7 @@ import type { ErrorBloque } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
 import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import {
   crearArticuloAccion,
   guardarArticulo,
@@ -71,6 +71,15 @@ function enfocarPrimerCampo(errores: ErrorBloque[]) {
   }
 }
 
+/** Falso en el servidor y durante la hidratación; verdadero cuando el editor ya responde a la persona. */
+const sinSuscripcion = () => () => {};
+const useHidratado = () =>
+  useSyncExternalStore(
+    sinSuscripcion,
+    () => true,
+    () => false,
+  );
+
 const vacioANulo = (valor: string) => (valor.trim() === '' ? null : valor);
 
 export function EditorArticulo({
@@ -102,6 +111,7 @@ export function EditorArticulo({
   const [reemplazando, setReemplazando] = useState(false);
   const titulo = useRef<HTMLHeadingElement>(null);
 
+  const hidratado = useHidratado();
   const sucio = estaSucio(estado);
   const { datos: actual } = estado;
 
@@ -226,7 +236,7 @@ export function EditorArticulo({
 
   return (
     <ContextoEditor.Provider value={contexto}>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-editor={hidratado ? 'listo' : 'cargando'}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 ref={titulo} tabIndex={-1} className="font-titulos text-titulo-2 font-semibold">
             {nuevo ? 'Nuevo artículo' : 'Editar artículo'}

@@ -66,6 +66,7 @@ export {
   obtenerPerfilPropio,
   listarAutores,
   listarTaxonomiasConConteo,
+  leerTaxonomiaConPublicados,
   listarCategoriasPanel,
   listarEtiquetasPanel,
   obtenerArticuloParaEditar,

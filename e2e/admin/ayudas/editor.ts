@@ -47,6 +47,9 @@ const archivoPng = (name = 'foto.png', ancho = 4, alto = 3): ArchivoDePrueba => 
   buffer: Buffer.from(pngDecodificable(ancho, alto)),
 });
 
+/** Espera a que React haya hidratado el editor: antes, un campo rellenado puede perder su selección. */
+export const esperarEditorListo = (page: Page) => expect(page.locator('[data-editor="listo"]')).toBeVisible();
+
 export const botonGuardar = (page: Page) => page.getByRole('button', { name: 'Guardar', exact: true });
 
 export const grupoDeBloque = (page: Page, posicion: number, tipo: TipoDeBloque) =>

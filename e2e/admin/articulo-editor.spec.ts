@@ -23,6 +23,7 @@ import {
   agregarBloque,
   botonGuardar,
   completarBloque,
+  esperarEditorListo,
   grupoDeBloque,
   guardarYEsperar,
   subirImagenConAlt,
@@ -157,6 +158,7 @@ test.describe('Errores por bloque y campo (H2-E3, CE-004)', () => {
   }) => {
     const articulo = await sembrarArticulo({ titulo: titulo('sin-alt'), contenido: [parrafo('Original')] });
     await page.goto(`/articulos/${articulo.id}`);
+    await esperarEditorListo(page);
     await grupoDeBloque(page, 1, 'parrafo')
       .getByLabel('Texto', { exact: true })
       .fill('Texto nuevo que no debe perderse');
