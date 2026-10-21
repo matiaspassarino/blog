@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
+import type { Taxonomia } from '../tipos-dominio';
 import { clienteAnon, clienteComo, crearMiembroDePrueba, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
@@ -21,8 +22,8 @@ import {
 const sufijo = crypto.randomUUID().slice(0, 8);
 const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
 
-type TaxonomiaDePrueba = { id: string; nombre: string; slug: string; descripcion: string | null };
-type Creado = { id: string; slug: string; version: number };
+type TaxonomiaDePrueba = Pick<Taxonomia, 'id' | 'nombre' | 'slug' | 'descripcion'>;
+type Creado = Awaited<ReturnType<typeof crearArticuloDePrueba>>;
 
 /** Verifica que los items vengan del más reciente al más antiguo (RF-017). */
 function esperarOrdenDescendente(items: { publicado_en: string }[]) {

@@ -6,6 +6,7 @@ import type { ClienteBlog } from '../cliente';
 import type { ErrorDominio } from '../errores';
 import { rechazoDe } from '../pruebas/afirmaciones';
 import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
+import { registroDePrueba } from '../pruebas/datos';
 import {
   actualizarArticulo,
   cambiarEstado,
@@ -41,7 +42,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
   let editor: ClienteBlog;
   let admin: ClienteBlog;
   let idEditor: string;
-  const creados: string[] = [];
+  const creados = registroDePrueba();
 
   beforeAll(async () => {
     ({ editor, admin, idEditor } = await sesionesDemo());
@@ -53,7 +54,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
 
   // El editor no puede borrar: limpia el admin demo.
   afterAll(async () => {
-    if (creados.length > 0) await admin.from('articulos').delete().in('id', creados);
+    await creados.limpiar(admin);
   });
 
   // slug vacío: lo genera a10_asignar_slug (la columna tiene default '').
@@ -64,7 +65,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
       .select('id, version')
       .single();
     if (error) throw new Error(`No se pudo crear el borrador de prueba: ${error.message}`);
-    creados.push(data.id);
+    creados.articulos.push(data.id);
     return data;
   }
 
@@ -158,7 +159,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
         titulo: 'H1 integración: camino feliz',
         contenido: [{ id: crypto.randomUUID(), tipo: 'galeria', imagenes: [imagen(1), imagen(2)] }],
       });
-      creados.push(articulo.id);
+      creados.articulos.push(articulo.id);
 
       expect(articulo).toMatchObject({ estado: 'borrador', autor_id: idEditor, version: 1 });
       expect(articulo.contenido).toEqual([expect.objectContaining({ tipo: 'galeria', columnas: 3 })]);
@@ -201,7 +202,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
         categoria_id: categoria.id,
         contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo programable.' }],
       });
-      creados.push(articulo.id);
+      creados.articulos.push(articulo.id);
       return articulo;
     }
 
