@@ -24,6 +24,11 @@ Las reglas de negocio ya están definidas y verificadas en la spec 001: qué es 
 ### Sesión 2026-10-20
 
 - P: ¿Cómo obtiene su acceso un miembro nuevo? → R: Por invitación por correo: el admin lo da de alta, el miembro recibe un enlace y define su contraseña. Existe "olvidé mi contraseña", también por correo. El admin nunca conoce la contraseña de otro miembro (RF-026, RF-027).
+- P: ¿Qué tipos de archivo de imagen puede subir el equipo? → R: JPEG, PNG, WebP y AVIF; no se aceptan SVG ni GIF (RF-007).
+- P: ¿Cuánto tiempo sin actividad antes de cerrar la sesión? → R: 8 horas; la sesión se renueva mientras haya actividad (RF-002).
+- P: ¿Qué formato en línea admiten los bloques de texto? → R: Solo las cuatro marcas ya definidas en la spec 001 (D9): negrita, cursiva, enlaces y código en línea; sin subrayado (RF-005).
+- P: ¿Qué pasa con lo no guardado si la sesión vence o el miembro es desactivado? → R: En ambos casos se cierra la sesión y se descarta lo no guardado, con un aviso del motivo (casos borde, RF-002).
+- P: ¿Qué pasa con las imágenes subidas al quitarlas de un artículo o eliminar el artículo? → R: Se borran del almacenamiento, salvo que otro contenido (artículo, galería o perfil) las siga usando (RF-007).
 
 ## Escenarios de usuario y pruebas *(obligatorio)*
 
@@ -42,7 +47,7 @@ Un miembro del equipo abre el panel, ingresa con su correo y contraseña y llega
 3. **Dado** un miembro desactivado, **cuando** intenta ingresar, **entonces** no accede a ninguna pantalla interna y ve un mensaje que le indica que su cuenta está desactivada.
 4. **Dado** un visitante sin sesión, **cuando** abre la dirección de una pantalla interna, **entonces** el panel lo lleva al ingreso y, al ingresar, vuelve a esa pantalla.
 5. **Dado** un miembro con la sesión abierta, **cuando** la cierra, **entonces** vuelve al ingreso y ninguna pantalla interna es accesible sin ingresar de nuevo.
-6. **Dado** un miembro que el admin desactiva mientras tiene la sesión abierta, **cuando** intenta su siguiente acción, **entonces** la acción se rechaza y el panel lo saca de la sesión.
+6. **Dado** un miembro que el admin desactiva mientras tiene la sesión abierta, **cuando** intenta su siguiente acción, **entonces** la acción se rechaza el panel lo saca de la sesión y descarta lo no guardado, explicándole el motivo.
 7. **Dado** un miembro que olvidó su contraseña, **cuando** la pide desde la pantalla de ingreso, **entonces** recibe un correo con un enlace de un solo uso para definir una nueva y, al hacerlo, ingresa al panel. El panel muestra el mismo mensaje exista o no el correo, para no revelar quién es parte del equipo.
 
 ---
@@ -147,8 +152,8 @@ Un admin ve la lista del equipo con nombre, correo, rol y estado; invita a un mi
 
 ### Casos borde
 
-- ¿Qué pasa si la sesión vence mientras el editor escribe? El panel no pierde lo escrito: avisa que debe ingresar de nuevo y, al hacerlo, permite guardar.
-- ¿Qué pasa si la subida de una imagen falla o el archivo no es una imagen o supera el tamaño permitido? El bloque queda sin imagen, el panel explica el motivo y el resto del artículo no se afecta.
+- ¿Qué pasa si la sesión vence, o el miembro es desactivado, mientras escribe? Al intentar guardar, el panel cierra la sesión, lo lleva al ingreso y descarta lo no guardado; antes de salir le explica el motivo. Para minimizar la pérdida, la sesión se renueva con el uso (ver RF-002) y el panel avisa antes de salir con cambios sin guardar (RF-010).
+- ¿Qué pasa si la subida de una imagen falla o el archivo no es una imagen JPEG, PNG, WebP o AVIF (por ejemplo, un SVG o un GIF) o supera el tamaño permitido? El bloque queda sin imagen, el panel explica el motivo y el resto del artículo no se afecta.
 - ¿Qué pasa si un artículo programado se publica mientras alguien lo tiene abierto? Al guardar, el editor recibe el aviso de cambios más nuevos (Historia 2, escenario 5).
 - ¿Qué pasa si se intenta publicar un artículo con 0 bloques válidos después de quitar todos? Se rechaza por requisitos de publicación.
 - ¿Qué pasa con un artículo cuyo autor fue desactivado? Sigue apareciendo con su autor y puede editarse y publicarse.
@@ -164,14 +169,14 @@ Un admin ve la lista del equipo con nombre, correo, rol y estado; invita a un mi
 
 **Acceso**
 - **RF-001**: El panel DEBE exigir ingreso con correo y contraseña para cualquier pantalla interna. No DEBE existir el registro público (spec 001, RF-022).
-- **RF-002**: Solo los miembros activos DEBEN acceder al panel. Un miembro desactivado DEBE perder el acceso a partir de su siguiente acción.
+- **RF-002**: Solo los miembros activos DEBEN acceder al panel. Un miembro desactivado DEBE perder el acceso a partir de su siguiente acción. La sesión DEBE cerrarse tras 8 horas sin actividad y renovarse mientras haya uso.
 - **RF-003**: El panel DEBE mostrar u ocultar acciones según el rol, y toda acción DEBE validarse además en el servidor: ocultar un botón no alcanza (spec 001, RF-027).
 
 **Artículos**
 - **RF-004**: El panel DEBE permitir crear y editar todos los campos de un artículo definidos en la spec 001 (RF-001 y RF-006): título, slug, extracto, imagen destacada, categoría, etiquetas, cuerpo en bloques, título y descripción para buscadores.
-- **RF-005**: El editor de bloques DEBE permitir agregar cualquiera de los 10 tipos de bloque, editar cada uno con sus campos, reordenarlos, duplicarlos y quitarlos.
+- **RF-005**: El editor de bloques DEBE permitir agregar cualquiera de los 10 tipos de bloque, editar cada uno con sus campos, reordenarlos, duplicarlos y quitarlos. En los textos de párrafo, cita y lista DEBE ofrecer solo las marcas en línea que el sitio ya interpreta (negrita, cursiva, enlaces y código en línea) y NO DEBE permitir HTML.
 - **RF-006**: El panel DEBE validar el contenido antes de enviarlo y DEBE mostrar los errores en el bloque y el campo exactos, con el mismo criterio que aplica el sistema al guardar.
-- **RF-007**: El panel DEBE permitir subir imágenes desde el equipo del usuario para la imagen destacada, los bloques de imagen y las galerías, registrando ancho y alto y exigiendo texto alternativo o la marca de decorativa (spec 001, RF-004). Solo se aceptan imágenes de hasta 5 MB.
+- **RF-007**: El panel DEBE permitir subir imágenes desde el equipo del usuario para la imagen destacada, los bloques de imagen y las galerías, registrando ancho y alto y exigiendo texto alternativo o la marca de decorativa (spec 001, RF-004). Solo se aceptan imágenes JPEG, PNG, WebP o AVIF de hasta 5 MB; el servidor valida el tipo real del archivo, no solo su extensión. Una imagen que se quita de un artículo, o que queda sin uso al eliminarlo, DEBE borrarse del almacenamiento salvo que otro contenido (artículo, galería o perfil) la siga usando.
 - **RF-008**: El panel DEBE mostrar el slug sugerido mientras se escribe el título y DEBE mostrar el slug definitivo después de guardar.
 - **RF-009**: El panel DEBE detectar ediciones concurrentes (spec 001, RF-008), informarlas sin descartar lo escrito por el usuario y permitirle recargar la versión vigente.
 - **RF-010**: El panel DEBE avisar antes de salir de una pantalla con cambios sin guardar.
@@ -230,7 +235,7 @@ Un miembro desactivado se comporta como anónimo.
 
 ### Entidades clave *(si la feature involucra datos)*
 
-- **Sesión**: la identidad del miembro que usa el panel, con su rol y su estado. Vence y se renueva; al cerrarla, deja de valer.
+- **Sesión**: la identidad del miembro que usa el panel, con su rol y su estado. Vence tras 8 horas sin actividad y se renueva con el uso; al cerrarla, deja de valer.
 - **Artículo, categoría, etiqueta, perfil**: las entidades de la spec 001, sin cambios en su definición.
 - **Imagen subida**: un archivo de imagen almacenado para el contenido, con ancho y alto; se usa en la imagen destacada, en bloques de imagen y galerías, y en la foto de perfil.
 
