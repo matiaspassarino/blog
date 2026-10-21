@@ -544,7 +544,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 - [X] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
 - [X] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
 - [X] T070 Recorrer [quickstart.md](quickstart.md) del paso 1 al 5 y confirmar cada "Esperado". Actualizar el quickstart si algo cambió.
-- [ ] T071 Ejecutar `/validar` y resolver todos los hallazgos BLOQUEANTES de `arquitecto-db` y `consistencia-codigo` (`revisor-ux-ui` no aplica: no hay UI).
+- [X] T071 Ejecutar `/validar` y resolver todos los hallazgos BLOQUEANTES de `arquitecto-db` y `consistencia-codigo` (`revisor-ux-ui` no aplica: no hay UI).
 - [X] T072 Actualizar `CLAUDE.md` con la sección "Modelo de datos": un enlace a `specs/001-modelo-de-contenido/data-model.md` y las reglas para nuevas migraciones (prefijos de triggers, `search_path = ''`, grants explícitos).
 
 ---
