@@ -193,8 +193,8 @@ description: "Lista de tareas: panel de administración"
 
 ### Tests de la Historia 4 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T074 [P] [H4] Crear `apps/admin/src/lib/filtros.test.ts` (RF-016, RF-017): `leerFiltros(searchParams)` valida con Zod (`estado`, `categoria` uuid, `autor` uuid, `q` ≤ 100 caracteres, `pagina` entero ≥ 1 con 1 por defecto) e ignora valores inválidos; `aSearchParams(filtros)` omite los vacíos y es inverso de `leerFiltros`.
-- [ ] T075 [P] [H4] Crear `e2e/admin/lista-articulos.spec.ts` (H4-E1 a E4, CE-007): la lista muestra todos los estados y autores ordenados por última modificación, con el estado distinguible por texto además del color; filtrar por estado, categoría y autor (combinados) deja solo los que cumplen todo y la dirección conserva el filtro (recargar y abrir en otra pestaña da lo mismo); buscar una palabra del título con y sin tildes ni mayúsculas; sin coincidencias → estado vacío con "Quitar filtros"; paginación de 20 (con más de 20 artículos de prueba); una página fuera de rango vuelve a la 1; la navegación entre pantallas tarda menos de 1 s con los datos de demo.
+- [X] T074 [P] [H4] Crear `apps/admin/src/lib/filtros.test.ts` (RF-016, RF-017): `leerFiltros(searchParams)` valida con Zod (`estado`, `categoria` uuid, `autor` uuid, `q` ≤ 100 caracteres, `pagina` entero ≥ 1 con 1 por defecto) e ignora valores inválidos; `aSearchParams(filtros)` omite los vacíos y es inverso de `leerFiltros`.
+- [X] T075 [P] [H4] Crear `e2e/admin/lista-articulos.spec.ts` (H4-E1 a E4, CE-007): la lista muestra todos los estados y autores ordenados por última modificación, con el estado distinguible por texto además del color; filtrar por estado, categoría y autor (combinados) deja solo los que cumplen todo y la dirección conserva el filtro (recargar y abrir en otra pestaña da lo mismo); buscar una palabra del título con y sin tildes ni mayúsculas; sin coincidencias → estado vacío con "Quitar filtros"; paginación de 20 (con más de 20 artículos de prueba); una página fuera de rango vuelve a la 1; la navegación entre pantallas tarda menos de 1 s con los datos de demo.
 
 ### Implementación de la Historia 4
 
