@@ -45,7 +45,12 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
   - Reenviar: `reenviarInvitacion(id)` repite la invitación para esa cuenta; el enlace anterior deja de valer porque el proveedor emite un token nuevo.
   - Si el paso 1 funciona y el 2 falla, queda una cuenta inactiva "invitada" sin rol: el admin la ve en la lista y reintenta con "Reenviar". Se documenta en el contrato.
 - **Razón**: spec 003 RF-027. `user_metadata` lo puede escribir el propio usuario, por eso el rol va en `app_metadata`, que solo escribe el servidor.
-- **Riesgo (spike en T-correos)**: confirmar que `inviteUserByEmail` sobre una cuenta **aún no confirmada** reenvía el correo en lugar de fallar. Alternativa si falla: `auth.admin.generateLink({ type: 'invite' })` más envío por el SMTP propio, o `resetPasswordForEmail` para la cuenta sin confirmar.
+- **Spike T086 (2026-10-21, Supabase local, resuelto sin fallback)**:
+  - `inviteUserByEmail` crea el usuario (`invited_at` con valor, sin `email_confirmed_at`) y `crear_perfil` deja el perfil `activo = false`.
+  - `updateUserById(id, { app_metadata: { rol: 'editor' } })` deja el perfil con ese rol y `activo = true`; `listar_equipo` lo devuelve con `acceso = 'invitado'`.
+  - Invitar otra vez a la cuenta sin confirmar **no falla**: devuelve el mismo `id`, llega un segundo correo con token nuevo y el enlace del primero responde `otp_expired`; el del segundo es válido. No hace falta `generateLink` ni `resetPasswordForEmail`.
+  - Con la plantilla por defecto el enlace usa `token=` (no `token_hash`): la plantilla propia de T093 lo reemplaza por `{{ .TokenHash }}`.
+- **Riesgo residual**: en la nube, sin SMTP propio, Supabase limita los correos y solo envía a miembros de la organización (T106).
 - **Alternativas**: `createUser` con contraseña temporal (viola RF-027: el admin conocería la contraseña); registro público (prohibido por la 001, RF-022).
 
 ## D7. Enlaces de correo: confirmación con un botón, no al abrir

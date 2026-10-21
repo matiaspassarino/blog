@@ -32,3 +32,19 @@ export async function cantidadDeCorreos(correo: string): Promise<number> {
 export async function vaciarBandeja() {
   await fetch(`${BASE}/api/v1/messages`, { method: 'DELETE' });
 }
+
+/** Los enlaces del correo traen el origen de `site_url` (127.0.0.1); se reescriben al del navegador para compartir cookies. */
+export function enOrigenLocal(enlace: string, baseURL: string): string {
+  const destino = new URL(enlace);
+  return `${new URL(baseURL).origin}${destino.pathname}${destino.search}`;
+}
+
+/** Espera el enlace de un correo posterior al `anterior` (tras reenviar una invitación). */
+export async function esperarEnlaceDistinto(correo: string, anterior: string, { intentos = 20, esperaMs = 500 } = {}) {
+  for (let i = 0; i < intentos; i += 1) {
+    const enlace = await enlaceDelCorreo(correo, { intentos: 1, esperaMs: 0 }).catch(() => null);
+    if (enlace && enlace !== anterior) return enlace;
+    await new Promise((resolver) => setTimeout(resolver, esperaMs));
+  }
+  throw new Error(`No llegó un correo nuevo a ${correo}`);
+}

@@ -33,3 +33,26 @@ export async function eliminarArticuloPorApi(token: string, id: string): Promise
   if (!respuesta.ok) throw new Error(`La API respondió ${respuesta.status} al eliminar ${id}`);
   return (await respuesta.json()) as { id: string }[];
 }
+
+/**
+ * `PATCH /rest/v1/perfiles?id=eq.<id>` con la sesión del token: el intento de saltarse la interfaz para cambiar rol o
+ * estado. Devuelve el estado HTTP y las filas modificadas (con RLS y los triggers, un editor no modifica ninguna).
+ */
+export async function actualizarPerfilPorApi(
+  token: string,
+  id: string,
+  cambios: Record<string, unknown>,
+): Promise<{ estado: number; filas: unknown[] }> {
+  const respuesta = await fetch(`${URL_API}/rest/v1/perfiles?id=eq.${id}&select=id`, {
+    method: 'PATCH',
+    headers: {
+      apikey: claveAnon(),
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(cambios),
+  });
+  const cuerpo: unknown = await respuesta.json().catch(() => []);
+  return { estado: respuesta.status, filas: Array.isArray(cuerpo) ? cuerpo : [] };
+}
