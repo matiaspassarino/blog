@@ -152,3 +152,51 @@ describe('contraste WCAG 2.1 AA de los tokens de color (§VII.4)', () => {
     expect(contraste(primerPlano, fondo)).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('tokens de estado del panel (spec 003, T005)', () => {
+  it.each([
+    '--color-advertencia',
+    '--color-exito-suave',
+    '--color-error-suave',
+    '--color-advertencia-suave',
+    '--color-exito-borde',
+    '--color-error-borde',
+    '--color-advertencia-borde',
+    '--color-overlay',
+    '--tactil-min',
+  ])('existe %s en tokens.css', (nombre) => {
+    expect(tokens.has(nombre), `falta ${nombre}`).toBe(true);
+  });
+
+  it('--tactil-min equivale a 44 px (2,75rem), el área táctil mínima (§VII.4)', () => {
+    expect(tokens.get('--tactil-min')).toBe('2.75rem');
+  });
+
+  it.each([
+    ['--color-exito', '--color-fondo'],
+    ['--color-exito', '--color-superficie'],
+    ['--color-exito', '--color-exito-suave'],
+    ['--color-error', '--color-fondo'],
+    ['--color-error', '--color-superficie'],
+    ['--color-error', '--color-error-suave'],
+    ['--color-advertencia', '--color-fondo'],
+    ['--color-advertencia', '--color-superficie'],
+    ['--color-advertencia', '--color-advertencia-suave'],
+    ['--color-marca', '--color-marca-suave'],
+  ])('texto de estado: %s sobre %s tiene contraste ≥ 4,5:1', (primerPlano, fondo) => {
+    expect(contraste(primerPlano, fondo)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['--color-exito-borde', '--color-fondo'],
+    ['--color-error-borde', '--color-fondo'],
+    ['--color-advertencia-borde', '--color-fondo'],
+    ['--color-foco', '--color-superficie'],
+    ['--color-foco', '--color-marca-suave'],
+    ['--color-foco', '--color-exito-suave'],
+    ['--color-foco', '--color-error-suave'],
+    ['--color-foco', '--color-advertencia-suave'],
+  ])('no textual: %s sobre %s tiene contraste ≥ 3:1', (primerPlano, fondo) => {
+    expect(contraste(primerPlano, fondo)).toBeGreaterThanOrEqual(3);
+  });
+});

@@ -11,7 +11,11 @@ import type { ErrorBloque } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
 import { agruparPorBloque, idDeCampo, primerCampoInvalido } from './errores-campo';
 
-const error = (indice: number, campo: string, mensaje = 'Mensaje de prueba'): ErrorBloque => ({ indice, campo, mensaje });
+const error = (indice: number, campo: string, mensaje = 'Mensaje de prueba'): ErrorBloque => ({
+  indice,
+  campo,
+  mensaje,
+});
 
 describe('idDeCampo', () => {
   it('CE-004: convierte { indice, campo } en bloque-<indice>-<campo>', () => {

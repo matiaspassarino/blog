@@ -43,7 +43,7 @@ El admin **no** invalida la caché del sitio: lo hacen los triggers de la base (
 | Principio | Cumple | Nota |
 |---|---|---|
 | II. Stack cerrado (sin deps no aprobadas) | [x] con condición | `@supabase/ssr` ya está en la tabla; las dependencias de shadcn/ui son las que §II exige y quedan sujetas a la aprobación de `consistencia-codigo` |
-| III. Límites de arquitectura (sin imports entre apps, datos vía packages/db) | [x] | El cliente con sesión y el de `service_role` salen de `@blog/db/servidor` (subpath fuera del índice); `apps/web` no lo importa. La lógica de permisos, bloques e imágenes es pura y vive en `packages/*` |
+| III. Límites de arquitectura (sin imports entre apps, datos vía packages/db) | [x] | El cliente con sesión sale de `@blog/db/servidor` y el de `service_role` de `@blog/db/servicio` (subpaths fuera del índice); `apps/web` no importa ninguno. La lógica de permisos, bloques e imágenes es pura y vive en `packages/*` |
 | IV. SEO primero (pre-render, JS mínimo, metadatos) | [x] | No aplica a `apps/admin`; el panel es `noindex` en tres capas (D20). `apps/web` no cambia |
 | V. Datos (migraciones, RLS + pgTAP, nomenclatura en español) | [x] | Una migración versionada, sin tablas nuevas, sin cambios de RLS; funciones con privilegios explícitos y pgTAP. Revisado por `arquitecto-db` (ver data-model) |
 | VI. Bloques (esquema único en packages/bloques) | [x] | El editor y el servidor usan `validarContenido`; no hay esquema paralelo. Las 4 marcas en línea son las de D9 de la 001 |
@@ -61,7 +61,7 @@ El admin **no** invalida la caché del sitio: lo hacen los triggers de la base (
 | Taxonomías y etiquetas de un artículo | `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia`, `asignarEtiquetas` (`equipo-taxonomias.ts`) | Lecturas con conteo: `listarTaxonomiasConConteo` en `packages/db/src/consultas/panel.ts` | Las lecturas del equipo no existían (solo las públicas) |
 | Perfil y equipo | `actualizarPerfilPropio`, `cambiarRol`, `cambiarActivo` (`equipo-perfiles.ts`) | `listarEquipo` (RPC `listar_equipo`) | Hace falta el correo y el estado de acceso, que `perfiles` no tiene |
 | Leer el perfil propio y la lista de autores del filtro | `Perfil` (`packages/db/src/consultas/equipo-perfiles.ts`) | `obtenerPerfilPropio`, `listarAutores` en `packages/db/src/consultas/panel.ts` | Las lecturas del equipo no existían y la app no puede consultar tablas (§III.2) |
-| Storage del bucket `medios` y Auth Admin | políticas `medios_*_equipo` (001) | `crearSubidaFirmada`, `descargarMedio`, `borrarMedios` en `packages/db/src/medios.ts`; `invitarMiembroPorCorreo`, `reenviarInvitacionPorCorreo` en `packages/db/src/servidor.ts` | §III.2: todo acceso a datos pasa por `@blog/db`; las acciones solo orquestan |
+| Storage del bucket `medios` y Auth Admin | políticas `medios_*_equipo` (001) | `crearSubidaFirmada`, `descargarMedio`, `borrarMedios` en `packages/db/src/medios.ts`; `invitarMiembroPorCorreo`, `reenviarInvitacionPorCorreo` en `packages/db/src/servicio.ts` | §III.2: todo acceso a datos pasa por `@blog/db`; las acciones solo orquestan |
 | Errores de dominio | `ErrorDominio`, `traducirError`, `CodigoError` (`errores.ts`) | `mensajeDeError` en `apps/admin/src/lib/mensajes.ts` | Es presentación en español; no pertenece a la capa de datos |
 | Validación de bloques e imagen | `validarContenido`, `esquemaImagen`, `validarImagen` | — | Se usan igual en cliente y servidor |
 | Crear un bloque vacío | `crearBloque` (`packages/bloques/src/utilidades.ts`) | `agregarBloque`, `moverBloque`, `duplicarBloque`, `quitarBloque`, `actualizarBloque` en `packages/bloques/src/operaciones.ts` | Operaciones de lista que el sitio nunca necesitó |
@@ -71,7 +71,7 @@ El admin **no** invalida la caché del sitio: lo hacen los triggers de la base (
 | URL pública de una imagen | `urlImagen(ruta, supabaseUrl)` (hoy en `apps/web/src/lib/imagenes.ts`, usada en `AvatarAutor.astro`, `Seo.astro`, `TarjetaArticulo.astro`, `blog/[slug].astro` y `json-ld.ts`) | — (se **mueve solo esa función**, con su test, a `packages/db/src/medios.ts`; `imagenes.ts` conserva `precalcularVariantes` y `CALIDAD_IMAGEN`, que importan `astro:assets`) | Web y admin la necesitan; §VIII.3: una lógica usada en dos lugares se extrae |
 | Botón | `clasesBoton` (`@blog/ui/clases`) | `Button` shadcn que la compone | Una sola definición del botón |
 | Tokens y tema | `@blog/ui/tokens.css`, `identidad` | — | `apps/admin/src/app/globals.css` ya los importa |
-| Cliente Supabase | `crearClientePublico` (sin sesión) | `crearClienteServidor`, `crearClienteNavegador`, `crearClienteAdmin` en `packages/db/src/servidor.ts` y `navegador.ts` | El panel necesita sesión por cookies; `crearClientePublico` desactiva la persistencia |
+| Cliente Supabase | `crearClientePublico` (sin sesión) | `crearClienteServidor`, `crearClienteNavegador`, `crearClienteAdmin` en `packages/db/src/servidor.ts`, `navegador.ts` y `servicio.ts` (la clave de servicio, aparte) | El panel necesita sesión por cookies; `crearClientePublico` desactiva la persistencia |
 | Permisos por rol | RLS y triggers de la 001 (verdad) | `puede`, `ACCIONES`, `transicionesDe` en `packages/db/src/permisos.ts` | Ocultar acciones y dar mensajes claros antes de ir a la base (§III.5) |
 | Tipo y dimensiones de imagen | — | `detectarImagen` en `packages/bloques/src/imagen-archivo.ts`; `rutasDeImagenes` | No existe; pura y sin dependencia (D10) |
 | Paginación | `Pagina`, `OpcionesPagina` (`packages/db/src/paginacion.ts`) | — | `listarArticulosPanel` devuelve `Pagina<FilaArticuloPanel>` |
@@ -179,7 +179,8 @@ apps/
     └── src/                         # ver contracts/rutas.md ("Estructura de carpetas")
 packages/
 ├── db/src/
-│   ├── servidor.ts                  # crearClienteServidor, crearClienteAdmin, invitarMiembroPorCorreo, reenviarInvitacionPorCorreo  (subpath ./servidor)
+│   ├── servidor.ts                  # crearClienteServidor  (subpath ./servidor)
+│   ├── servicio.ts                  # crearClienteAdmin, invitarMiembroPorCorreo, reenviarInvitacionPorCorreo  (subpath ./servicio)
 │   ├── navegador.ts                 # crearClienteNavegador (subida firmada)
 │   ├── permisos.ts                  # ACCIONES, puede, transicionesDe
 │   ├── medios.ts                    # urlImagen, rutaDeMedio, crearSubidaFirmada, descargarMedio, borrarMedios
@@ -211,7 +212,7 @@ e2e/admin/                           # specs listadas en el plan de pruebas
 | El renderer de bloques usa clases Tailwind que el admin no escanea | `@source` hacia `packages/bloques/src` y un E2E de vista previa que compara la presentación |
 | Imágenes subidas y nunca guardadas quedan huérfanas | Aceptado en el MVP (D11); se anota para una spec de limpieza programada |
 | SMTP propio sin configurar en la nube | Paso manual del usuario (quickstart); mientras tanto, las invitaciones solo llegan a miembros de la organización de Supabase |
-| `NEXT_PUBLIC_*` y `service_role` mezcladas por error | el test de límites de T007 (`packages/db/src/limites.test.ts`) más `no-restricted-imports` en `apps/admin`; prohíbe `@blog/db/servidor` y `lib/servicio` fuera de acciones y desde `apps/web`. No se agrega `server-only` (paquete fuera de §II) |
+| `NEXT_PUBLIC_*` y `service_role` mezcladas por error | el test de límites de T007 (`packages/db/src/limites.test.ts`) más `no-restricted-imports` en `apps/admin`; prohíbe `@blog/db/servicio` y `lib/servicio` fuera de las acciones, y `@blog/db/servidor`/`navegador` en `apps/web`. No se agrega `server-only` (paquete fuera de §II) |
 
 ## Seguimiento de complejidad
 

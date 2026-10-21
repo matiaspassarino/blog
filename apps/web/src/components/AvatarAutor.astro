@@ -1,10 +1,10 @@
 ---
 // Foto del autor, o sus iniciales si no tiene (RF-001). Expone "Foto de <nombre>" como imagen
 // accesible, salvo `decorativo` (cuando el nombre ya está al lado y se anunciaría dos veces).
-import type { AutorPublico } from '@blog/db';
+import { urlImagen, type AutorPublico } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
-import { CALIDAD_IMAGEN, urlImagen } from '../lib/imagenes';
+import { CALIDAD_IMAGEN } from '../lib/imagenes';
 
 interface Props {
   autor: AutorPublico;

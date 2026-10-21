@@ -120,7 +120,11 @@ describe.skipIf(sinSupabase)('lecturas del panel (integración)', () => {
     it('H4-E1: ordena por actualizado_en descendente (lo último editado, primero)', async () => {
       const pagina = await listarArticulosPanel(editor, { q: sufijo });
 
-      expect(pagina.items.map((fila) => fila.id)).toEqual([idBorradorSinCategoria, idBorradorConCategoria, idPublicado]);
+      expect(pagina.items.map((fila) => fila.id)).toEqual([
+        idBorradorSinCategoria,
+        idBorradorConCategoria,
+        idPublicado,
+      ]);
     });
 
     it('H4-E2: filtra por estado', async () => {
@@ -139,7 +143,9 @@ describe.skipIf(sinSupabase)('lecturas del panel (integración)', () => {
     it('H4-E2: filtra por autor', async () => {
       const pagina = await listarArticulosPanel(editor, { q: sufijo, autor: idEditor });
 
-      expect(pagina.items.map((fila) => fila.id).sort()).toEqual([idBorradorConCategoria, idBorradorSinCategoria].sort());
+      expect(pagina.items.map((fila) => fila.id).sort()).toEqual(
+        [idBorradorConCategoria, idBorradorSinCategoria].sort(),
+      );
     });
 
     it('H4-E2: combina estado, categoría y autor', async () => {
@@ -192,13 +198,23 @@ describe.skipIf(sinSupabase)('lecturas del panel (integración)', () => {
 
       expect(equipo).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: idAdmin, correo: 'admin@demo.local', rol: 'admin', activo: true, acceso: 'activo' }),
-          expect.objectContaining({ id: idEditor, correo: 'editor@demo.local', rol: 'editor', activo: true, acceso: 'activo' }),
+          expect.objectContaining({
+            id: idAdmin,
+            correo: 'admin@demo.local',
+            rol: 'admin',
+            activo: true,
+            acceso: 'activo',
+          }),
+          expect.objectContaining({
+            id: idEditor,
+            correo: 'editor@demo.local',
+            rol: 'editor',
+            activo: true,
+            acceso: 'activo',
+          }),
         ]),
       );
-      expect(equipo[0]).toEqual(
-        expect.objectContaining({ nombre: expect.any(String), creado_en: expect.any(String) }),
-      );
+      expect(equipo[0]).toEqual(expect.objectContaining({ nombre: expect.any(String), creado_en: expect.any(String) }));
     });
 
     it('H6-E6: un editor recibe sin_permiso', async () => {

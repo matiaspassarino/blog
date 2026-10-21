@@ -34,7 +34,9 @@ describe.skipIf(sinSupabase)('operaciones de Storage del bucket medios (integrac
   /** Sube un objeto con la sesión del editor (como lo hace el navegador con la URL firmada). */
   async function subir(nombre: string) {
     const ruta = `${carpeta}/${nombre}`;
-    const { error } = await editor.storage.from('medios').upload(ruta, BYTES, { contentType: 'image/png', upsert: true });
+    const { error } = await editor.storage
+      .from('medios')
+      .upload(ruta, BYTES, { contentType: 'image/png', upsert: true });
     if (error) throw new Error(`No se pudo subir el objeto de prueba: ${error.message}`);
     subidas.push(ruta);
     return ruta;

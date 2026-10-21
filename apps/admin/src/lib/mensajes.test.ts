@@ -22,7 +22,12 @@ const CODIGOS_DEL_DOMINIO: Record<CodigoError, true> = {
   desconocido: true,
 };
 
-const CODIGOS_DEL_PANEL = ['no_autenticado', 'imagen_invalida', 'credenciales_invalidas', 'cuenta_desactivada'] as const;
+const CODIGOS_DEL_PANEL = [
+  'no_autenticado',
+  'imagen_invalida',
+  'credenciales_invalidas',
+  'cuenta_desactivada',
+] as const;
 
 const TODOS = [...(Object.keys(CODIGOS_DEL_DOMINIO) as CodigoError[]), ...CODIGOS_DEL_PANEL];
 
@@ -42,7 +47,8 @@ const MENSAJES_FIJOS: Record<string, string> = {
   desconocido: 'Algo salió mal. Prueba de nuevo en unos minutos.',
 };
 
-const JERGA = /\b(RLS|trigger|uuid|postgres|postgrest|supabase|jwt|stack|exception|null|undefined)\b|P0001|42501|23505|23503|23514|PGRST/i;
+const JERGA =
+  /\b(RLS|trigger|uuid|postgres|postgrest|supabase|jwt|stack|exception|null|undefined)\b|P0001|42501|23505|23503|23514|PGRST/i;
 
 describe('mensajeDeError', () => {
   it.each(TODOS)('RF-023: %s tiene un mensaje en español', (codigo) => {

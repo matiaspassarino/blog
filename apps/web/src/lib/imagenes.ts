@@ -2,14 +2,9 @@
 // optimizadas. Las variantes se calculan antes del render porque los renderers React de
 // @blog/bloques son síncronos.
 import type { Imagen } from '@blog/bloques';
+import { urlImagen } from '@blog/db';
 import { getImage } from 'astro:assets';
 import { ANCHOS_IMAGEN } from './anchos-imagen';
-
-/** Ruta absoluta tal cual; relativa, al bucket público `medios` de Supabase Storage. */
-export function urlImagen(ruta: string, supabaseUrl: string): string {
-  if (/^https?:\/\//.test(ruta)) return ruta;
-  return `${supabaseUrl}/storage/v1/object/public/medios/${ruta.replace(/^\/+/, '')}`;
-}
 
 type Variante = { src: string; srcset: string; width: number; height: number };
 export type MapaVariantes = Map<string, Variante>;

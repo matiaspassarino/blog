@@ -57,3 +57,21 @@ export {
   type NuevaTaxonomia,
   type CambiosTaxonomia,
 } from './consultas/equipo-taxonomias';
+export { urlImagen, rutaDeMedio, crearSubidaFirmada, descargarMedio, borrarMedios } from './medios';
+export { ACCIONES, puede, transicionesDe, type Accion } from './permisos';
+export {
+  listarArticulosPanel,
+  listarEquipo,
+  rutasEnUso,
+  obtenerPerfilPropio,
+  listarAutores,
+  listarTaxonomiasConConteo,
+  listarCategoriasPanel,
+  listarEtiquetasPanel,
+  obtenerArticuloParaEditar,
+  type FiltrosPanel,
+  type FilaArticuloPanel,
+  type FilaEquipo,
+  type TaxonomiaConConteo,
+  type ArticuloParaEditar,
+} from './consultas/panel';

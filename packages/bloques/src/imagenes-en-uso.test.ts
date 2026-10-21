@@ -56,7 +56,11 @@ describe('rutasDeImagenes', () => {
 
   it('D11: no repite una ruta que aparece varias veces', () => {
     const entrada = articulo(
-      [bloqueImagen('articulos/a.webp'), bloqueImagen('articulos/a.webp'), bloqueGaleria('articulos/a.webp', 'articulos/b.webp')],
+      [
+        bloqueImagen('articulos/a.webp'),
+        bloqueImagen('articulos/a.webp'),
+        bloqueGaleria('articulos/a.webp', 'articulos/b.webp'),
+      ],
       'articulos/a.webp',
     );
 
@@ -64,7 +68,12 @@ describe('rutasDeImagenes', () => {
   });
 
   it('D11: ignora los bloques que no tienen imagen', () => {
-    const entrada = articulo([crearBloque('parrafo'), crearBloque('titulo'), crearBloque('separador'), crearBloque('cta')]);
+    const entrada = articulo([
+      crearBloque('parrafo'),
+      crearBloque('titulo'),
+      crearBloque('separador'),
+      crearBloque('cta'),
+    ]);
 
     expect(rutasDeImagenes(entrada)).toEqual([]);
   });
@@ -84,7 +93,10 @@ describe('rutasDeImagenes', () => {
 
 describe('rutasQuitadas', () => {
   it('D11: devuelve las rutas que estaban y ya no están', () => {
-    const antes = articulo([bloqueImagen('articulos/a.webp'), bloqueImagen('articulos/b.webp')], 'articulos/portada.webp');
+    const antes = articulo(
+      [bloqueImagen('articulos/a.webp'), bloqueImagen('articulos/b.webp')],
+      'articulos/portada.webp',
+    );
     const despues = articulo([bloqueImagen('articulos/a.webp')], 'articulos/portada.webp');
 
     expect(rutasQuitadas(antes, despues)).toEqual(['articulos/b.webp']);
@@ -112,10 +124,17 @@ describe('rutasQuitadas', () => {
   });
 
   it('D11: quitar todo el contenido devuelve todas las rutas sin repetir', () => {
-    const antes = articulo([bloqueImagen('articulos/a.webp'), bloqueGaleria('articulos/a.webp', 'articulos/b.webp')], 'articulos/p.webp');
+    const antes = articulo(
+      [bloqueImagen('articulos/a.webp'), bloqueGaleria('articulos/a.webp', 'articulos/b.webp')],
+      'articulos/p.webp',
+    );
     const despues = articulo([]);
 
-    expect([...rutasQuitadas(antes, despues)].sort()).toEqual(['articulos/a.webp', 'articulos/b.webp', 'articulos/p.webp']);
+    expect([...rutasQuitadas(antes, despues)].sort()).toEqual([
+      'articulos/a.webp',
+      'articulos/b.webp',
+      'articulos/p.webp',
+    ]);
   });
 
   it('D11: sin cambios en las imágenes devuelve una lista vacía', () => {

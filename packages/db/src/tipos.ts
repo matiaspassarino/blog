@@ -168,11 +168,24 @@ isOneToOne: false
 "entradas_sitemap":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"listar_articulos_panel":
+{ Args: { "p_autor_id"?: string,"p_categoria_id"?: string,"p_desplazamiento"?: number,"p_estado"?: Database["public"]['Enums']["estado_articulo"],"p_limite"?: number,"p_texto"?: string }; Returns: {
+              "actualizado_en": string,"autor_id": string,"autor_nombre": string,"categoria_id": string,"categoria_nombre": string,"estado": Database["public"]['Enums']["estado_articulo"],"id": string,"programado_para": string,"publicado_en": string,"slug": string,"titulo": string,"total": number
+            }[]
+                           },
+"listar_equipo":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "acceso": string,"activo": boolean,"correo": string,"creado_en": string,"id": string,"nombre": string,"rol": Database["public"]['Enums']["rol_miembro"]
+            }[]
+                           },
 "previsualizar_slug":
 { Args: { "texto": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
                            },
 "resolver_redireccion":
 { Args: { "slug": string,"tipo": Database["public"]['Enums']["tipo_entidad"] }; Returns: string
+                           },
+"rutas_en_uso":
+{ Args: { "p_rutas": (string)[] }; Returns: (string)[]
                            }
           }
           Enums: {

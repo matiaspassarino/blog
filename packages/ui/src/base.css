@@ -1,0 +1,20 @@
+/*
+ * Reglas base compartidas por web y admin (constitucion.md §VII.4 y §VIII): foco visible y respeto
+ * de prefers-reduced-motion. Se importa con: @import "@blog/ui/base.css";
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Foco visible en todo elemento interactivo. */
+:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
