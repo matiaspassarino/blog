@@ -129,6 +129,12 @@ describe.skipIf(sinSupabase)('Server Actions del equipo (H6)', () => {
 
       expect(resultado.ok).toBe(true);
       expect(await filaPorCorreo(correo)).toMatchObject({ rol: 'admin', acceso: 'invitado' });
+      // Un admin invitado ya cuenta como admin activo: se quita para no alterar las pruebas del último admin.
+      const invitado = await filaPorCorreo(correo);
+      if (invitado) {
+        await servicio.from('perfiles').delete().eq('id', invitado.id);
+        await servicio.auth.admin.deleteUser(invitado.id);
+      }
     });
 
     it('H6-E3: un correo que ya pertenece a un miembro devuelve validacion con un mensaje claro', async () => {
@@ -369,7 +375,8 @@ describe.skipIf(sinSupabase)('Server Actions del equipo (H6)', () => {
         await invitarMiembro({ nombre: 'Repetido', correo: 'editor@demo.local', rol: 'editor' }),
         await reenviarInvitacion({ id: ID_EDITOR_DEMO }),
         await reenviarInvitacion({ id: crypto.randomUUID() }),
-        await cambiarRolAccion({ id: miembro.id, rol: 'admin' }),
+        // Sigue siendo editor: con un segundo admin, desactivar al demo ya no daría `ultimo_admin`.
+        await cambiarRolAccion({ id: miembro.id, rol: 'editor' }),
         await cambiarActivoAccion({ id: idAdmin, activo: false }),
       ];
       const invitada = await filaPorCorreo(correo);

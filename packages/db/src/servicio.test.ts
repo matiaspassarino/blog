@@ -151,8 +151,9 @@ describe.skipIf(sinSupabase)('invitaciones por correo (integración, H6)', () =>
 
       expect(motivo).toBeInstanceOf(Error);
       expect((motivo as Error).message).toMatch(/sin rol/i);
-      // La cuenta existe: el admin la ve en la lista y puede reintentar con "Reenviar".
-      expect(await filaDelEquipo(correo)).toMatchObject({ acceso: 'invitado' });
+      // La cuenta existe pero sigue inactiva (sin rol no se activa el perfil): la lista la muestra como
+      // "desactivado" y el admin la recupera con "Reactivar" (data-model §5: invitado = activo y sin confirmar).
+      expect(await filaDelEquipo(correo)).toMatchObject({ activo: false, acceso: 'desactivado' });
     });
   });
 

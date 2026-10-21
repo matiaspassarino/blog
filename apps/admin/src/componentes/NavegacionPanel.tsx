@@ -13,6 +13,8 @@ const ENLACES = [
   { href: '/categorias', texto: 'Categorías' },
   { href: '/etiquetas', texto: 'Etiquetas' },
 ] as const;
+const ENLACE_EQUIPO = { href: '/equipo', texto: 'Equipo' } as const;
+const ENLACE_PERFIL = { href: '/perfil', texto: 'Mi perfil' } as const;
 
 type Props = {
   nombre: string;
@@ -44,7 +46,7 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
     return () => document.removeEventListener('keydown', alTeclear);
   }, [abierto]);
 
-  const enlaces = puedeVerEquipo ? [...ENLACES, { href: '/equipo', texto: 'Equipo' }] : [...ENLACES];
+  const enlaces = [...ENLACES, ...(puedeVerEquipo ? [ENLACE_EQUIPO] : []), ENLACE_PERFIL];
 
   return (
     <>
@@ -91,13 +93,6 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
           <div className="border-t border-separador p-4">
             <p className="font-semibold">{nombre}</p>
             <p className="text-sm text-texto-suave">{ETIQUETA_ROL[rol]}</p>
-            <EnlaceConAviso
-              href="/perfil"
-              className="mt-2 flex min-h-(--tactil-min) items-center underline"
-              aria-current={ruta === '/perfil' ? 'page' : undefined}
-            >
-              Mi perfil
-            </EnlaceConAviso>
             {cerrarSesion}
           </div>
         </div>

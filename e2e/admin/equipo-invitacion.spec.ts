@@ -95,6 +95,8 @@ test.describe('Alta por invitación (H6-E1)', () => {
     await expect(avisoDeExito(page, 'Invitación enviada')).toBeVisible();
     await expect(selectorDeRol(filaDelMiembro(page, correo), nombre)).toHaveValue('admin');
     expect(await perfilPorCorreo(correo)).toMatchObject({ rol: 'admin' });
+    // Un admin invitado cuenta como admin activo: se borra ya para no alterar las pruebas del único admin.
+    await eliminarPorCorreo(correo);
   });
 
   test('RF-027: sin nombre o con un correo inválido no se envía la invitación y se explica el problema', async ({

@@ -26,8 +26,14 @@ export default async function PaginaConfirmar({ searchParams }: PageProps<'/auth
       ) : (
         <>
           <p role="alert">Este enlace ya se usó o venció.</p>
-          <p>Pide uno nuevo con tu correo.</p>
-          <FormularioRecuperacion />
+          {tipo === 'invite' ? (
+            <p>Pídele a un administrador que te envíe otra invitación.</p>
+          ) : (
+            <>
+              <p>Pide uno nuevo con tu correo.</p>
+              <FormularioRecuperacion />
+            </>
+          )}
         </>
       )}
       <Link href="/ingreso" className="flex min-h-(--tactil-min) items-center underline">

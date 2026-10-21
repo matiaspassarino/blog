@@ -81,7 +81,7 @@ Lista: `apps/admin/src/consultas/taxonomias.ts` → `select=*,articulos(count)` 
 
 | Acción | Entrada | Llama a | Notas |
 |---|---|---|---|
-| `invitarMiembro` | `{ nombre, correo, rol }` | `invitarMiembroPorCorreo` de `@blog/db/servicio` (**service_role**: `inviteUserByEmail` + `updateUserById(app_metadata.rol)`, D6) | Correo ya existente → `validacion` "Ese correo ya pertenece al equipo". Si el paso 2 falla el miembro queda en "invitado" sin rol efectivo y se informa para reintentar. |
+| `invitarMiembro` | `{ nombre, correo, rol }` | `invitarMiembroPorCorreo` de `@blog/db/servicio` (**service_role**: `inviteUserByEmail` + `updateUserById(app_metadata.rol)`, D6) | Correo ya existente → `validacion` "Ese correo ya pertenece al equipo". Si el paso 2 falla la cuenta queda inactiva sin rol, la lista la muestra como "desactivado" y se informa que use "Reactivar". |
 | `reenviarInvitacion` | `{ id }` | `reenviarInvitacionPorCorreo` de `@blog/db/servicio` (**service_role**, D6) | Solo si `acceso = 'invitado'`; si no, `validacion` "Esa persona ya definió su contraseña". Spike T086: repetir `inviteUserByEmail` sobre la cuenta sin confirmar devuelve el mismo `id`, envía un correo nuevo e invalida el enlace anterior (`otp_expired`); no hace falta fallback. |
 | `cambiarRolAccion` | `{ id, rol }` | `cambiarRol` | `ultimo_admin` → mensaje de RF-021. |
 | `cambiarActivoAccion` | `{ id, activo }` | `cambiarActivo` | Pide confirmación al desactivar (RF-024). `ultimo_admin` ídem. |

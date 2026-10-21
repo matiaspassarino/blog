@@ -32,8 +32,7 @@ export type RolDeEquipo = 'editor' | 'admin';
 /** Correo único por corrida: las invitaciones crean cuentas reales en Auth y cada spec las borra al terminar. */
 export const correoUnico = (etiqueta: string) => `e2e-${etiqueta}-${crypto.randomUUID().slice(0, 8)}@demo.local`;
 
-export const formularioDeInvitacion = (page: Page) =>
-  page.getByRole('form', { name: 'Invitar a una persona', exact: true });
+const formularioDeInvitacion = (page: Page) => page.getByRole('form', { name: 'Invitar a una persona', exact: true });
 
 export async function invitarPorLaInterfaz(page: Page, datos: { nombre: string; correo: string; rol?: RolDeEquipo }) {
   const formulario = formularioDeInvitacion(page);
@@ -59,7 +58,9 @@ export const botonDeFila = (
 ) => fila.getByRole('button', { name: `${accion} ${nombre}`, exact: true });
 
 export const avisoDeExito = (page: Page, texto: string | RegExp) => page.getByRole('status').filter({ hasText: texto });
-export const avisoDeError = (page: Page, texto: string | RegExp) => page.getByRole('alert').filter({ hasText: texto });
+// Sin el anunciador de rutas de Next, que también es `role="alert"` y se llena tras una navegación.
+export const avisoDeError = (page: Page, texto: string | RegExp) =>
+  page.locator('[role="alert"]:not(#__next-route-announcer__)').filter({ hasText: texto });
 
 /**
  * Abre el enlace del correo en un navegador aparte (la persona invitada no comparte cookies con el admin), pulsa

@@ -59,11 +59,3 @@ export async function eliminarPorCorreo(correo: string) {
   await s.from('perfiles').delete().eq('id', usuario.id);
   await s.auth.admin.deleteUser(usuario.id);
 }
-
-/** Borra los artículos, categorías y etiquetas creados por los E2E (prefijo `e2e-`). */
-export async function limpiarDatosE2E() {
-  const s = servicio();
-  await s.from('articulos').delete().like('titulo', 'e2e-%');
-  await s.from('categorias').delete().like('nombre', 'e2e-%');
-  await s.from('etiquetas').delete().like('nombre', 'e2e-%');
-}

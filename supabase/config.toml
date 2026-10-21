@@ -246,14 +246,14 @@ otp_expiry = 86400
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Plantillas de los correos del panel (spec 003, contracts/correos.md). La de invitación llega con H6.
+# Plantillas de los correos del panel (spec 003, contracts/correos.md).
 [auth.email.template.recovery]
 subject = "Define una nueva contraseña"
 content_path = "./supabase/templates/recuperacion.html"
 
-# [auth.email.template.invite]
-# subject = "Te invitaron al panel del blog"
-# content_path = "./supabase/templates/invitacion.html"
+[auth.email.template.invite]
+subject = "Te invitaron al panel del blog"
+content_path = "./supabase/templates/invitacion.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

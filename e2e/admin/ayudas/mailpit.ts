@@ -28,11 +28,6 @@ export async function cantidadDeCorreos(correo: string): Promise<number> {
   return lista.messages_count ?? 0;
 }
 
-/** Borra los correos de la bandeja (empezar cada spec sin ruido). */
-export async function vaciarBandeja() {
-  await fetch(`${BASE}/api/v1/messages`, { method: 'DELETE' });
-}
-
 /** Los enlaces del correo traen el origen de `site_url` (127.0.0.1); se reescriben al del navegador para compartir cookies. */
 export function enOrigenLocal(enlace: string, baseURL: string): string {
   const destino = new URL(enlace);

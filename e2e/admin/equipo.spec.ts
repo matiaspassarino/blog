@@ -159,6 +159,7 @@ test.describe('El único admin (H6-E5)', () => {
 
   test('H6-E5: con otro admin activo, el primero sí puede dejar de serlo', async ({ page }) => {
     const miembro = await nuevoMiembro('segundo-admin');
+    await page.reload(); // la pantalla se cargó en el beforeEach, antes de crear al miembro
     const fila = filaDelMiembro(page, miembro.correo);
     await selectorDeRol(fila, miembro.nombre).selectOption({ value: 'admin' });
     await expect(avisoDeExito(page, 'Rol actualizado')).toBeVisible();

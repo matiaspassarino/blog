@@ -8,7 +8,7 @@ import type { ErrorBloque } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
 import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   crearArticuloAccion,
   guardarArticulo,
@@ -29,6 +29,7 @@ import { Textarea } from '../ui/textarea';
 import { resumenDeErrores } from './anuncios';
 import { AvisoConflicto } from './AvisoConflicto';
 import { ComparacionVersiones } from './ComparacionVersiones';
+import { useHidratado } from '../../lib/hidratado';
 import { ContextoEditor } from './ContextoEditor';
 import { aDatosArticulo, validarEditor } from './datos';
 import { ImagenEditable } from './ImagenEditable';
@@ -70,15 +71,6 @@ function enfocarPrimerCampo(errores: ErrorBloque[]) {
     }
   }
 }
-
-/** Falso en el servidor y durante la hidratación; verdadero cuando el editor ya responde a la persona. */
-const sinSuscripcion = () => () => {};
-const useHidratado = () =>
-  useSyncExternalStore(
-    sinSuscripcion,
-    () => true,
-    () => false,
-  );
 
 const vacioANulo = (valor: string) => (valor.trim() === '' ? null : valor);
 

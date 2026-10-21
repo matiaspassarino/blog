@@ -43,7 +43,7 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
   2. `auth.admin.updateUserById(id, { app_metadata: { rol } })`: el trigger de T063 (spec 001) detecta que `rol` pasó de nulo a un valor, escribe `perfiles.rol` y pone `activo = true`.
   - El estado **"invitado"** no se guarda: lo deriva `public.listar_equipo()` (data-model) de `auth.users` (`invited_at` con `email_confirmed_at` nulo).
   - Reenviar: `reenviarInvitacion(id)` repite la invitación para esa cuenta; el enlace anterior deja de valer porque el proveedor emite un token nuevo.
-  - Si el paso 1 funciona y el 2 falla, queda una cuenta inactiva "invitada" sin rol: el admin la ve en la lista y reintenta con "Reenviar". Se documenta en el contrato.
+  - Si el paso 1 funciona y el 2 falla, queda una cuenta inactiva sin rol: la lista la muestra como "desactivado" (invitado exige perfil activo) y el admin la recupera con "Reactivar", que la deja "invitado". Se documenta en el contrato.
 - **Razón**: spec 003 RF-027. `user_metadata` lo puede escribir el propio usuario, por eso el rol va en `app_metadata`, que solo escribe el servidor.
 - **Spike T086 (2026-10-21, Supabase local, resuelto sin fallback)**:
   - `inviteUserByEmail` crea el usuario (`invited_at` con valor, sin `email_confirmed_at`) y `crear_perfil` deja el perfil `activo = false`.

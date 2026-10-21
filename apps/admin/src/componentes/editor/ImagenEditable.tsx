@@ -100,7 +100,7 @@ export function ImagenEditable({
       {imagenGuardada(imagen.ruta) ? (
         <ConfirmarAccion
           titulo="¿Quitar esta imagen?"
-          descripcion="La imagen ya está guardada en el artículo. Si la quitas y guardas, se borra del almacenamiento salvo que otro contenido la use."
+          descripcion="La imagen ya está guardada. Si la quitas y guardas, se borra del almacenamiento salvo que otro contenido la use."
           etiquetaConfirmar="Quitar imagen"
           onConfirmar={quitar}
         >

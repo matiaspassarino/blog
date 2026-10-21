@@ -25,7 +25,7 @@ export function ConfirmarEnlace({ tokenHash, tipo }: Props) {
             <FormularioRecuperacion />
           </>
         ) : (
-          <p>Pídele a una persona administradora que te envíe otra invitación.</p>
+          <p>Pídele a un administrador que te envíe otra invitación.</p>
         )}
       </div>
     );
