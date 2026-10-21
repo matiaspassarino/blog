@@ -60,6 +60,7 @@ create function public.listar_articulos_panel(
 - `p_limite` se recorta a `[1, 100]` y `p_desplazamiento` a `>= 0`.
 - `total` es `count(*) over ()` antes del límite (una sola consulta para la página y el total). Si el desplazamiento supera el total devuelve 0 filas y `total` se pierde: **el panel trata "0 filas con página > 1" como "volver a la página 1"** (se prueba en Playwright).
 - `categoria_nombre` y `autor_nombre` salen de `left join` (`categoria_id` es nulo en borradores; el autor desactivado se muestra igual).
+- **Excepción registrada a §V.8**: el filtro por título (`ilike '%…%'`) no tiene índice; está justificada en la tabla "Seguimiento de complejidad" de [plan.md](plan.md). Revisión de `arquitecto-db` M8.
 - Privilegios (patrón explícito de `busqueda.sql`): `revoke execute on function … from public, anon, authenticated; grant execute on function … to authenticated;`. `anon` no tiene `execute`.
 - Los parámetros llevan prefijo `p_` para no colisionar con columnas; las funciones anteriores del repo (`buscar_articulos`, `previsualizar_slug`) no lo usan porque no lo necesitaban. Se mantiene el prefijo en estas tres y queda documentado.
 

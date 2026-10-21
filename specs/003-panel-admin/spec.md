@@ -209,6 +209,7 @@ Un admin ve la lista del equipo con nombre, correo, rol y estado; invita a un mi
 **Correo (invitación y recuperación)**
 - **RF-026**: El panel DEBE ofrecer "olvidé mi contraseña": envía al correo un enlace de un solo uso y con vencimiento para definir una nueva, y responde lo mismo exista o no el correo.
 - **RF-027**: El alta DEBE hacerse por invitación: el sistema envía al correo del miembro un enlace con vencimiento para definir su contraseña; el admin puede reenviarla, lo que invalida el enlace anterior. El sistema DEBE rechazar el alta de un correo que ya pertenece a un miembro.
+- **RF-028**: Toda contraseña que defina un miembro (invitación o recuperación) DEBE tener al menos 8 caracteres, y el panel DEBE explicar la regla cuando no se cumple.
 
 ### Requisitos de SEO *(obligatorio si afecta páginas públicas)*
 
@@ -255,7 +256,7 @@ Un miembro desactivado se comporta como anónimo.
 
 - El ingreso es con correo y contraseña, con la sesión estándar del proveedor de autenticación que ya usa el proyecto. No se exige segundo factor en el MVP.
 - Los correos de invitación y de recuperación se envían en español, con la identidad del sitio. En la nube hace falta configurar un servicio de envío de correos propio (el incluido por el proveedor tiene un límite bajo de envíos); en local se revisan en el buzón de pruebas del entorno.
-- Los enlaces de invitación y de recuperación vencen según la configuración estándar del proveedor de autenticación (del orden de 24 horas).
+- Los enlaces de invitación y de recuperación vencen a las 24 horas, y ese plazo se configura de forma explícita en el proveedor de autenticación (local y nube), no se deja el valor por defecto.
 - La vista previa se muestra dentro del panel, con la misma presentación de bloques que el sitio, y no a través del sitio público.
 - No hay guardado automático: el usuario guarda de forma explícita, y el panel avisa antes de perder cambios.
 - La búsqueda de la lista de artículos es por título; la búsqueda en español por contenido (spec 001, H5) es para el sitio público.

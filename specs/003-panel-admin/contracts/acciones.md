@@ -2,15 +2,17 @@
 
 **Decisiones**: research D2, D5, D6, D9, D11, D13, D16. **Código**: `apps/admin/src/acciones/*.ts` (un archivo por área). Todas son `'use server'`.
 
+**Nombres**: una acción lleva el sufijo `Accion` cuando su nombre coincide con una función de `@blog/db` que importa (`crearArticuloAccion`, `cambiarEstadoAccion`, `eliminarArticuloAccion`, `previsualizarSlugAccion`, `crearTaxonomiaAccion`, `actualizarTaxonomiaAccion`, `eliminarTaxonomiaAccion`, `cambiarRolAccion`, `cambiarActivoAccion`); las demás (`ingresar`, `cerrarSesion`, `guardarArticulo`, `invitarMiembro`, `guardarPerfil`…) no lo necesitan.
+
 ## Reglas comunes
 
 Toda acción, en este orden:
 
-1. `obtenerMiembro()` → si no hay sesión válida y activa devuelve `no_autenticado` (y la interfaz lleva al ingreso).
+1. `obtenerMiembro()` → si no hay sesión válida y activa devuelve `no_autenticado` con `motivo: 'sin_sesion' | 'desactivada'`; la interfaz navega a `/ingreso` o, con `desactivada`, a `/salir?motivo=desactivada`, que cierra la sesión (las cookies solo se escriben en Route Handlers y Server Functions, no al renderizar).
 2. `puede(rol, accion)` (matriz de `@blog/db`, D16) → si no, `sin_permiso`.
 3. Valida la entrada con Zod. Si falla: `contenido_invalido` (artículos) o `validacion` (resto), con `errores`.
-4. Llama a `@blog/db` con el cliente de la sesión (`crearClienteServidor`). Nunca escribe SQL ni usa `service_role`, salvo las de **Equipo** marcadas.
-5. Captura `ErrorDominio` y devuelve `ResultadoAccion`. Un error inesperado se registra en el servidor y devuelve `desconocido` con un mensaje genérico (sin detalles técnicos).
+4. Llama a `@blog/db` con el cliente de la sesión (`crearClienteServidor`). Nunca escribe SQL, no llama a Storage ni a Auth Admin directamente (usa `crearSubidaFirmada`, `descargarMedio`, `borrarMedios`, `obtenerPerfilPropio`, etc. de `@blog/db`) y no usa `service_role`, salvo las de **Equipo** marcadas (que usan `invitarMiembroPorCorreo` y `reenviarInvitacionPorCorreo` de `@blog/db/servidor`).
+5. Captura `ErrorDominio` y devuelve `ResultadoAccion`. Los errores de control de flujo de Next (`redirect`, `notFound`, `forbidden`, `unauthorized`) se relanzan, no se convierten en resultado. Un error inesperado se registra en el servidor y devuelve `desconocido` con un mensaje genérico (sin detalles técnicos).
 6. Si la operación cambia datos que la pantalla muestra, llama a `revalidatePath` de la ruta del panel afectada (la caché del sitio público no es asunto del admin: D19).
 
 ```ts
@@ -29,7 +31,7 @@ type ResultadoAccion<T = void> =
 | `cerrarSesion` | — | `signOut` + borra `blog_actividad` + redirige a `/ingreso` | — |
 | `pedirRecuperacion` | `{ correo }` | `resetPasswordForEmail(correo, { redirectTo: <admin>/auth/confirmar })`; **siempre** responde `ok` con el mismo mensaje exista o no el correo | — |
 | `confirmarEnlace` | `{ tokenHash, tipo: 'invite' \| 'recovery' }` | `verifyOtp`; ok → redirige a `/definir-contrasena` | `enlace_invalido` (usado o vencido) |
-| `definirContrasena` | `{ contrasenia, repetir }` | `updateUser({ password })` (requiere la sesión abierta por `confirmarEnlace`); ok → redirige a `/articulos` | `contrasenia_corta` (mín. 8; la configuración local de Auth hoy exige 6, se sube a 8), `no_coinciden` |
+| `definirContrasena` | `{ contrasenia, repetir }` | `updateUser({ password })` (requiere la sesión abierta por `confirmarEnlace`); ok → redirige a `/articulos` | `contrasenia_corta` (RF-028: mín. 8; la configuración local de Auth hoy exige 6, se sube a 8 en local y en la nube), `no_coinciden` |
 
 Ninguna de estas exige `puede`: son las acciones anónimas de la tabla de permisos. `ingresar` y `pedirRecuperacion` limitan intentos con el límite de Auth (`[auth.rate_limit]`); la interfaz muestra el mensaje genérico de espera.
 
@@ -79,12 +81,12 @@ Lista: `apps/admin/src/consultas/taxonomias.ts` → `select=*,articulos(count)` 
 
 | Acción | Entrada | Llama a | Notas |
 |---|---|---|---|
-| `invitarMiembro` | `{ nombre, correo, rol }` | **service_role**: `inviteUserByEmail` + `updateUserById(app_metadata.rol)` (D6) | Correo ya existente → `validacion` "Ese correo ya pertenece al equipo". Si el paso 2 falla el miembro queda en "invitado" sin rol efectivo y se informa para reintentar. |
-| `reenviarInvitacion` | `{ id }` | **service_role**: reenvío (D6) | Solo si `acceso = 'invitado'`; si no, `validacion` "Esa persona ya definió su contraseña". |
+| `invitarMiembro` | `{ nombre, correo, rol }` | `invitarMiembroPorCorreo` de `@blog/db/servidor` (**service_role**: `inviteUserByEmail` + `updateUserById(app_metadata.rol)`, D6) | Correo ya existente → `validacion` "Ese correo ya pertenece al equipo". Si el paso 2 falla el miembro queda en "invitado" sin rol efectivo y se informa para reintentar. |
+| `reenviarInvitacion` | `{ id }` | `reenviarInvitacionPorCorreo` de `@blog/db/servidor` (**service_role**, D6) | Solo si `acceso = 'invitado'`; si no, `validacion` "Esa persona ya definió su contraseña". |
 | `cambiarRolAccion` | `{ id, rol }` | `cambiarRol` | `ultimo_admin` → mensaje de RF-021. |
 | `cambiarActivoAccion` | `{ id, activo }` | `cambiarActivo` | Pide confirmación al desactivar (RF-024). `ultimo_admin` ídem. |
 
-Lista: `listar_equipo()` vía `@blog/db` (`listarEquipo(c)`). Para las dos acciones con `service_role` el cliente se crea con `crearClienteAdmin` **dentro** de la acción, tras `obtenerMiembro()` y `puede('equipo.gestionar')`; la clave nunca sale al navegador ni a `apps/web` (§III.4).
+Lista: `listar_equipo()` vía `@blog/db` (`listarEquipo(c)`). El filtro por autor de la lista de artículos usa `listarAutores(c)` (`{ id, nombre }`), que sí puede leer un editor. Para las dos acciones con `service_role` el cliente se crea con `crearClienteAdmin` **dentro** de la acción, tras `obtenerMiembro()` y `puede('equipo.gestionar')`; la clave nunca sale al navegador ni a `apps/web` (§III.4).
 
 ## Perfil propio (`acciones/perfil.ts`)
 

@@ -19,6 +19,7 @@
 | `/etiquetas` | equipo | ídem | H5 |
 | `/equipo` | **admin** | lista, invitación, roles, activación | H6 |
 | `/perfil` | equipo | nombre, biografía y foto propios | H6.7 |
+| `/salir` | cualquiera (Route Handler `GET`) | `signOut`, borra `blog_actividad` y redirige a `/ingreso?motivo=desactivada\|inactividad\|sesion` (el motivo se valida contra esa lista) | H1.6 |
 | `/robots.txt` | todos | `Disallow: /` | RSEO-001 |
 
 Un editor que abre `/equipo` recibe `forbidden()` (`403`, página "No tienes permiso") y no la lista. Una URL inexistente muestra la página `not-found` del panel.
@@ -51,7 +52,7 @@ apps/admin/src/
 | Capa | Qué hace | Falla con |
 |---|---|---|
 | `proxy.ts` (matcher: todo menos `_next/*`, estáticos y `favicon`) | refresca tokens; aplica `sesionVencida`; sin cookie de sesión en una ruta interna → `/ingreso?volver=<ruta>` | redirección 307 |
-| `(panel)/layout.tsx` | `obtenerMiembro()`; perfil inactivo → `signOut` + `/ingreso?motivo=desactivada` | redirección |
+| `(panel)/layout.tsx` | `obtenerMiembro()`; sin sesión → `/ingreso`; perfil inactivo → `/salir?motivo=desactivada` (el cierre de sesión lo hace el Route Handler, no el render) | redirección |
 | `equipo/page.tsx` | `puede(rol, 'equipo.ver')` | `forbidden()` |
 | Server Action | misma comprobación + RLS | `ResultadoAccion` con error |
 
@@ -71,6 +72,10 @@ apps/admin/src/
 - **Estados**: toda lista y formulario define vacío, carga (`loading.tsx` o `pending` de la acción), error y éxito (anunciado con `role="status"`; los errores con `role="alert"`).
 - **Confirmaciones** (RF-024): `AlertDialog` con foco inicial en "Cancelar" para eliminar y desactivar; el texto dice qué se pierde.
 - **Fechas**: `<FechaLocal valor=… />` (cliente) formatea en la zona del navegador (D18).
+- **Tablas en móvil**: menos de 768 px se muestran como tarjetas por fila (CSS, sin scroll horizontal); un único componente de tabla responsive sirve a artículos, taxonomías y equipo.
+- **Estados con color**: nunca solo por color; `Badge` lleva siempre la palabra y, a lo sumo, un ícono `aria-hidden` (mapeo en T009).
+- **Éxito visible**: los avisos de éxito duran al menos 5 s o hasta que se cierran (WCAG 2.2.1).
+- **Landmarks**: enlace "Saltar al contenido", `header`, `nav aria-label="Principal"` y `main id="contenido"`; un `title` por pantalla que coincide con su `h1`.
 - **Cambios sin guardar**: `ProveedorSalida` + `EnlaceConAviso` + `beforeunload` (D13).
 - **Campos con error**: `aria-invalid`, `aria-describedby` hacia el mensaje, y al fallar el guardado el foco va al primer campo inválido (`id = bloque-<indice>-<campo>` para bloques, `campo-<nombre>` para el resto).
 
@@ -81,5 +86,6 @@ apps/admin/src/
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente y servidor | sesión y Storage (subida firmada) |
 | `SUPABASE_SERVICE_ROLE_KEY` | **solo servidor**, sensitive en Vercel | invitar y reenviar (acciones de Equipo) |
 | `NEXT_PUBLIC_URL_ADMIN` | servidor | `redirectTo` de invitaciones y recuperación |
+| `NEXT_PUBLIC_URL_SITIO` | servidor y cliente | enlace "Ver en el sitio" de un artículo publicado (RF-014) |
 
-Las claves sin `NEXT_PUBLIC_` no se pueden importar desde un componente de cliente: el módulo que las lee lleva `import 'server-only'`.
+Las claves sin `NEXT_PUBLIC_` no se pueden importar desde un componente de cliente: el módulo que lee la clave de servicio (`lib/servicio.ts`) solo se importa desde `acciones/` y lo hace cumplir el test de límites (T007). Las pruebas de `e2e/admin/ayudas/servicio.ts` y `@blog/db/pruebas` también leen la clave de servicio: son solo de tests y no violan §III.4.

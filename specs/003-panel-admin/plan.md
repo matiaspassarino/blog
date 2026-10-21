@@ -19,18 +19,18 @@ El admin **no** invalida la caché del sitio: lo hacen los triggers de la base (
 
 ## Contexto técnico
 
-**Apps / paquetes afectados**: `apps/admin` (casi todo el trabajo), `packages/db` (cliente de servidor, permisos, lecturas del panel, `urlDeMedio` movida desde `apps/web`), `packages/bloques` (operaciones del editor, `detectarImagen`, `rutasDeImagenes`), `packages/ui` (solo si falta algún token), `apps/web` (solo importar `urlDeMedio` desde `@blog/db`), `supabase/` (migración, plantillas de correo, `config.toml`), `e2e/admin`.
+**Apps / paquetes afectados**: `apps/admin` (casi todo el trabajo), `packages/db` (cliente de servidor, permisos, lecturas del panel, `urlImagen` movida desde `apps/web`), `packages/bloques` (operaciones del editor, `detectarImagen`, `rutasDeImagenes`), `packages/ui` (solo si falta algún token), `apps/web` (solo importar `urlImagen` desde `@blog/db` (6 imports)), `supabase/` (migración, plantillas de correo, `config.toml`), `e2e/admin`.
 
 **Dependencias nuevas**:
 - `@supabase/ssr` 0.12 en `packages/db`: **ya aprobada** en la tabla de §II.
-- `radix-ui`, `class-variance-authority`, `clsx`, `tailwind-merge` y `lucide-react` en `apps/admin`: las que necesita shadcn/ui, exigido por §II ("UI admin: shadcn/ui"). Justificación completa en research D17. **Requieren la aprobación de `consistencia-codigo`** (se pide en `/validar` y antes de instalar, con las versiones elegidas respetando `minimumReleaseAge`).
+- En `apps/admin`: `zod@4.6.7` (del stack, misma versión que `@blog/db`), `@radix-ui/react-alert-dialog` y `@radix-ui/react-slot`, `class-variance-authority`, `clsx@2.1.1` y `tailwind-merge`: lo mínimo de shadcn/ui, exigido por §II ("UI admin: shadcn/ui"). Justificación en research D17. **Aprobadas por `consistencia-codigo` en la revisión del plan (2026-10-21)**, con las versiones fijadas respetando `minimumReleaseAge`. Se descarta `lucide-react` (íconos como SVG en línea) y el paquete paraguas `radix-ui`; `select` y `checkbox` son nativos. No se agrega `server-only`.
 - Nada más: ni editor de texto enriquecido, ni librería de imágenes, ni cliente de correo (D10, D12, D8).
 
 **Almacenamiento**: bucket `medios` (se restringe a JPEG, PNG, WebP y AVIF). Sin tablas nuevas. Funciones nuevas: `listar_articulos_panel`, `listar_equipo`, `rutas_en_uso`, `privado.sin_tildes`.
 
-**Rutas públicas afectadas**: ninguna se modifica. Cambia el origen de `urlDeMedio` (refactor sin efecto, cubierto por sus tests de `apps/web`).
+**Rutas públicas afectadas**: ninguna se modifica. Cambia el origen de `urlImagen` (refactor sin efecto, cubierto por sus tests de `apps/web`); `imagenes.ts` se queda en web con lo que depende de `astro:assets`.
 
-**Rutas admin afectadas**: `/ingreso`, `/olvide-contrasena`, `/auth/confirmar`, `/definir-contrasena`, `/articulos` (+ `nuevo`, `[id]`, `[id]/vista-previa`), `/categorias`, `/etiquetas`, `/equipo`, `/perfil`, `/robots.txt` (contracts/rutas.md).
+**Rutas admin afectadas**: `/ingreso`, `/olvide-contrasena`, `/auth/confirmar`, `/definir-contrasena`, `/salir`, `/articulos` (+ `nuevo`, `[id]`, `[id]/vista-previa`), `/categorias`, `/etiquetas`, `/equipo`, `/perfil`, `/robots.txt` (contracts/rutas.md).
 
 **Revalidación**: ninguna desde el admin; el aviso firmado de la base (001/002) ya cubre artículos, taxonomías y autores. Se verifica con CE-003.
 
@@ -60,12 +60,15 @@ El admin **no** invalida la caché del sitio: lo hacen los triggers de la base (
 | Crear/editar/estado/eliminar artículos con versión | `crearArticulo`, `actualizarArticulo`, `cambiarEstado`, `eliminarArticulo`, `previsualizarSlug` (`packages/db/src/consultas/equipo-articulos.ts`) | — | Ya cubren RF-004, RF-008, RF-009, RF-012, RF-013 |
 | Taxonomías y etiquetas de un artículo | `crearTaxonomia`, `actualizarTaxonomia`, `eliminarTaxonomia`, `asignarEtiquetas` (`equipo-taxonomias.ts`) | Lecturas con conteo: `listarTaxonomiasConConteo` en `packages/db/src/consultas/panel.ts` | Las lecturas del equipo no existían (solo las públicas) |
 | Perfil y equipo | `actualizarPerfilPropio`, `cambiarRol`, `cambiarActivo` (`equipo-perfiles.ts`) | `listarEquipo` (RPC `listar_equipo`) | Hace falta el correo y el estado de acceso, que `perfiles` no tiene |
+| Leer el perfil propio y la lista de autores del filtro | `Perfil` (`packages/db/src/consultas/equipo-perfiles.ts`) | `obtenerPerfilPropio`, `listarAutores` en `packages/db/src/consultas/panel.ts` | Las lecturas del equipo no existían y la app no puede consultar tablas (§III.2) |
+| Storage del bucket `medios` y Auth Admin | políticas `medios_*_equipo` (001) | `crearSubidaFirmada`, `descargarMedio`, `borrarMedios` en `packages/db/src/medios.ts`; `invitarMiembroPorCorreo`, `reenviarInvitacionPorCorreo` en `packages/db/src/servidor.ts` | §III.2: todo acceso a datos pasa por `@blog/db`; las acciones solo orquestan |
 | Errores de dominio | `ErrorDominio`, `traducirError`, `CodigoError` (`errores.ts`) | `mensajeDeError` en `apps/admin/src/lib/mensajes.ts` | Es presentación en español; no pertenece a la capa de datos |
 | Validación de bloques e imagen | `validarContenido`, `esquemaImagen`, `validarImagen` | — | Se usan igual en cliente y servidor |
 | Crear un bloque vacío | `crearBloque` (`packages/bloques/src/utilidades.ts`) | `agregarBloque`, `moverBloque`, `duplicarBloque`, `quitarBloque`, `actualizarBloque` en `packages/bloques/src/operaciones.ts` | Operaciones de lista que el sitio nunca necesitó |
 | Texto plano de bloques | `textoPlano` | — | Se usa para mostrar "tu texto sin guardar" tras un conflicto (D13) |
+| Marcas en línea del editor | las 4 marcas de D9 (001) y `TextoEnLinea` (render) | `aplicarMarca` en `packages/bloques/src/marcas.ts` | El formato en línea lo define `@blog/bloques`; el editor y el renderer comparten su dueño |
 | Renderizar el artículo (vista previa) | `Bloques` y `ComponentesBloques` de `@blog/bloques/render` | Componente `Imagen` del admin (`<img>`) | Cada app decide cómo muestra sus imágenes (contrato de la 002) |
-| URL pública de una imagen | `urlDeMedio` (hoy en `apps/web/src/lib/imagenes.ts`) | — (se **mueve** a `packages/db`) | Web y admin la necesitan; §VIII.3: una lógica usada en dos lugares se extrae |
+| URL pública de una imagen | `urlImagen(ruta, supabaseUrl)` (hoy en `apps/web/src/lib/imagenes.ts`, usada en `AvatarAutor.astro`, `Seo.astro`, `TarjetaArticulo.astro`, `blog/[slug].astro` y `json-ld.ts`) | — (se **mueve solo esa función**, con su test, a `packages/db/src/medios.ts`; `imagenes.ts` conserva `precalcularVariantes` y `CALIDAD_IMAGEN`, que importan `astro:assets`) | Web y admin la necesitan; §VIII.3: una lógica usada en dos lugares se extrae |
 | Botón | `clasesBoton` (`@blog/ui/clases`) | `Button` shadcn que la compone | Una sola definición del botón |
 | Tokens y tema | `@blog/ui/tokens.css`, `identidad` | — | `apps/admin/src/app/globals.css` ya los importa |
 | Cliente Supabase | `crearClientePublico` (sin sesión) | `crearClienteServidor`, `crearClienteNavegador`, `crearClienteAdmin` en `packages/db/src/servidor.ts` y `navegador.ts` | El panel necesita sesión por cookies; `crearClientePublico` desactiva la persistencia |
@@ -108,6 +111,8 @@ La lógica pura se escribe **test-first** (agente `escritor-tests`) antes de imp
 | H1 · 5 cerrar sesión | Playwright | `e2e/admin/acceso.spec.ts` |
 | H1 · 6 desactivado con sesión abierta | Playwright | `e2e/admin/acceso.spec.ts` |
 | H1 · 7 recuperación (mismo mensaje, enlace de un uso) | Playwright (Mailpit) | `e2e/admin/acceso.spec.ts` |
+| RF-028 contraseña de al menos 8 caracteres | Vitest | `apps/admin/src/acciones/acceso.test.ts` |
+| H1 · 6 el desactivado queda sin sesión (`/salir`) | Playwright | `e2e/admin/acceso.spec.ts` |
 | Sesión: 8 h de inactividad (RF-002, caso borde) | Vitest | `apps/admin/src/lib/actividad.test.ts` |
 | H2 · 1 slug sugerido | Vitest + Playwright | `apps/admin/src/acciones/articulos.test.ts`, `e2e/admin/articulo-editor.spec.ts` |
 | H2 · 2 agregar, reordenar, duplicar, quitar | Vitest + Playwright | `packages/bloques/src/operaciones.test.ts`, `e2e/admin/articulo-editor.spec.ts` |
@@ -135,6 +140,7 @@ La lógica pura se escribe **test-first** (agente `escritor-tests`) antes de imp
 | Borrado de imágenes sin uso (RF-007, clarificación) | Vitest + pgTAP | `packages/bloques/src/imagenes-en-uso.test.ts`, `supabase/tests/panel_admin.test.sql` |
 | CE-002 matriz acción × rol completa | Vitest + Playwright | `packages/db/src/permisos.test.ts`, `e2e/admin/permisos.spec.ts` |
 | CE-004 y CE-005 (contenido inválido, concurrencia) | Playwright | `e2e/admin/articulo-editor.spec.ts`, `e2e/admin/articulo-conflicto.spec.ts` |
+| CE-001 un editor nuevo publica 5 bloques en menos de 5 minutos | prueba cronometrada con una persona (manual) | `validacion.md` |
 | CE-006 y CE-007 accesibilidad y rendimiento | Playwright (+ axe vía `webapp-testing`) y medición manual | `e2e/admin/accesibilidad.spec.ts`, `validacion.md` |
 | RSEO-001 y RSEO-002 `noindex` | Vitest + Playwright | `apps/admin/src/app/robots.test.ts`, `e2e/admin/seo.spec.ts` |
 | RSEO-003 el panel no publica páginas propias | revisión en `/validar` | `validacion.md` |
@@ -142,7 +148,7 @@ La lógica pura se escribe **test-first** (agente `escritor-tests`) antes de imp
 | Mensajes: cada `CodigoError` tiene texto | Vitest | `apps/admin/src/lib/mensajes.test.ts` |
 | Funciones SQL, bucket y privilegios | pgTAP | `supabase/tests/panel_admin.test.sql`, `storage.test.sql`, `privilegios.test.sql` |
 
-Los E2E de `apps/admin` y `apps/web` corren con los dos servidores (ya configurados en `playwright.config.ts`); los que prueban correo necesitan Mailpit de `supabase start`. `vitest` en `apps/admin` ya existe (`--passWithNoTests`); se agrega configuración con alias de `server-only` para poder probar las acciones.
+Los E2E de `apps/admin` y `apps/web` corren con los dos servidores (ya configurados en `playwright.config.ts`); los que prueban correo necesitan Mailpit de `supabase start`. `vitest` en `apps/admin` ya existe (`--passWithNoTests`); se agrega su configuración con el `globalSetup` de `@blog/db/pruebas/entorno` para las pruebas de integración con la base local.
 
 ## Estructura del proyecto
 
@@ -167,20 +173,21 @@ specs/003-panel-admin/
 
 ```text
 apps/
-├── web/src/lib/imagenes.ts          # pasa a importar urlDeMedio de @blog/db
+├── web/src/lib/imagenes.ts          # conserva lo de astro:assets; importa urlImagen de @blog/db
 └── admin/
     ├── next.config.ts               # sin cacheComponents; X-Robots-Tag
     └── src/                         # ver contracts/rutas.md ("Estructura de carpetas")
 packages/
 ├── db/src/
-│   ├── servidor.ts                  # crearClienteServidor, crearClienteAdmin  (subpath ./servidor)
+│   ├── servidor.ts                  # crearClienteServidor, crearClienteAdmin, invitarMiembroPorCorreo, reenviarInvitacionPorCorreo  (subpath ./servidor)
 │   ├── navegador.ts                 # crearClienteNavegador (subida firmada)
 │   ├── permisos.ts                  # ACCIONES, puede, transicionesDe
-│   ├── medios.ts                    # urlDeMedio, rutaDeMedio
-│   ├── consultas/panel.ts           # listarArticulosPanel, listarEquipo, rutasEnUso, taxonomías con conteo
+│   ├── medios.ts                    # urlImagen, rutaDeMedio, crearSubidaFirmada, descargarMedio, borrarMedios
+│   ├── consultas/panel.ts           # listarArticulosPanel, listarEquipo, listarAutores, obtenerPerfilPropio, rutasEnUso, taxonomías con conteo
 │   └── index.ts                     # exporta lo nuevo (menos lo de servidor)
 ├── bloques/src/
 │   ├── operaciones.ts               # operaciones puras del editor
+│   ├── marcas.ts                    # aplicarMarca (formato en línea del editor)
 │   ├── imagen-archivo.ts            # detectarImagen
 │   └── imagenes-en-uso.ts           # rutasDeImagenes(articulo)
 └── ui/                              # tokens semánticos que falten (si hace falta)
@@ -204,7 +211,7 @@ e2e/admin/                           # specs listadas en el plan de pruebas
 | El renderer de bloques usa clases Tailwind que el admin no escanea | `@source` hacia `packages/bloques/src` y un E2E de vista previa que compara la presentación |
 | Imágenes subidas y nunca guardadas quedan huérfanas | Aceptado en el MVP (D11); se anota para una spec de limpieza programada |
 | SMTP propio sin configurar en la nube | Paso manual del usuario (quickstart); mientras tanto, las invitaciones solo llegan a miembros de la organización de Supabase |
-| `NEXT_PUBLIC_*` y `service_role` mezcladas por error | `import 'server-only'` en el módulo que lee la clave de servicio, y una regla de `knip`/`eslint` que prohíbe importar `@blog/db/servidor` desde componentes de cliente y desde `apps/web` |
+| `NEXT_PUBLIC_*` y `service_role` mezcladas por error | el test de límites de T007 (`packages/db/src/limites.test.ts`) más `no-restricted-imports` en `apps/admin`; prohíbe `@blog/db/servidor` y `lib/servicio` fuera de acciones y desde `apps/web`. No se agrega `server-only` (paquete fuera de §II) |
 
 ## Seguimiento de complejidad
 
@@ -214,4 +221,5 @@ e2e/admin/                           # specs listadas en el plan de pruebas
 |---|---|---|
 | Vencimiento por inactividad implementado en la app (D3) | El de Supabase no está en el plan gratuito de la nube | `jwt_expiry` corto no mide inactividad y cierra sesiones activas |
 | Subida firmada en dos pasos y verificación posterior (D9) | Vercel limita el cuerpo a 4,5 MB y la spec permite 5 MB; el tipo declarado se puede falsear | Subir por una función rompe archivos válidos; subir sin verificar acepta tipos falsos |
+| Filtro por título sin índice (`ilike '%…%'` sobre `privado.sin_tildes(titulo)`; excepción a §V.8) | Un índice B-tree no sirve para `%texto%`; hace falta `pg_trgm` (extensión que hoy no está en la tabla de §II) y para una demo con pocas decenas de artículos un recorrido es instantáneo | Agregar `pg_trgm` y un índice GIN ahora: suma una extensión al stack sin necesidad para el volumen del MVP. Se hace en una spec posterior (ya anotado en la 001), cuando el volumen lo pida |
 | Colores en línea en el HTML de los correos | Los clientes de correo no cargan hojas de estilo ni variables CSS | Sin estilos, el correo sería ilegible; se toman los valores de `identidad` |

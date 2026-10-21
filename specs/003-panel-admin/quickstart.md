@@ -7,7 +7,7 @@ Guía para comprobar de punta a punta que la feature funciona. No contiene códi
 ## Requisitos previos
 
 - Node 24, pnpm 12, Docker en marcha y Supabase CLI 2.121 (ver CLAUDE.md, "Retomar en otra PC").
-- `.env.local` en `apps/admin` con `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (de `supabase status`) y `NEXT_PUBLIC_URL_ADMIN=http://localhost:3100`. En `apps/web`, las variables de la spec 002.
+- `.env.local` en `apps/admin` con `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (de `supabase status`) `NEXT_PUBLIC_URL_ADMIN=http://localhost:3100` y `NEXT_PUBLIC_URL_SITIO=http://localhost:4321`. En `apps/web`, las variables de la spec 002.
 - Windows: ver `specs/002-sitio-publico/quickstart.md` ("En Windows").
 
 ## Puesta en marcha
@@ -75,8 +75,8 @@ Como admin: invitar a un editor nuevo → aparece "invitado" y llega un correo a
 
 ## Pasos manuales para la nube (a cargo del usuario)
 
-1. Vercel `blog-admin`: agregar `SUPABASE_SERVICE_ROLE_KEY` (sensitive) y `NEXT_PUBLIC_URL_ADMIN`.
-2. Supabase (proyecto `blog-demo`): fijar *Site URL* y *Redirect URLs* a la URL del admin; subir las plantillas de `supabase/templates/` (o `supabase config push`).
+1. Vercel `blog-admin`: agregar `SUPABASE_SERVICE_ROLE_KEY` (sensitive), `NEXT_PUBLIC_URL_ADMIN` y `NEXT_PUBLIC_URL_SITIO` (la URL de producción de `blog-web`).
+2. Supabase (proyecto `blog-demo`): fijar *Site URL* y *Redirect URLs* a la URL del admin; subir las plantillas de `supabase/templates/` (o `supabase config push`); **fijar *Email OTP expiration* en 86400 s (24 h; el valor por defecto de la nube es 1 h y las plantillas dicen 24 horas) y la *longitud mínima de contraseña* en 8** (RF-028).
 3. Configurar un SMTP propio en Auth → *SMTP Settings* (research D8). Hasta entonces, las invitaciones solo llegan a miembros de la organización de Supabase.
 4. Aplicar la migración `20261021120000_panel_admin.sql` (ver el aviso sobre el historial de migraciones en CLAUDE.md).
 5. Probar el recorrido F en la nube con una cuenta real.

@@ -12,7 +12,8 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
 ## D2. Capa de acceso a la sesión (DAL) y papel de `proxy.ts`
 - **Decisión**:
   - `apps/admin/src/proxy.ts` solo hace dos cosas baratas: refrescar los tokens (`getClaims`) y aplicar la inactividad (D3). Redirige a `/ingreso?volver=<ruta>` si no hay sesión (comprobación optimista).
-  - La autorización real vive en `obtenerMiembro()` (`apps/admin/src/lib/sesion.ts`): `getClaims()` + lectura de `perfiles` (`activo`, `rol`, `nombre`). Lo llaman cada página, layout de zona y Server Action. Si el perfil no existe o `activo = false`, cierra la sesión y redirige a `/ingreso?motivo=desactivada`.
+  - La autorización real vive en `obtenerMiembro()` (`apps/admin/src/lib/sesion.ts`): `getClaims()` + lectura de `perfiles` (`activo`, `rol`, `nombre`). Lo llaman cada página, layout de zona y Server Action. **No cierra la sesión**: en un Server Component las cookies no se pueden escribir (solo en Server Functions, Route Handlers y el proxy). Si el perfil no existe o `activo = false`, devuelve `motivo: 'desactivada'`; el layout redirige a `/salir?motivo=desactivada` y las Server Actions devuelven `no_autenticado` con ese motivo para que el cliente navegue a `/salir`. `GET /salir` es un Route Handler que hace `signOut`, borra `blog_actividad` y redirige a `/ingreso?motivo=…`.
+  - El acceso a datos de esta capa (leer el perfil propio, operaciones de Storage, Auth Admin) vive en `@blog/db` (§III.2): `obtenerPerfilPropio`, `crearSubidaFirmada`, `descargarMedio`, `borrarMedios`, y en `@blog/db/servidor` `invitarMiembroPorCorreo` y `reenviarInvitacionPorCorreo`. Las acciones y el DAL solo orquestan.
   - La base es la verdad: aunque la app falle en ocultar un botón, RLS y los triggers de la 001 rechazan (`sin_permiso`). La matriz `puede(rol, accion)` (D16) existe para ocultar acciones y devolver un mensaje claro antes de ir a la base.
 - **Razón**: la guía de Next 16 (`guides/authentication`, `guides/data-security`) dice que el proxy no es una solución de autorización. RF-002: un miembro desactivado pierde el acceso en su siguiente acción, y `perfiles.activo` se lee en cada una.
 - **Alternativas**: confiar solo en el JWT (un desactivado seguiría con acceso hasta que venza el token, hasta 1 hora).
@@ -89,6 +90,7 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
 - **Decisión**:
   - Conflicto (`conflicto_version`): el formulario **no se recarga**. Un aviso explica que hay cambios más nuevos y ofrece "Ver la versión vigente", que carga la versión del servidor en una vista de solo lectura junto a lo escrito por la persona (que sigue editable y copiable); "Reemplazar con la vigente" descarta lo propio solo si la persona lo confirma (CE-005).
   - Cambios sin guardar: el formulario mantiene un indicador `sucio`. `beforeunload` avisa al cerrar o recargar; para la navegación interna, los enlaces del panel pasan por `EnlaceConAviso` (envoltura de `next/link`) que muestra el diálogo de confirmación si `sucio`. Un contexto `ProveedorSalida` comparte el estado.
+- **Detalle de diseño** (revisión de `revisor-ux-ui`, 2026-10-21): el conflicto se muestra como un `role="alert"` persistente con una región de dos columnas "Tu versión" / "Versión vigente" (apiladas en móvil); "Reemplazar con la vigente" va en un `AlertDialog` con foco inicial en "Cancelar"; el aviso de salida ofrece "Seguir editando", "Salir sin guardar" y, si es viable, "Guardar y salir". Criterios completos en T060 y T061 de `tasks.md`.
 - **Alternativas**: guardado automático (fuera de alcance de la spec).
 
 ## D14. Lista de artículos: función SQL y filtros en la dirección
@@ -97,7 +99,7 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
 - **Alternativas**: filtrar en memoria en Node (no escala); `pg_trgm` (spec posterior, ya anotada en la 001).
 
 ## D15. Vista previa dentro del panel
-- **Decisión**: ruta `/articulos/[id]/vista-previa` (Server Component, solo equipo) que lee el artículo con la sesión y lo renderiza con `Bloques` de `@blog/bloques/render` y un componente `Imagen` propio del admin que usa `<img>` con la URL pública de Storage. La URL se arma con `urlDeMedio(supabaseUrl, ruta)`, que **se mueve de `apps/web/src/lib/imagenes.ts` a `@blog/db`** para que web y admin compartan una sola (§VIII.3). Tailwind del admin escanea `packages/bloques/src` (`@source`) para que las clases de los renderers existan.
+- **Decisión**: ruta `/articulos/[id]/vista-previa` (Server Component, solo equipo) que lee el artículo con la sesión y lo renderiza con `Bloques` de `@blog/bloques/render` y un componente `Imagen` propio del admin que usa `<img>` con la URL pública de Storage. La URL se arma con `urlImagen(ruta, supabaseUrl)`, que **se mueve de `apps/web/src/lib/imagenes.ts` a `@blog/db`** (solo esa función; el resto de `imagenes.ts` depende de `astro:assets` y se queda en web) para que web y admin compartan una sola (§VIII.3). Tailwind del admin escanea `packages/bloques/src` (`@source`) para que las clases de los renderers existan.
 - **SEO**: la ruta lleva `robots: noindex, nofollow`, no tiene `canonical` y vive bajo `/articulos/...`, nunca bajo `/blog/...` (RSEO-002).
 - **Razón**: la spec lo fija así (Supuestos). Reutiliza los renderers de la 002 sin copias.
 
@@ -107,7 +109,7 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
 
 ## D17. UI: shadcn/ui sobre los tokens, componentes mínimos
 - **Decisión**: se siguen las reglas de §II y §VII.3: shadcn/ui tematizado con `@blog/ui`. Los componentes se **copian** a `apps/admin/src/componentes/ui/` (shadcn no es una librería) y solo los necesarios: `Button` (sus clases salen de `clasesBoton` de `@blog/ui/clases`: no se redefine el botón), `Input`, `Textarea`, `Label`, `Select`, `Checkbox`, `Badge`, `Table` y `AlertDialog`.
-- **Dependencias nuevas** (solo `apps/admin`, versiones fijadas al instalar respetando `minimumReleaseAge`): `radix-ui` (diálogo de confirmación, select y checkbox accesibles), `class-variance-authority`, `clsx` y `tailwind-merge` (variantes y composición de clases de shadcn), `lucide-react` (íconos). Requieren la aprobación del agente `consistencia-codigo` (§II).
+- **Dependencias nuevas** (solo `apps/admin`, versiones fijadas al instalar respetando `minimumReleaseAge`): `@radix-ui/react-alert-dialog` (diálogo de confirmación accesible) y `@radix-ui/react-slot`, `class-variance-authority`, `clsx@2.1.1` y `tailwind-merge` (variantes y composición de clases de shadcn). `select` y `checkbox` son los nativos. Íconos: SVG en línea (`lucide-react` descartada por `consistencia-codigo`: son pocos íconos). Aprobadas por `consistencia-codigo` el 2026-10-21 (§II).
 - **Razón**: foco, teclado y lectores de pantalla (RF-025, CE-006) vienen resueltos en los primitivos de Radix; rehacerlos con elementos nativos costaría más tiempo y más errores de accesibilidad.
 - **Alternativas**: elementos nativos y `<dialog>` (cumple pero es una desviación de §II y lleva más trabajo propio); Material UI u otra librería (fuera del stack).
 
@@ -139,6 +141,6 @@ Cada decisión indica qué pregunta de la spec resuelve. Los datos de la spec 00
 | Dependencia | Dónde | Por qué | Estado |
 |---|---|---|---|
 | `@supabase/ssr` 0.12 | `packages/db` | Sesión por cookies (D1) | Ya aprobada en la tabla de §II |
-| `radix-ui` | `apps/admin` | Primitivos accesibles de shadcn (D17) | Requiere aprobación de `consistencia-codigo` |
+| `@radix-ui/react-alert-dialog`, `@radix-ui/react-slot` | `apps/admin` | Diálogo de confirmación accesible de shadcn (D17) | Aprobadas |
 | `class-variance-authority`, `clsx`, `tailwind-merge` | `apps/admin` | Variantes y composición de clases de shadcn | Ídem |
-| `lucide-react` | `apps/admin` | Íconos del panel | Ídem |
+| `zod@4.6.7` | `apps/admin` | Validar las entradas de las Server Actions | Del stack (§II), misma versión que `@blog/db` |
