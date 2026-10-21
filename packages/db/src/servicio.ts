@@ -24,15 +24,15 @@ export class InvitacionSinRol extends Error {
 type RolInvitado = 'admin' | 'editor';
 
 /** GoTrue responde 422 `email_exists` si la dirección ya tiene una cuenta confirmada. */
-function esCorreoExistente(error: { status?: number; code?: string; message: string }) {
-  return error.code === 'email_exists' || error.status === 422 || /already.*registered/i.test(error.message);
+function esCorreoExistente(error: { code?: string; message: string }) {
+  return error.code === 'email_exists' || /already.*registered/i.test(error.message);
 }
 
 /**
  * Invita a una persona por correo (research D6): crea la cuenta sin contraseña, que nace inactiva, y luego escribe
  * el rol en `app_metadata` (solo lo escribe el servidor), lo que activa el perfil. El estado "invitado" no se guarda:
- * lo deriva `listar_equipo`. Si el segundo paso falla la cuenta queda invitada sin rol efectivo y el admin puede
- * reintentar con "Reenviar".
+ * lo deriva `listar_equipo`. Si el segundo paso falla la cuenta queda inactiva y sin rol: la lista la muestra como
+ * "desactivado" y el admin la recupera con "Reactivar".
  */
 export async function invitarMiembroPorCorreo(
   admin: ClienteBlog,

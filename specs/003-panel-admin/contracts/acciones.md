@@ -8,10 +8,10 @@
 
 Toda acción, en este orden:
 
-1. `obtenerMiembro()` → si no hay sesión válida y activa devuelve `no_autenticado` con `motivo: 'sin_sesion' | 'desactivada'`; la interfaz navega a `/ingreso` o, con `desactivada`, a `/salir?motivo=desactivada`, que cierra la sesión (las cookies solo se escriben en Route Handlers y Server Functions, no al renderizar).
+1. `obtenerMiembro()` → si no hay sesión válida y activa devuelve `no_autenticado` con `motivo: 'sin_sesion' | 'desactivada' | 'inactividad'` (`inactividad`: la cookie `blog_actividad` venció; el proxy deja pasar las Server Actions porque no puede redirigirlas y `obtenerMiembro()` aplica el vencimiento); la interfaz navega a `/ingreso` o, con `desactivada` o `inactividad`, a `/salir?motivo=…` (`urlDeSalida` en `lib/salir.ts`), que cierra la sesión (las cookies solo se escriben en Route Handlers y Server Functions, no al renderizar).
 2. `puede(rol, accion)` (matriz de `@blog/db`, D16) → si no, `sin_permiso`.
 3. Valida la entrada con Zod. Si falla: `contenido_invalido` (artículos) o `validacion` (resto), con `errores`.
-4. Llama a `@blog/db` con el cliente de la sesión (`crearClienteServidor`). Nunca escribe SQL, no llama a Storage ni a Auth Admin directamente (usa `crearSubidaFirmada`, `descargarMedio`, `borrarMedios`, `obtenerPerfilPropio`, etc. de `@blog/db`) y no usa `service_role`, salvo las de **Equipo** marcadas (que usan `invitarMiembroPorCorreo` y `reenviarInvitacionPorCorreo` de `@blog/db/servidor`).
+4. Llama a `@blog/db` con el cliente de la sesión (`crearClienteServidor`). Nunca escribe SQL, no llama a Storage ni a Auth Admin directamente (usa `crearSubidaFirmada`, `descargarMedio`, `borrarMedios`, `obtenerPerfilPropio`, etc. de `@blog/db`) y no usa `service_role`, salvo las de **Equipo** marcadas (que usan `invitarMiembroPorCorreo` y `reenviarInvitacionPorCorreo` de `@blog/db/servicio`, siempre a través de `apps/admin/src/lib/servicio.ts`).
 5. Captura `ErrorDominio` y devuelve `ResultadoAccion`. Los errores de control de flujo de Next (`redirect`, `notFound`, `forbidden`, `unauthorized`) se relanzan, no se convierten en resultado. Un error inesperado se registra en el servidor y devuelve `desconocido` con un mensaje genérico (sin detalles técnicos).
 6. Si la operación cambia datos que la pantalla muestra, llama a `revalidatePath` de la ruta del panel afectada (la caché del sitio público no es asunto del admin: D19).
 
@@ -75,7 +75,7 @@ El navegador sube con `uploadToSignedUrl(ruta, token, archivo)`. Hasta que el fo
 | `actualizarTaxonomiaAccion` | `{ tipo, id, cambios }` | `actualizarTaxonomia` | Si cambia el slug y la taxonomía tiene artículos publicados, el resultado trae `datos.avisoRedireccion = true` para el aviso de RF-019. El **aviso previo** a guardar usa el conteo de la lista. |
 | `eliminarTaxonomiaAccion` | `{ tipo, id }` | `eliminarTaxonomia` | `categoria_en_uso` con el conteo en `detalle`: "La usan N artículos". |
 
-Lista: `apps/admin/src/consultas/taxonomias.ts` → `select=*,articulos(count)` para categorías y `select=*,articulos_etiquetas(count)` para etiquetas.
+Lista: `listarTaxonomiasConConteo(c, tipo)` de `@blog/db` (devuelve `conteo` de artículos en cualquier estado y `publicados`, para el aviso de RF-019).
 
 ## Equipo (`acciones/equipo.ts`) — solo admin
 
@@ -86,7 +86,7 @@ Lista: `apps/admin/src/consultas/taxonomias.ts` → `select=*,articulos(count)` 
 | `cambiarRolAccion` | `{ id, rol }` | `cambiarRol` | `ultimo_admin` → mensaje de RF-021. |
 | `cambiarActivoAccion` | `{ id, activo }` | `cambiarActivo` | Pide confirmación al desactivar (RF-024). `ultimo_admin` ídem. |
 
-Lista: `listar_equipo()` vía `@blog/db` (`listarEquipo(c)`). El filtro por autor de la lista de artículos usa `listarAutores(c)` (`{ id, nombre }`), que sí puede leer un editor. Para las dos acciones con `service_role` el cliente se crea con `crearClienteAdmin` **dentro** de la acción, tras `obtenerMiembro()` y `puede('equipo.gestionar')`; la clave nunca sale al navegador ni a `apps/web` (§III.4).
+Lista: `listar_equipo()` vía `@blog/db` (`listarEquipo(c)`). El filtro por autor de la lista de artículos usa `listarAutores(c)` (`{ id, nombre }`), que sí puede leer un editor. Para las dos acciones con `service_role` el cliente se crea con `crearClienteDeServicio()` (`apps/admin/src/lib/servicio.ts`, único punto que lee `SUPABASE_SERVICE_ROLE_KEY`) **dentro** de la acción, tras `conPermiso('equipo.gestionar')`; `invitarMiembro` consulta antes `listarEquipo` y rechaza cualquier correo que ya exista, porque invitar a una cuenta sin confirmar la reenviaría (spike T086) y para eso está "Reenviar"; la clave nunca sale al navegador ni a `apps/web` (§III.4).
 
 ## Perfil propio (`acciones/perfil.ts`)
 

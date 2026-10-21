@@ -19,6 +19,8 @@ import {
 const ROLES = ['admin', 'editor'] as const;
 const MENSAJE_CORREO_EXISTENTE = 'Ese correo ya pertenece al equipo';
 
+const esquemaId = z.object({ id: z.uuid() });
+
 const esquemaInvitar = z.object({
   nombre: z.string().trim().min(1).max(80),
   correo: z
@@ -63,7 +65,7 @@ export async function invitarMiembro(entrada: unknown): Promise<ResultadoAccion<
 
 export async function reenviarInvitacion(entrada: unknown): Promise<ResultadoAccion<void>> {
   return conPermiso('equipo.gestionar', async ({ cliente }) => {
-    const datos = z.object({ id: z.uuid() }).safeParse(entrada);
+    const datos = esquemaId.safeParse(entrada);
     if (!datos.success) return fallo('validacion');
     const { id } = datos.data;
 
@@ -81,7 +83,7 @@ export async function reenviarInvitacion(entrada: unknown): Promise<ResultadoAcc
 
 export async function cambiarRolAccion(entrada: unknown): Promise<ResultadoAccion<void>> {
   return conPermiso('equipo.gestionar', async ({ miembro, cliente }) => {
-    const datos = z.object({ id: z.uuid(), rol: z.enum(ROLES) }).safeParse(entrada);
+    const datos = esquemaId.extend({ rol: z.enum(ROLES) }).safeParse(entrada);
     if (!datos.success) return fallo('validacion');
     await cambiarRol(cliente, datos.data.id, datos.data.rol);
     // Quien se quita el rol de admin ya no puede ver /equipo: revalidarla dejaría la pantalla en 403 y sin aviso.
@@ -92,7 +94,7 @@ export async function cambiarRolAccion(entrada: unknown): Promise<ResultadoAccio
 
 export async function cambiarActivoAccion(entrada: unknown): Promise<ResultadoAccion<void>> {
   return conPermiso('equipo.gestionar', async ({ cliente }) => {
-    const datos = z.object({ id: z.uuid(), activo: z.boolean() }).safeParse(entrada);
+    const datos = esquemaId.extend({ activo: z.boolean() }).safeParse(entrada);
     if (!datos.success) return fallo('validacion');
     await cambiarActivo(cliente, datos.data.id, datos.data.activo);
     revalidatePath('/equipo');
