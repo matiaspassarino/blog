@@ -22,65 +22,13 @@ import { sinSupabase } from '@blog/db/pruebas';
 import type {} from '@blog/db/pruebas/entorno'; // declara el contexto `supabase` que provee globalSetup
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it, vi } from 'vitest';
 import { COOKIE_ACTIVIDAD } from '../lib/actividad';
+import { almacenCookies, correr, formulario, hayCookieDeSesion } from '../test/next-simulado';
 
-const simulado = vi.hoisted(() => {
-  class Redireccion extends Error {
-    constructor(readonly destino: string) {
-      super(`NEXT_REDIRECT ${destino}`);
-    }
-  }
-  const almacen = new Map<string, string>();
-  return { Redireccion, almacen };
-});
-
-vi.mock('next/headers', () => ({
-  cookies: async () => ({
-    getAll: () => [...simulado.almacen].map(([name, value]) => ({ name, value })),
-    get: (name: string) => (simulado.almacen.has(name) ? { name, value: simulado.almacen.get(name)! } : undefined),
-    has: (name: string) => simulado.almacen.has(name),
-    set: (name: string, value: string, opciones?: { maxAge?: number }) => {
-      if (value === '' || opciones?.maxAge === 0) simulado.almacen.delete(name);
-      else simulado.almacen.set(name, value);
-    },
-    delete: (name: string) => simulado.almacen.delete(name),
-  }),
-}));
-
-vi.mock('next/navigation', () => ({
-  redirect: (destino: string) => {
-    throw new simulado.Redireccion(destino);
-  },
-  unstable_rethrow: (error: unknown) => {
-    if (error instanceof simulado.Redireccion) throw error;
-  },
-  notFound: () => {
-    throw new Error('NEXT_NOT_FOUND');
-  },
-  forbidden: () => {
-    throw new Error('NEXT_FORBIDDEN');
-  },
-}));
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/headers', async () => (await import('../test/next-simulado')).moduloHeaders);
+vi.mock('next/navigation', async () => (await import('../test/next-simulado')).moduloNavegacion);
+vi.mock('next/cache', async () => (await import('../test/next-simulado')).moduloCache);
 
 const entorno = inject('supabase');
-
-function formulario(campos: Record<string, string>) {
-  const datos = new FormData();
-  for (const [clave, valor] of Object.entries(campos)) datos.set(clave, valor);
-  return datos;
-}
-
-/** Ejecuta la acción y devuelve el destino si redirigió, o su resultado si devolvió. */
-async function correr<T>(accion: () => Promise<T>): Promise<{ redirigio: string } | { resultado: T }> {
-  try {
-    return { resultado: await accion() };
-  } catch (error) {
-    if (error instanceof simulado.Redireccion) return { redirigio: error.destino };
-    throw error;
-  }
-}
-
-const hayCookieDeSesion = () => [...simulado.almacen.keys()].some((nombre) => /auth-token/.test(nombre));
 
 describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
   const miembrosCreados: string[] = [];
@@ -94,7 +42,7 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
     servicio = crearClienteAdmin(entorno.url, entorno.claveServicio);
   });
 
-  beforeEach(() => simulado.almacen.clear());
+  beforeEach(() => almacenCookies.clear());
 
   afterEach(async () => {
     for (const id of miembrosCreados.splice(0)) {
@@ -103,7 +51,7 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
     }
   });
 
-  afterAll(() => simulado.almacen.clear());
+  afterAll(() => almacenCookies.clear());
 
   async function crearMiembro({ activo = true } = {}) {
     const correo = `acceso-${crypto.randomUUID().slice(0, 8)}@prueba.local`;
@@ -197,13 +145,13 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
     it('H1-E5: cierra la sesión, borra blog_actividad y redirige a /ingreso', async () => {
       const { ingresar, cerrarSesion } = await import('./acceso');
       await correr(() => ingresar(null, formulario({ correo: 'editor@demo.local', contrasenia: 'demo-editor-2026' })));
-      simulado.almacen.set(COOKIE_ACTIVIDAD, String(Date.now()));
+      almacenCookies.set(COOKIE_ACTIVIDAD, String(Date.now()));
       expect(hayCookieDeSesion()).toBe(true);
 
       const salida = await correr(() => cerrarSesion());
 
       expect(salida).toEqual({ redirigio: '/ingreso' });
-      expect(simulado.almacen.has(COOKIE_ACTIVIDAD)).toBe(false);
+      expect(almacenCookies.has(COOKIE_ACTIVIDAD)).toBe(false);
       expect(hayCookieDeSesion()).toBe(false);
     });
   });
@@ -233,7 +181,7 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
       const miembro = await crearMiembro();
       const tokenHash = await tokenDeRecuperacion(miembro.correo);
       await correr(() => confirmarEnlace(null, formulario({ tokenHash, tipo: 'recovery' })));
-      simulado.almacen.clear();
+      almacenCookies.clear();
 
       const segunda = await correr(() => confirmarEnlace(null, formulario({ tokenHash, tipo: 'recovery' })));
 
@@ -294,10 +242,10 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
       const salida = await correr(() => definirContrasena(null, formulario({ contrasenia: nueva, repetir: nueva })));
       expect(salida).toEqual({ redirigio: '/articulos' });
 
-      simulado.almacen.clear();
+      almacenCookies.clear();
       const conNueva = await correr(() => ingresar(null, formulario({ correo: miembro.correo, contrasenia: nueva })));
       expect(conNueva).toEqual({ redirigio: '/articulos' });
-      simulado.almacen.clear();
+      almacenCookies.clear();
       const conVieja = await correr(() =>
         ingresar(null, formulario({ correo: miembro.correo, contrasenia: miembro.contrasenia })),
       );

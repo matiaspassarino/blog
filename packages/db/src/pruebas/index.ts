@@ -3,3 +3,4 @@
 export * from './afirmaciones';
 export * from './clientes';
 export * from './datos';
+export * from './imagenes';

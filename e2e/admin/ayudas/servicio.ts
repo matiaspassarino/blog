@@ -5,7 +5,7 @@ import { crearClienteAdmin } from '../../../packages/db/src/servicio';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:56321';
 
-function servicio() {
+export function servicio() {
   const clave = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!clave) throw new Error('Falta SUPABASE_SERVICE_ROLE_KEY (de `supabase status`) para los E2E del panel');
   return crearClienteAdmin(URL, clave);
