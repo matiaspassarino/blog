@@ -1,5 +1,5 @@
 // Nombres con prefijo `e2e-` para los datos de los E2E: `limpiarDatosE2E` (servicio.ts) los borra al terminar.
-export const PREFIJO = 'e2e-';
+const PREFIJO = 'e2e-';
 
 /** Nombre único y reconocible: `e2e-<etiqueta>-<sufijo>`. */
 export function nombreDePrueba(etiqueta: string) {

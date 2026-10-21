@@ -23,7 +23,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { pngDecodificable } from '../../../packages/db/src/pruebas/imagenes';
 
-export const NOMBRE_DE_TIPO = {
+const NOMBRE_DE_TIPO = {
   parrafo: 'párrafo',
   titulo: 'título',
   imagen: 'imagen',
@@ -41,7 +41,7 @@ export const TIPOS: TipoDeBloque[] = Object.keys(NOMBRE_DE_TIPO) as TipoDeBloque
 
 export type ArchivoDePrueba = { name: string; mimeType: string; buffer: Buffer };
 
-export const archivoPng = (name = 'foto.png', ancho = 4, alto = 3): ArchivoDePrueba => ({
+const archivoPng = (name = 'foto.png', ancho = 4, alto = 3): ArchivoDePrueba => ({
   name,
   mimeType: 'image/png',
   buffer: Buffer.from(pngDecodificable(ancho, alto)),

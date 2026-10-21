@@ -22,7 +22,7 @@ const variantes = cva('inline-flex items-center gap-1.5 rounded-sm border px-2 p
   },
 });
 
-export type EstadoBadge = NonNullable<VariantProps<typeof variantes>['estado']>;
+type EstadoBadge = NonNullable<VariantProps<typeof variantes>['estado']>;
 
 const ICONOS: Record<EstadoBadge, NombreIcono> = {
   borrador: 'lapiz',

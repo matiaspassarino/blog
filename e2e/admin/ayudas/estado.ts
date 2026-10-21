@@ -27,7 +27,7 @@ export type EstadoVisible = 'borrador' | 'programado' | 'publicado' | 'archivado
 export type AccionDeEstado =
   'Publicar' | 'Programar' | 'Cancelar programación' | 'Volver a borrador' | 'Archivar' | 'Eliminar';
 
-export const TODAS_LAS_ACCIONES: AccionDeEstado[] = [
+const TODAS_LAS_ACCIONES: AccionDeEstado[] = [
   'Publicar',
   'Programar',
   'Cancelar programación',
@@ -68,7 +68,7 @@ export async function accionesVisibles(page: Page): Promise<AccionDeEstado[]> {
 export const urlDelArticulo = (id: string) => `/articulos/${id}`;
 
 /** Estado HTTP de la página pública del artículo (sin seguir redirecciones). */
-export async function estadoEnElSitio(page: Page, slug: string) {
+async function estadoEnElSitio(page: Page, slug: string) {
   const respuesta = await page.request.get(`${URL_SITIO}/blog/${slug}`, { maxRedirects: 0 });
   return respuesta.status();
 }
