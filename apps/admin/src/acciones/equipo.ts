@@ -4,12 +4,17 @@
 // cliente de servicio, creado acá dentro después de `conPermiso`; cambiar rol y estado usan la sesión y la base
 // aplica "siempre queda un admin activo". Ningún resultado incluye datos de la cuenta de Auth.
 import { cambiarActivo, cambiarRol, listarEquipo } from '@blog/db';
-import { InvitacionSinRol, invitarMiembroPorCorreo, reenviarInvitacionPorCorreo } from '@blog/db/servicio';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { conPermiso } from '../lib/accion';
 import { exito, fallo, type ResultadoAccion } from '../lib/resultado';
-import { crearClienteDeServicio, urlConfirmacion } from '../lib/servicio';
+import {
+  crearClienteDeServicio,
+  InvitacionSinRol,
+  invitarMiembroPorCorreo,
+  reenviarInvitacionPorCorreo,
+  urlConfirmacion,
+} from '../lib/servicio';
 
 const ROLES = ['admin', 'editor'] as const;
 const MENSAJE_CORREO_EXISTENTE = 'Ese correo ya pertenece al equipo';

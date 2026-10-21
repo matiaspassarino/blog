@@ -3,6 +3,8 @@
 import { crearClienteAdmin } from '@blog/db/servicio';
 import { entornoUrlAdmin } from './entorno';
 
+export { InvitacionSinRol, invitarMiembroPorCorreo, reenviarInvitacionPorCorreo } from '@blog/db/servicio';
+
 /** Cliente de servicio para las invitaciones. Falla con un mensaje claro si falta una variable. */
 export function crearClienteDeServicio() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

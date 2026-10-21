@@ -8,6 +8,7 @@
 import { expect, test } from '@playwright/test';
 import { limpiarArticulosE2E, sembrarArticulo } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
+import { esperarEditorListo } from './ayudas/editor';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 import { servicio } from './ayudas/servicio';
 import {
@@ -260,6 +261,7 @@ test.describe('Categorías en uso (H5-E4)', () => {
     const articulo = await sembrarArticulo({ titulo: nombre('art-asignar') });
 
     await page.goto(`/articulos/${articulo.id}`);
+    await esperarEditorListo(page);
     await page.getByLabel('Categoría', { exact: true }).selectOption({ label: texto });
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
 
