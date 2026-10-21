@@ -38,8 +38,8 @@ export function puede(rol: RolMiembro | null, accion: Accion): boolean {
 }
 
 const TRANSICIONES: Record<EstadoArticulo, readonly EstadoArticulo[]> = {
-  borrador: ['publicado', 'programado', 'archivado'],
-  programado: ['borrador', 'archivado'],
+  borrador: ['publicado', 'programado'],
+  programado: ['borrador', 'publicado'],
   publicado: ['borrador', 'archivado'],
   archivado: ['borrador'],
 };

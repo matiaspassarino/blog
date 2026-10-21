@@ -64,8 +64,8 @@ describe('puede', () => {
 
 describe('transicionesDe', () => {
   const ESPERADAS: Record<EstadoArticulo, EstadoArticulo[]> = {
-    borrador: ['publicado', 'programado', 'archivado'],
-    programado: ['borrador', 'archivado'],
+    borrador: ['publicado', 'programado'],
+    programado: ['borrador', 'publicado'],
     publicado: ['borrador', 'archivado'],
     archivado: ['borrador'],
   };

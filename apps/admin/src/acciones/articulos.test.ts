@@ -15,6 +15,16 @@
 //     contenido o imagen destacada inválidos -> 'contenido_invalido' con `errores: ErrorBloque[]` (indice -1 = destacada);
 //     versión vieja -> 'conflicto_version'.
 // La sesión del miembro se abre con la acción `ingresar` de H1 (cookies simuladas, ver ../test/next-simulado).
+//
+// Firmas supuestas de H3 (T065 y T070), también exportadas desde './articulos', con el mismo patrón (un objeto y `ResultadoAccion`):
+//   cambiarEstadoAccion({ id, version, destino: EstadoArticulo, programadoPara?: string /* ISO UTC */ }): Promise<ResultadoAccion<Articulo>>
+//     `datos` es el artículo actualizado (estado nuevo y `version` nueva). Con destino 'programado' sin `programadoPara`
+//     devuelve 'validacion' (Zod) sin tocar la base. Errores de la base: 'requisitos_publicacion' con `detalle` ya
+//     traducido a 'sin categoría' | 'sin bloques' (la base dice 'categoria' | 'contenido'), 'fecha_no_futura',
+//     'estado_invalido', 'conflicto_version', 'no_encontrado'. Cancelar la programación es destino 'borrador'.
+//   eliminarArticuloAccion({ id }): Promise<ResultadoAccion<void>>  (solo admin: 'sin_permiso' para el editor)
+//     Lee las rutas de imagen antes de borrar y después las borra del bucket si ningún otro contenido las usa (D11).
+//     Ambas llaman a revalidatePath('/articulos') cuando cambian algo.
 import { crearBloque } from '@blog/bloques';
 import { crearArticulo, previsualizarSlug, type ClienteBlog } from '@blog/db';
 import { clienteComo, pngMinimo, registroDePrueba, sesionesDemo, sinSupabase } from '@blog/db/pruebas';
@@ -30,6 +40,7 @@ vi.mock('next/cache', async () => (await import('../test/next-simulado')).modulo
 const entorno = inject('supabase');
 
 const USUARIOS = {
+  admin: { correo: 'admin@demo.local', contrasenia: 'demo-admin-2026' },
   editor: { correo: 'editor@demo.local', contrasenia: 'demo-editor-2026' },
   editora: { correo: 'editora@demo.local', contrasenia: 'demo-editora-2026' },
 } as const;
@@ -566,6 +577,296 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const resultado = await leerArticuloVigente({ id: articulo.id });
 
       expect(resultado).toMatchObject({ ok: false, codigo: 'no_autenticado', motivo: 'sin_sesion' });
+    });
+  });
+
+  describe('cambiarEstadoAccion (H3)', () => {
+    const enUnaHora = () => new Date(Date.now() + 3_600_000).toISOString();
+
+    /** Borrador con título, categoría y un bloque: lo mínimo para publicar. */
+    const borradorCompleto = (etiqueta: string) => sembrar(editor, { titulo: titulo(etiqueta) });
+
+    /** Pasa el artículo por la acción y exige que haya salido bien; devuelve el artículo actualizado. */
+    async function cambiar(
+      articulo: { id: string; version: number },
+      destino: 'borrador' | 'programado' | 'publicado' | 'archivado',
+      programadoPara?: string,
+    ) {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const resultado = await cambiarEstadoAccion({
+        id: articulo.id,
+        version: articulo.version,
+        destino,
+        programadoPara,
+      });
+      if (!resultado.ok) throw new Error(`No se pudo pasar a ${destino}: ${JSON.stringify(resultado)}`);
+      return resultado.datos;
+    }
+
+    it('H3-E1: publica un borrador completo, fija la fecha de publicación y devuelve la versión nueva', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await borradorCompleto('publicar');
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: true, datos: { id: articulo.id, estado: 'publicado' } });
+      if (!resultado.ok) return;
+      expect(resultado.datos.publicado_en).not.toBeNull();
+      expect(resultado.datos.version).toBeGreaterThan(articulo.version);
+      const guardado = await leer(articulo.id);
+      expect(guardado).toMatchObject({ estado: 'publicado', version: resultado.datos.version });
+      expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith('/articulos');
+    });
+
+    it('H3-E2: sin categoría rechaza con requisitos_publicacion y el detalle "sin categoría"', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await crearArticulo(editor, {
+        titulo: titulo('sin categoria'),
+        contenido: [parrafo('Hola')] as never,
+      });
+      registro.articulos.push(articulo.id);
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'requisitos_publicacion', detalle: 'sin categoría' });
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+
+    it('H3-E2: sin bloques rechaza con requisitos_publicacion y el detalle "sin bloques"', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('sin bloques'), contenido: [] });
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'requisitos_publicacion', detalle: 'sin bloques' });
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+
+    it('H3-E2: programar también exige los requisitos de publicación', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('programar sin bloques'), contenido: [] });
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({
+        id: articulo.id,
+        version: articulo.version,
+        destino: 'programado',
+        programadoPara: enUnaHora(),
+      });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'requisitos_publicacion', detalle: 'sin bloques' });
+    });
+
+    it('H3-E3: programa con una fecha futura y la deja guardada', async () => {
+      const articulo = await borradorCompleto('programar');
+      await comoMiembro('editor');
+      const fecha = enUnaHora();
+
+      const programado = await cambiar(articulo, 'programado', fecha);
+
+      expect(programado.estado).toBe('programado');
+      expect(new Date(programado.programado_para!).getTime()).toBe(new Date(fecha).getTime());
+      expect(programado.publicado_en).toBeNull();
+      expect((await leer(articulo.id)).estado).toBe('programado');
+    });
+
+    it('H3-E3: programar exige programadoPara (validacion) y no toca el artículo', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await borradorCompleto('programar sin fecha');
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({
+        id: articulo.id,
+        version: articulo.version,
+        destino: 'programado',
+      });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'validacion' });
+      expect(await leer(articulo.id)).toMatchObject({ estado: 'borrador', version: articulo.version });
+    });
+
+    it('H3-E4: con una fecha pasada devuelve fecha_no_futura y el artículo sigue en borrador', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await borradorCompleto('fecha pasada');
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({
+        id: articulo.id,
+        version: articulo.version,
+        destino: 'programado',
+        programadoPara: new Date(Date.now() - 60_000).toISOString(),
+      });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'fecha_no_futura' });
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+
+    it('H3-E5: cancelar la programación es volver a borrador y limpia la fecha', async () => {
+      const articulo = await borradorCompleto('cancelar');
+      await comoMiembro('editor');
+      const programado = await cambiar(articulo, 'programado', enUnaHora());
+
+      const cancelado = await cambiar(programado, 'borrador');
+
+      expect(cancelado).toMatchObject({ estado: 'borrador', programado_para: null });
+      expect(await leer(articulo.id)).toMatchObject({ estado: 'borrador', programado_para: null });
+    });
+
+    it('H3-E6: archiva un publicado y lo vuelve a borrador', async () => {
+      const articulo = await borradorCompleto('archivar');
+      await comoMiembro('editor');
+      const publicado = await cambiar(articulo, 'publicado');
+
+      const archivado = await cambiar(publicado, 'archivado');
+      expect(archivado.estado).toBe('archivado');
+
+      const borrador = await cambiar(archivado, 'borrador');
+      expect(borrador.estado).toBe('borrador');
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+
+    it('H3-E6: un publicado también vuelve directo a borrador', async () => {
+      const articulo = await borradorCompleto('publicado a borrador');
+      await comoMiembro('editor');
+      const publicado = await cambiar(articulo, 'publicado');
+
+      const borrador = await cambiar(publicado, 'borrador');
+
+      expect(borrador.estado).toBe('borrador');
+    });
+
+    it('H3-E7: una transición fuera de la matriz devuelve estado_invalido y no cambia nada', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await borradorCompleto('transicion invalida');
+      await comoMiembro('editor');
+      const archivado = await cambiar(await cambiar(articulo, 'publicado'), 'archivado');
+
+      const resultado = await cambiarEstadoAccion({
+        id: archivado.id,
+        version: archivado.version,
+        destino: 'publicado',
+      });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'estado_invalido' });
+      expect((await leer(articulo.id)).estado).toBe('archivado');
+    });
+
+    it('H3: con una versión vieja devuelve conflicto_version y no cambia el estado', async () => {
+      const { cambiarEstadoAccion, guardarArticulo } = await import('./articulos');
+      const articulo = await borradorCompleto('conflicto estado');
+      await comoMiembro('editor');
+      const otraPersonaGuarda = await guardarArticulo({
+        id: articulo.id,
+        version: articulo.version,
+        cambios: { titulo: `${articulo.titulo} editado` },
+      });
+      expect(otraPersonaGuarda.ok).toBe(true);
+
+      const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'conflicto_version' });
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+
+    it('un artículo que no existe devuelve no_encontrado', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      await comoMiembro('editor');
+
+      const resultado = await cambiarEstadoAccion({ id: crypto.randomUUID(), version: 1, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_encontrado' });
+    });
+
+    it('un anónimo recibe no_autenticado y no cambia el estado', async () => {
+      const { cambiarEstadoAccion } = await import('./articulos');
+      const articulo = await borradorCompleto('estado anonimo');
+
+      const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_autenticado', motivo: 'sin_sesion' });
+      expect((await leer(articulo.id)).estado).toBe('borrador');
+    });
+  });
+
+  describe('eliminarArticuloAccion (H3)', () => {
+    it('H3-E8: un editor recibe sin_permiso y el artículo sigue existiendo', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('editor no elimina') });
+      await comoMiembro('editor');
+
+      const resultado = await eliminarArticuloAccion({ id: articulo.id });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'sin_permiso' });
+      expect((await leer(articulo.id)).id).toBe(articulo.id);
+    });
+
+    it('H3-E8: el admin elimina el artículo y se avisa a la lista del panel', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('admin elimina') });
+      await comoMiembro('admin');
+
+      const resultado = await eliminarArticuloAccion({ id: articulo.id });
+
+      expect(resultado).toMatchObject({ ok: true });
+      const { data } = await admin.from('articulos').select('id').eq('id', articulo.id);
+      expect(data).toEqual([]);
+      expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith('/articulos');
+    });
+
+    it('H3-E8: al eliminar, borra del bucket las imágenes que nadie más usa (contenido y destacada)', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      const rutaContenido = await subirImagen('eliminar-contenido.png');
+      const rutaDestacada = await subirImagen('eliminar-destacada.png');
+      const articulo = await sembrar(editor, {
+        titulo: titulo('elimina con imagenes'),
+        contenido: [bloqueImagen(rutaContenido)],
+        imagen_destacada: imagenValida(rutaDestacada),
+      });
+      await comoMiembro('admin');
+
+      const resultado = await eliminarArticuloAccion({ id: articulo.id });
+
+      expect(resultado.ok).toBe(true);
+      expect(await existeEnBucket(rutaContenido)).toBe(false);
+      expect(await existeEnBucket(rutaDestacada)).toBe(false);
+    });
+
+    it('H3-E8: si otro artículo todavía usa la imagen, se conserva en el bucket', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      const ruta = await subirImagen('eliminar-compartida.png');
+      const aEliminar = await sembrar(editor, {
+        titulo: titulo('elimina y comparte'),
+        contenido: [bloqueImagen(ruta)],
+      });
+      await sembrar(editora, { titulo: titulo('sigue usando'), contenido: [bloqueImagen(ruta)] });
+      await comoMiembro('admin');
+
+      const resultado = await eliminarArticuloAccion({ id: aEliminar.id });
+
+      expect(resultado.ok).toBe(true);
+      expect(await existeEnBucket(ruta)).toBe(true);
+    });
+
+    it('un artículo que no existe devuelve no_encontrado', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      await comoMiembro('admin');
+
+      const resultado = await eliminarArticuloAccion({ id: crypto.randomUUID() });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_encontrado' });
+    });
+
+    it('un anónimo recibe no_autenticado y el artículo sigue existiendo', async () => {
+      const { eliminarArticuloAccion } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('eliminar anonimo') });
+
+      const resultado = await eliminarArticuloAccion({ id: articulo.id });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_autenticado', motivo: 'sin_sesion' });
+      expect((await leer(articulo.id)).id).toBe(articulo.id);
     });
   });
 });

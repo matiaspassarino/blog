@@ -93,6 +93,39 @@ export async function publicarComoServicio(id: string) {
   return data;
 }
 
+/**
+ * Lleva un artículo a cualquier estado sin pasar por la interfaz (H3). La clave de servicio no es "cliente":
+ * la base no le exige fecha futura al programar, así que `programadoPara` puede ser cualquiera.
+ */
+export async function pasarAComoServicio(
+  id: string,
+  estado: 'borrador' | 'programado' | 'publicado' | 'archivado',
+  programadoPara?: Date,
+) {
+  const s = servicio();
+  const { data: actual } = await s.from('articulos').select('version').eq('id', id).single();
+  const { data, error } = await s
+    .from('articulos')
+    .update({
+      estado,
+      version: actual!.version,
+      ...(programadoPara && { programado_para: programadoPara.toISOString() }),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error || !data || data.estado !== estado) throw new Error(`No se pudo pasar a ${estado}: ${error?.message}`);
+  return data;
+}
+
+/** Quita la categoría de un borrador (para probar el requisito de publicación "sin categoría"). */
+export async function quitarCategoriaComoServicio(id: string) {
+  const s = servicio();
+  const { data: actual } = await s.from('articulos').select('version').eq('id', id).single();
+  const { error } = await s.from('articulos').update({ categoria_id: null, version: actual!.version }).eq('id', id);
+  if (error) throw new Error(`No se pudo quitar la categoría: ${error.message}`);
+}
+
 export async function articuloPorTitulo(titulo: string) {
   const { data } = await servicio().from('articulos').select('*').eq('titulo', titulo).maybeSingle();
   return data;

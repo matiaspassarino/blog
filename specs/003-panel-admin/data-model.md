@@ -119,12 +119,12 @@ Sin cambios. El seed tiene 1 admin y 2 editores activos; no hay miembro desactiv
 
 ## Estados y transiciones
 
-Sin cambios respecto de la spec 001 (RF-009). El panel solo ofrece las del estado actual:
+Sin cambios respecto de la spec 001 (RF-009, trigger `a40`); una versión anterior de esta tabla ofrecía "Archivar" desde borrador y programado, que la base rechaza (corregido al implementar H3). El panel solo ofrece las del estado actual:
 
 | Desde | Acciones que muestra el panel | Hacia |
 |---|---|---|
-| `borrador` | Publicar · Programar · Archivar | `publicado` · `programado` · `archivado` |
-| `programado` | Cancelar programación · Archivar | `borrador` · `archivado` |
+| `borrador` | Publicar · Programar | `publicado` · `programado` |
+| `programado` | Cancelar programación · Publicar | `borrador` · `publicado` |
 | `publicado` | Volver a borrador · Archivar | `borrador` · `archivado` |
 | `archivado` | Volver a borrador | `borrador` |
 | cualquiera | Eliminar (solo admin, con confirmación) | — |
