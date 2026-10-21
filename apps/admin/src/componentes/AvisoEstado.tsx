@@ -2,18 +2,31 @@
 
 // Aviso de éxito o de error. No desaparece solo: se queda hasta que la persona lo cierra o aparece
 // otro (WCAG 2.2.1). El éxito se anuncia con role="status" y el error con role="alert".
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Icono } from './Icono';
 
-type Props = { tipo: 'exito' | 'error'; children: string; titulo?: string; cerrable?: boolean };
+type Props = {
+  tipo: 'exito' | 'error';
+  children: string;
+  titulo?: string;
+  cerrable?: boolean;
+  /** Lleva el foco al aviso al aparecer: lo usan los errores de un formulario. */
+  enfocar?: boolean;
+};
 
-export function AvisoEstado({ tipo, children, titulo, cerrable = true }: Props) {
+export function AvisoEstado({ tipo, children, titulo, cerrable = true, enfocar = false }: Props) {
   const [cerrado, setCerrado] = useState(false);
+  const aviso = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (enfocar) aviso.current?.focus();
+  }, [enfocar]);
   if (cerrado) return null;
 
   return (
     <div
+      ref={aviso}
+      tabIndex={enfocar ? -1 : undefined}
       role={tipo === 'error' ? 'alert' : 'status'}
       className={cn(
         'flex items-start gap-3 rounded-md border p-3',

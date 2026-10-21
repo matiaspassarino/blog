@@ -12,8 +12,8 @@
 //     Errores: 'contrasenia_corta' (< 8, RF-028), 'no_coinciden'; sin sesión abierta: 'no_autenticado'/'sin_sesion'.
 //   exigirMiembroEnAccion(): Promise<{ miembro: MiembroSesion } | { fallo: ResultadoAccion<never> }>
 //     ayuda que usan las acciones del panel (paso 1 de "Reglas comunes"): sin sesión válida y activa devuelve
-//     `fallo = no_autenticado` con `motivo: 'sin_sesion' | 'desactivada'`. Se exporta también desde acceso.ts
-//     para poder probar la regla sin depender de las acciones de H2 (ambigüedad documentada en el informe).
+//     `fallo = no_autenticado` con `motivo: 'sin_sesion' | 'desactivada'`. Vive en lib/accion.ts (no en acceso.ts:
+//     un export de un archivo 'use server' se vuelve un punto de entrada invocable desde el navegador).
 // Los códigos nuevos ('enlace_invalido', 'contrasenia_corta', 'no_coinciden') se agregan a `CodigoMensaje`.
 // Se simulan `next/headers` (almacén de cookies en memoria) y `next/navigation` (`redirect` lanza un
 // error reconocible), así las acciones corren sin servidor Next.
@@ -333,7 +333,8 @@ describe.skipIf(sinSupabase)('Server Actions de acceso (H1)', () => {
     it('H1-E6: una acción que exige miembro, llamada con un perfil desactivado, devuelve no_autenticado/desactivada', async () => {
       // `exigirMiembroEnAccion` (T044) es la ayuda de acceso.ts que usan las acciones del panel:
       // devuelve `{ miembro }` o `{ fallo }` con el ResultadoAccion que hay que devolver.
-      const { exigirMiembroEnAccion, confirmarEnlace } = await import('./acceso');
+      const { confirmarEnlace } = await import('./acceso');
+      const { exigirMiembroEnAccion } = await import('../lib/accion');
       const miembro = await crearMiembro();
       const tokenHash = await tokenDeRecuperacion(miembro.correo);
       await correr(() => confirmarEnlace(null, formulario({ tokenHash, tipo: 'recovery' })));

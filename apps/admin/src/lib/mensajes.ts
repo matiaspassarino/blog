@@ -2,7 +2,14 @@
 import type { CodigoError } from '@blog/db';
 
 /** Códigos propios del panel, además de los del dominio de @blog/db. */
-export type CodigoPanel = 'no_autenticado' | 'imagen_invalida' | 'credenciales_invalidas' | 'cuenta_desactivada';
+type CodigoPanel =
+  | 'no_autenticado'
+  | 'imagen_invalida'
+  | 'credenciales_invalidas'
+  | 'cuenta_desactivada'
+  | 'enlace_invalido'
+  | 'contrasenia_corta'
+  | 'no_coinciden';
 
 export type CodigoMensaje = CodigoError | CodigoPanel;
 
@@ -18,6 +25,9 @@ const FIJOS: Partial<Record<CodigoMensaje, string>> = {
   no_encontrado: 'Ya no existe. Puede que lo hayan eliminado.',
   credenciales_invalidas: 'El correo o la contraseña no son correctos.',
   cuenta_desactivada: 'Tu cuenta está desactivada. Habla con un administrador.',
+  enlace_invalido: 'Este enlace ya se usó o venció.',
+  contrasenia_corta: 'La contraseña debe tener al menos 8 caracteres.',
+  no_coinciden: 'Las contraseñas no coinciden.',
   desconocido: 'Algo salió mal. Prueba de nuevo en unos minutos.',
 };
 

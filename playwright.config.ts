@@ -1,5 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Los E2E del panel preparan y limpian datos con la clave de servicio, que vive en apps/admin/.env.local
+// (ignorado por git; en CI la entrega el entorno). Si el archivo no existe, no pasa nada.
+try {
+  process.loadEnvFile('apps/admin/.env.local');
+} catch {
+  // sin archivo local: las variables vienen del entorno
+}
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,

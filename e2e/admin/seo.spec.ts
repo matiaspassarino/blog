@@ -6,7 +6,8 @@ async function comprobarNoIndexable(page: import('@playwright/test').Page, ruta:
   const respuesta = await page.goto(ruta);
   expect(respuesta?.status()).toBe(estado);
   expect(respuesta?.headers()['x-robots-tag']).toBe('noindex, nofollow');
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  // Next agrega su propio `noindex` a las páginas 404: se comprueba que esté el del panel.
+  await expect(page.locator('meta[name="robots"][content="noindex, nofollow"]')).toHaveCount(1);
 }
 
 test.describe('Panel no indexable (RSEO-001)', () => {
