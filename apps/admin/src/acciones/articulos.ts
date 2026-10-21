@@ -12,6 +12,7 @@ import {
   obtenerArticuloParaEditar,
   previsualizarSlug,
   rutasEnUso,
+  type ArticuloParaEditar,
   type Articulo,
   type CambiosArticulo,
   type NuevoArticulo,
@@ -37,17 +38,21 @@ export async function previsualizarSlugAccion(entrada: z.input<typeof esquemaSlu
 // Los campos de contenido se validan a fondo en @blog/db con el esquema de @blog/bloques (§VI.4): aquí solo
 // se comprueba la forma general de lo que llega desde el navegador.
 const esquemaEtiquetas = z.array(z.uuid()).max(50);
-const esquemaNuevo = z.object({
+// Un artículo nuevo exige título; al guardar, cualquier campo puede faltar (solo viaja lo que cambió).
+const camposDelArticulo = z.object({
   titulo: z.string().trim().min(1),
-  slug: z.string().optional(),
-  extracto: z.string().nullable().optional(),
-  titulo_seo: z.string().nullable().optional(),
-  descripcion_seo: z.string().nullable().optional(),
-  imagen_destacada: z.unknown().optional(),
-  contenido: z.array(z.unknown()).optional(),
-  categoria_id: z.uuid().nullable().optional(),
-  etiquetas: esquemaEtiquetas.default([]),
+  slug: z.string(),
+  extracto: z.string().nullable(),
+  titulo_seo: z.string().nullable(),
+  descripcion_seo: z.string().nullable(),
+  imagen_destacada: z.unknown(),
+  contenido: z.array(z.unknown()),
+  categoria_id: z.uuid().nullable(),
 });
+const esquemaNuevo = camposDelArticulo
+  .partial()
+  .required({ titulo: true })
+  .extend({ etiquetas: esquemaEtiquetas.default([]) });
 
 export async function crearArticuloAccion(entrada: unknown): Promise<ResultadoAccion<Articulo>> {
   return conPermiso('articulo.crear', async ({ cliente }) => {
@@ -70,16 +75,7 @@ export async function crearArticuloAccion(entrada: unknown): Promise<ResultadoAc
 const esquemaGuardado = z.object({
   id: z.uuid(),
   version: z.int().positive(),
-  cambios: z.object({
-    titulo: z.string().trim().min(1).optional(),
-    slug: z.string().optional(),
-    extracto: z.string().nullable().optional(),
-    titulo_seo: z.string().nullable().optional(),
-    descripcion_seo: z.string().nullable().optional(),
-    imagen_destacada: z.unknown().optional(),
-    contenido: z.array(z.unknown()).optional(),
-    categoria_id: z.uuid().nullable().optional(),
-  }),
+  cambios: camposDelArticulo.partial(),
   etiquetas: esquemaEtiquetas.optional(),
 });
 
@@ -133,5 +129,18 @@ export async function guardarArticulo(entrada: unknown): Promise<ResultadoAccion
     revalidatePath('/articulos');
     revalidatePath(`/articulos/${id}`);
     return exito(articulo);
+  });
+}
+
+/**
+ * Lee la versión vigente de un artículo (con sus etiquetas): el editor la usa para mostrarla junto a lo
+ * escrito y para "Reemplazar con la vigente" cuando un guardado chocó con otro (D13).
+ */
+export async function leerArticuloVigente(entrada: unknown): Promise<ResultadoAccion<ArticuloParaEditar>> {
+  return conPermiso('articulo.editar', async ({ cliente }) => {
+    const datos = z.object({ id: z.uuid() }).safeParse(entrada);
+    if (!datos.success) return fallo('validacion');
+    const articulo = await obtenerArticuloParaEditar(cliente, datos.data.id);
+    return articulo ? exito(articulo) : fallo('no_encontrado');
   });
 }

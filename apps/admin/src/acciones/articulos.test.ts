@@ -536,4 +536,36 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       expect((guardado.contenido as { texto: string }[])[0]?.texto).toBe('Guardado igual');
     });
   });
+  describe('leerArticuloVigente (D13)', () => {
+    it('H2-E5: devuelve la versión vigente del artículo con sus etiquetas', async () => {
+      const { leerArticuloVigente } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('vigente') });
+      await comoMiembro('editor');
+
+      const resultado = await leerArticuloVigente({ id: articulo.id });
+
+      expect(resultado).toMatchObject({
+        ok: true,
+        datos: { id: articulo.id, titulo: articulo.titulo, version: articulo.version, etiquetas: [] },
+      });
+    });
+
+    it('un artículo que no existe devuelve no_encontrado', async () => {
+      const { leerArticuloVigente } = await import('./articulos');
+      await comoMiembro('editor');
+
+      const resultado = await leerArticuloVigente({ id: crypto.randomUUID() });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_encontrado' });
+    });
+
+    it('un anónimo recibe no_autenticado', async () => {
+      const { leerArticuloVigente } = await import('./articulos');
+      const articulo = await sembrar(editor, { titulo: titulo('vigente anonimo') });
+
+      const resultado = await leerArticuloVigente({ id: articulo.id });
+
+      expect(resultado).toMatchObject({ ok: false, codigo: 'no_autenticado', motivo: 'sin_sesion' });
+    });
+  });
 });

@@ -21,6 +21,9 @@ export default defineConfig({
       name: 'admin',
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3100' },
       testMatch: /admin\/.*\.spec\.ts/,
+      // Cada spec del panel limpia sus datos por prefijo en afterAll: si sus pruebas se repartieran entre
+      // trabajadores, uno borraría lo que otro todavía usa. Los archivos sí corren en paralelo.
+      fullyParallel: false,
     },
   ],
   webServer: [

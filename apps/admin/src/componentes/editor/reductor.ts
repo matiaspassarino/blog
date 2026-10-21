@@ -34,8 +34,14 @@ export type EstadoEditor = {
   slugManual: boolean;
 };
 
-export type CampoEditable =
+type CampoEditable =
   'titulo' | 'slug' | 'extracto' | 'titulo_seo' | 'descripcion_seo' | 'imagen_destacada' | 'categoria_id' | 'etiquetas';
+
+/**
+ * Campos a mezclar en un bloque. Una función recibe el bloque actual: así dos cambios seguidos (por ejemplo dos
+ * imágenes que terminan de subir casi a la vez) se suman en lugar de pisarse.
+ */
+export type CambiosDeBloque = Partial<Bloque> | ((bloque: Bloque) => Partial<Bloque>);
 
 export type AccionEditor =
   | { tipo: 'campo'; campo: CampoEditable; valor: unknown }
@@ -44,7 +50,7 @@ export type AccionEditor =
   | { tipo: 'mover_bloque'; indice: number; destino: number }
   | { tipo: 'duplicar_bloque'; indice: number }
   | { tipo: 'quitar_bloque'; indice: number }
-  | { tipo: 'actualizar_bloque'; indice: number; cambios: Partial<Bloque> }
+  | { tipo: 'actualizar_bloque'; indice: number; cambios: CambiosDeBloque }
   | { tipo: 'guardado'; articulo: DatosArticulo }
   | { tipo: 'adoptar_vigente'; articulo: DatosArticulo };
 
@@ -90,8 +96,12 @@ export function reductor(estado: EstadoEditor, accion: AccionEditor): EstadoEdit
       return conDatos(estado, { contenido: duplicarBloque(contenido, accion.indice) });
     case 'quitar_bloque':
       return conDatos(estado, { contenido: quitarBloque(contenido, accion.indice) });
-    case 'actualizar_bloque':
-      return conDatos(estado, { contenido: actualizarBloque(contenido, accion.indice, accion.cambios) });
+    case 'actualizar_bloque': {
+      const bloque = contenido[accion.indice];
+      if (!bloque) return estado;
+      const cambios = typeof accion.cambios === 'function' ? accion.cambios(bloque) : accion.cambios;
+      return conDatos(estado, { contenido: actualizarBloque(contenido, accion.indice, cambios) });
+    }
     case 'guardado':
     case 'adoptar_vigente':
       return {

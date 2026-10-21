@@ -23,3 +23,7 @@ export function primerCampoInvalido(errores: ErrorBloque[]): string | null {
   const primero = [...errores].sort((a, b) => a.indice - b.indice)[0];
   return primero ? idDeCampo(primero) : null;
 }
+
+/** Mensaje del primer error de un campo de un bloque (`campo` es el de `ErrorBloque`, por ejemplo `imagen.alt`). */
+export const mensajeDeCampo = (errores: ErrorBloque[], campo: string) =>
+  errores.find((e) => e.campo === campo)?.mensaje;

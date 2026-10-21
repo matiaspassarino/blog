@@ -144,7 +144,8 @@ test.describe('Bloques (H2-E2)', () => {
 
     const subirPrimero = page.getByRole('button', { name: 'Subir bloque 1, párrafo' });
     await expect(subirPrimero).toHaveAttribute('aria-disabled', 'true');
-    await subirPrimero.click();
+    // El botón usa aria-disabled a propósito (no pierde el foco): Playwright lo trata como deshabilitado.
+    await subirPrimero.click({ force: true });
 
     await expect(grupoDeBloque(page, 1, 'parrafo').getByLabel('Texto', { exact: true })).toHaveValue('A');
   });
@@ -291,31 +292,35 @@ test.describe('Cambios sin guardar (H2-E6)', () => {
     await expect(page.getByText('Cambios sin guardar')).toHaveCount(0);
   });
 
-  test('H2-E6: cerrar la pestaña con cambios muestra el aviso del navegador', async ({ page }) => {
+  // Recargar y cerrar la pestaña pasan por el mismo evento `beforeunload`; Playwright solo informa el diálogo
+  // en la recarga (page.close con runBeforeUnload no lo emite), así que el aviso se comprueba recargando.
+  test('H2-E6: cerrar o recargar la pestaña con cambios muestra el aviso del navegador', async ({ page }) => {
     const articulo = await sembrarArticulo({ titulo: titulo('cerrar') });
     await page.goto(`/articulos/${articulo.id}`);
     await page.getByLabel('Extracto', { exact: true }).fill('Cambio sin guardar');
+    // Chromium solo muestra el aviso de salida si hubo un gesto real de la persona en la página.
+    await page.getByLabel('Extracto', { exact: true }).click();
     const tipos: string[] = [];
     page.on('dialog', (dialogo) => {
       tipos.push(dialogo.type());
-      void dialogo.dismiss();
+      void dialogo.accept();
     });
 
-    await page.close({ runBeforeUnload: true });
+    await page.reload();
 
     expect(tipos).toContain('beforeunload');
   });
 
-  test('H2-E6: sin cambios, cerrar la pestaña no muestra ningún aviso', async ({ page }) => {
+  test('H2-E6: sin cambios, recargar la pestaña no muestra ningún aviso', async ({ page }) => {
     const articulo = await sembrarArticulo({ titulo: titulo('limpio') });
     await page.goto(`/articulos/${articulo.id}`);
     const tipos: string[] = [];
     page.on('dialog', (dialogo) => {
       tipos.push(dialogo.type());
-      void dialogo.dismiss();
+      void dialogo.accept();
     });
 
-    await page.close({ runBeforeUnload: true });
+    await page.reload();
 
     expect(tipos).toEqual([]);
   });

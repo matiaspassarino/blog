@@ -2,10 +2,10 @@
 
 // Navegación del panel: barra lateral desde 1024 px y menú desplegable en pantallas angostas.
 // Primer elemento enfocable: "Saltar al contenido" (landmarks: header, nav "Principal" y main).
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icono } from './Icono';
+import { EnlaceConAviso } from './salida/EnlaceConAviso';
 import { Button } from './ui/button';
 
 const ENLACES = [
@@ -76,13 +76,13 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
                 const actual = ruta === href || ruta.startsWith(`${href}/`);
                 return (
                   <li key={href}>
-                    <Link
+                    <EnlaceConAviso
                       href={href}
                       aria-current={actual ? 'page' : undefined}
                       className="flex min-h-(--tactil-min) items-center rounded-md px-3 hover:bg-marca-suave aria-[current=page]:bg-marca-suave aria-[current=page]:font-semibold aria-[current=page]:text-marca"
                     >
                       {texto}
-                    </Link>
+                    </EnlaceConAviso>
                   </li>
                 );
               })}
@@ -91,13 +91,13 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
           <div className="border-t border-separador p-4">
             <p className="font-semibold">{nombre}</p>
             <p className="text-sm text-texto-suave">{ETIQUETA_ROL[rol]}</p>
-            <Link
+            <EnlaceConAviso
               href="/perfil"
               className="mt-2 flex min-h-(--tactil-min) items-center underline"
               aria-current={ruta === '/perfil' ? 'page' : undefined}
             >
               Mi perfil
-            </Link>
+            </EnlaceConAviso>
             {cerrarSesion}
           </div>
         </div>
