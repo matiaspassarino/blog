@@ -61,7 +61,7 @@ Mejoras (sin hacer, menores): la regla ESLint `no-restricted-imports` no prohíb
 - [ ] CE-001: cronometrar con una persona que no haya usado el panel la creación y publicación de un artículo de 5 bloques con una imagen (menos de 5 minutos).
 - [ ] CE-006: Lighthouse en `/articulos`, el editor y `/equipo` en 360, 768, 1024 y 1440 px (hoy solo `/ingreso` y `/olvide-contrasena`, más axe).
 - [ ] CE-007: navegación menor a 1 s.
-- [ ] T106 (a cargo del usuario, después del merge): ver `quickstart.md`.
+- [ ] T106 (a cargo del usuario, después del merge): ver `quickstart.md`. El SMTP propio queda **pospuesto** (sin hosting de correo): en la nube las invitaciones y la recuperación solo llegan a miembros de la organización de Supabase.
 
 ## Acciones
 
