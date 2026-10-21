@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
 import type { Taxonomia } from '../tipos-dominio';
-import { clienteAnon, clienteComo, crearMiembroDePrueba, sinSupabase } from '../pruebas/clientes';
+import { clienteAnon, clienteComo, crearMiembroDePrueba, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
   listarArticulosPublicados,
@@ -82,7 +82,7 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
   }
 
   beforeAll(async () => {
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    ({ admin } = await sesionAdminDemo());
     anon = clienteAnon();
 
     categoria = await insertarTaxonomia('categorias', 'H3 Listados Categoría', 'h3-listados-categoria');

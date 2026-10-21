@@ -58,15 +58,14 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
 
 ## Estado actual (2026-10-19, fin de la sesión)
 - **`main`** (commit `0c87344`; PR #1 y PR #2 mergeados): spec 001 hasta H3 más el seed, y **spec 002 cerrada** (sitio público; `/validar` ronda 3 APROBADO). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100. En la nube están las migraciones de la 002 y el Vault.
-- **Spec 001, rama `001-modelo-de-contenido`** (en GitHub: `main` más H4–H6, **sin PR todavía**):
-  - **Hechas** H4 (programación, `20261019120700_programacion.sql`), H5 (búsqueda, `20261019120800_busqueda.sql`) y H6 (equipo, `20261019120900_equipo.sql`), con los tests escritos antes por `escritor-tests`. En local todo en verde: 707 pgTAP, 144 Vitest de `@blog/db`, lint, typecheck, calidad, build y 147 E2E.
+- **Spec 001, rama `001-modelo-de-contenido`** (2026-10-20): **todas las tareas hechas** y `/validar` ronda 7 APROBADO, con sus 9 menores corregidos. Lista para el PR a `main`.
+  - H4 (programación, `20261019120700_programacion.sql`), H5 (búsqueda, `20261019120800_busqueda.sql`) y H6 (equipo, `20261019120900_equipo.sql`), con los tests escritos antes por `escritor-tests`; cierre T065–T072. En local todo en verde: 715 pgTAP, 147 Vitest de `@blog/db`, lint, typecheck, calidad, build y 147 E2E. CE-003 medido en vivo: 36 s.
   - **Decisiones de la sesión**:
     - CE-004 da 84,6 % (22 de 26) y queda como **desviación aceptada** (`validacion.md` y research D12); `pg_trgm` para una spec posterior.
     - `buscar_articulos` devuelve la categoría completa (`categoria_id`, `categoria_nombre`, `categoria_slug`) para mapear a `ResumenArticulo`.
     - `cambiarRol` y `cambiarActivo` traducen 0 filas a `no_encontrado`.
     - `z10_garantizar_admin` también aplica a `postgres`.
-  - **Lo que sigue (cierre, Fase 9 de `tasks.md`)**: T067 (`invariantes.test.ts`), T068 (tipos de dominio), T069 (todos los chequeos), T070 (quickstart), T071 (`/validar`), T072 (sección "Modelo de datos" en este archivo), los menores C6-M1 a C6-M5 de `validacion.md` y un test de que la publicación por el cron emite el aviso de revalidación (RF-013, en `notificaciones.test.sql`). Después, PR a `main`.
-  - **Migraciones en la nube**: las tres nuevas (`20261019120700`, `…0800` y `…0900`) se aplican después del merge, y antes hay que correr `supabase migration repair` (ver "Infraestructura en la nube"). La de H4 crea los jobs de `pg_cron` y la de H5 hace la carga inicial de `busqueda`.
+  - **Lo que sigue**: PR a `main` y, después del merge, aplicar en la nube las tres migraciones nuevas (`20261019120700`, `…0800` y `…0900`). Antes, `supabase migration repair` (ver "Infraestructura en la nube") y el **checklist de la ronda 7** en `specs/001-modelo-de-contenido/validacion.md`: que haya un admin activo, el dry-run de la carga inicial de `busqueda` y revisar los programados vencidos, que el cron publica apenas se aplica la de H4.
 - **Pendientes manuales**: borrar la redirección de prueba `diseno-grafico` en la nube (opcional) y revocar en Vercel el *Protection Bypass for Automation* de `blog-web` si no se usa.
 - **Notas de Windows**: ver `specs/002-sitio-publico/quickstart.md` ("En Windows"). Desde Git Bash, `vercel curl` necesita `MSYS_NO_PATHCONV=1`; el CLI no crea el bypass del preview cuando corre como agente.
 

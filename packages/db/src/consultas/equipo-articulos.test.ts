@@ -163,6 +163,8 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
 
       expect(articulo).toMatchObject({ estado: 'borrador', autor_id: idEditor, version: 1 });
       expect(articulo.contenido).toEqual([expect.objectContaining({ tipo: 'galeria', columnas: 3 })]);
+      // A7-M3: el tsvector interno no sale de packages/db.
+      expect(articulo).not.toHaveProperty('busqueda');
     });
 
     it('rechaza una imagen destacada sin alt con contenido_invalido, sin llamar a la base', async () => {
@@ -256,6 +258,24 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
       const cancelado = await cambiarEstado(editor, articulo.id, programado.version, 'borrador');
 
       expect(cancelado).toMatchObject({ estado: 'borrador', programado_para: null, version: programado.version + 1 });
+    });
+
+    // C7-M4: el rechazo con 0 filas de cambiarEstado (compartido con actualizarArticulo).
+    it('RF-008: cambiar el estado con una versión desactualizada se traduce a ErrorDominio(conflicto_version)', async () => {
+      const articulo = await crearProgramable('H4 integración: versión vieja');
+      await cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+        programadoPara: new Date(Date.now() + UN_DIA_MS),
+      });
+
+      const error = await rechazoDe(cambiarEstado(editor, articulo.id, articulo.version, 'borrador'));
+
+      expect(error.codigo).toBe('conflicto_version');
+    });
+
+    it('cambiar el estado de un id inexistente se traduce a ErrorDominio(no_encontrado)', async () => {
+      const error = await rechazoDe(cambiarEstado(editor, crypto.randomUUID(), 1, 'publicado'));
+
+      expect(error.codigo).toBe('no_encontrado');
     });
   });
 

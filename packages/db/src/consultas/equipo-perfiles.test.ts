@@ -16,10 +16,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre perfiles (integració
   let miembro: Awaited<ReturnType<typeof crearMiembroDePrueba>> | undefined;
 
   beforeAll(async () => {
-    ({ editor, admin } = await sesionesDemo());
-    const { data, error } = await admin.auth.getUser();
-    if (error || !data.user) throw new Error('No se pudo obtener el usuario admin');
-    idAdmin = data.user.id;
+    ({ editor, admin, idAdmin } = await sesionesDemo());
     miembro = await crearMiembroDePrueba(`H6 Miembro ${sufijo}`);
   });
 

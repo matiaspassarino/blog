@@ -37,7 +37,9 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 3. Siempre queda al menos un admin activo (RF-023), también para postgres.
 --    After row: con una sentencia que toca varios admins, el chequeo ve el estado
---    final. El lock serializa dos degradaciones simultáneas de admins distintos.
+--    final. El lock serializa dos degradaciones simultáneas de admins distintos en
+--    READ COMMITTED (el de PostgREST): el exists toma un snapshot nuevo después del
+--    lock. En REPEATABLE READ o SERIALIZABLE no alcanzaría.
 -- ---------------------------------------------------------------------------
 create function privado.garantizar_admin()
 returns trigger
@@ -54,9 +56,14 @@ begin
 end
 $$;
 
+-- Solo cuando un admin activo deja de serlo (validación A7-M2): las demás ediciones no
+-- toman el lock, y sin ningún admin activo (bootstrap) se puede seguir editando perfiles
+-- y dando de alta editores.
 create trigger z10_garantizar_admin
   after update on public.perfiles
-  for each row execute function privado.garantizar_admin();
+  for each row
+  when (old.rol = 'admin' and old.activo and (new.rol, new.activo) is distinct from (old.rol, old.activo))
+  execute function privado.garantizar_admin();
 
 -- ---------------------------------------------------------------------------
 -- 4. Activación por la Admin API (nota de T063): auth.admin.createUser guarda

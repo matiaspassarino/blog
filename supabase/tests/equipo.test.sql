@@ -17,7 +17,7 @@
 -- (incluido el admin demo del seed).
 begin;
 \ir helpers/pruebas.psql
-select plan(69);
+select plan(73);
 
 -- Sin secretos de revalidación: los cambios de este archivo no deben notificar.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -369,6 +369,28 @@ select throws_ok(
 select pruebas.como_postgres();
 select is(pruebas.estado_de('eq-alta-cliente@prueba.local'), 'editor:false',
   'RF-022: después de los intentos de los clientes, la cuenta sigue inactiva');
+
+-- ===========================================================================
+-- A7-M2: z10 solo actúa cuando un admin activo deja de serlo. Sin ningún admin
+-- activo (bootstrap o nube mal cargada), editar perfiles y dar de alta editores
+-- por la Admin API tiene que seguir funcionando.
+-- ===========================================================================
+select pruebas.como_postgres();
+alter table public.perfiles disable trigger z10_garantizar_admin;
+update public.perfiles set activo = false where rol = 'admin';
+alter table public.perfiles enable trigger z10_garantizar_admin;
+select is((select count(*)::int from public.perfiles where rol = 'admin' and activo), 0,
+  'A7-M2 (preparación): no queda ningún admin activo');
+select lives_ok(
+  $$update public.perfiles set biografia = 'Bio sin admins' where id = pruebas.id_de('eq-editor@prueba.local')$$,
+  'A7-M2: sin admins activos, editar la biografía de un perfil no lanza ultimo_admin');
+select pruebas.crear_usuario('eq-alta-sin-admin@prueba.local', '{"provider":"email"}', '{}');
+select lives_ok(
+  $$update auth.users set raw_app_meta_data = raw_app_meta_data || '{"rol":"editor"}'
+    where email = 'eq-alta-sin-admin@prueba.local'$$,
+  'A7-M2: sin admins activos, el alta de un editor por la Admin API no falla');
+select is(pruebas.estado_de('eq-alta-sin-admin@prueba.local'), 'editor:true',
+  'A7-M2: el editor dado de alta sin admins activos queda activo');
 
 select pruebas.como_postgres();
 select * from finish();

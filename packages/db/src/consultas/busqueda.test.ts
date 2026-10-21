@@ -5,7 +5,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
-import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { clienteAnon, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import { buscarArticulos } from './busqueda';
 import type { ResumenArticulo } from './tipos-publicos';
@@ -32,7 +32,7 @@ describe.skipIf(sinSupabase)('buscarArticulos (integración, anon)', () => {
   const creados = registroDePrueba();
 
   beforeAll(async () => {
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    ({ admin } = await sesionAdminDemo());
     anon = clienteAnon();
 
     const { data, error } = await admin

@@ -104,6 +104,8 @@ end
 $$;
 
 -- Un update sin cambios que dispara a50. Lo usan los triggers de taxonomías y el seed.
+-- Llamada directa (no desde un trigger) cuenta como edición: sube la versión y mueve
+-- actualizado_en. Para un recálculo masivo, usar el patrón de la carga inicial (sección 6).
 create function privado.recalcular_busqueda(articulo_ids uuid[])
 returns void
 language sql
@@ -200,7 +202,7 @@ as $$
   left join public.categorias c on c.id = a.categoria_id
   where a.estado = 'publicado' and a.publicado_en <= now() and a.busqueda @@ q.q
   order by ts_rank_cd(a.busqueda, q.q) desc, a.publicado_en desc
-  limit least(limite, 50) offset greatest(desplazamiento, 0)
+  limit least(greatest(coalesce(limite, 12), 0), 50) offset greatest(coalesce(desplazamiento, 0), 0)
 $$;
 
 revoke execute on function public.buscar_articulos(text, int, int) from public, anon, authenticated;

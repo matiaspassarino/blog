@@ -12,7 +12,7 @@
 -- cada aserción que depende de la búsqueda falla en lugar de pasar en vacío.
 begin;
 \ir helpers/pruebas.psql
-select plan(64);
+select plan(66);
 
 -- Sin secretos de revalidación al empezar: el armado de datos no notifica.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -414,6 +414,10 @@ select results_eq($$select filas, totales from pruebas.buscar_conteo('zanahoria'
   'D12: con desplazamiento 50 devuelve las 5 restantes y el mismo total');
 select ok(pruebas.buscar_slugs('zanahoria', 5, -10) = pruebas.buscar_slugs('zanahoria', 5, 0),
   'D12: un desplazamiento negativo se trata como 0');
+select is((select count(*)::int from public.buscar_articulos('zanahoria', -1)), 0,
+  'A7-M1: un limite negativo se trata como 0 (sin error)');
+select is((select count(*)::int from public.buscar_articulos('zanahoria', null, null)), 12,
+  'A7-M1: limite y desplazamiento nulos usan los valores por defecto (12 y 0)');
 select is(pruebas.buscar_slugs('zanahoria', 3),
   array['h5-bus-lote-1', 'h5-bus-lote-2', 'h5-bus-lote-3'],
   'D12: a igual rango, desempata por publicado_en descendente');

@@ -359,10 +359,10 @@ La observación de que "la base no tiene artículos" es lo esperado: hoy el seed
 Revisó ACL y `search_path` de las 12 funciones nuevas o modificadas, el orden de los 35 triggers (D21), los jobs de `pg_cron` y el uso del GIN. Sin órdenes de bloqueo invertidos (borrado de etiqueta y `asignar_etiquetas`: etiqueta → artículo; cron con `skip locked`). La desviación de CE-004 coincide con lo que permite D12.
 
 ### Menores
-- [ ] **A7-M1.** `20261019120800_busqueda.sql:203`: `buscar_articulos` con `limite` negativo da `LIMIT must not be negative`. → `limit least(greatest(coalesce(limite, 12), 0), 50) offset greatest(coalesce(desplazamiento, 0), 0)`, con test.
-- [ ] **A7-M2.** `20261019120900_equipo.sql:57-59`: `z10_garantizar_admin` corre (y toma el lock global) en todo update de `perfiles`; sin ningún admin activo, cualquier edición de perfil y el alta de editores por la Admin API fallan con `ultimo_admin`. → `when (old.rol = 'admin' and old.activo and (new.rol, new.activo) is distinct from (old.rol, old.activo))`, con tests; y documentar que el lock serializa en READ COMMITTED (el de PostgREST).
-- [ ] **A7-M3.** `equipo-articulos.ts:85,106` y `cambiarEstado`: `.select()` devuelve `busqueda` (tsvector interno) y `Articulo` la incluye. → columnas explícitas sin `busqueda` y `Articulo = Omit<…, 'busqueda'>`.
-- [ ] **A7-M4.** `20261019120800_busqueda.sql:106-114`: documentar que `recalcular_busqueda` llamada directamente (no desde un trigger) sube la versión; para recálculos masivos, el patrón de la carga inicial.
+- [x] **A7-M1.** Corregido. `20261019120800_busqueda.sql:203`: `buscar_articulos` con `limite` negativo da `LIMIT must not be negative`. → `limit least(greatest(coalesce(limite, 12), 0), 50) offset greatest(coalesce(desplazamiento, 0), 0)`, con test.
+- [x] **A7-M2.** Corregido. `20261019120900_equipo.sql:57-59`: `z10_garantizar_admin` corre (y toma el lock global) en todo update de `perfiles`; sin ningún admin activo, cualquier edición de perfil y el alta de editores por la Admin API fallan con `ultimo_admin`. → `when (old.rol = 'admin' and old.activo and (new.rol, new.activo) is distinct from (old.rol, old.activo))`, con tests; y documentar que el lock serializa en READ COMMITTED (el de PostgREST).
+- [x] **A7-M3.** Corregido. `equipo-articulos.ts:85,106` y `cambiarEstado`: `.select()` devuelve `busqueda` (tsvector interno) y `Articulo` la incluye. → columnas explícitas sin `busqueda` y `Articulo = Omit<…, 'busqueda'>`.
+- [x] **A7-M4.** Corregido. `20261019120800_busqueda.sql:106-114`: documentar que `recalcular_busqueda` llamada directamente (no desde un trigger) sube la versión; para recálculos masivos, el patrón de la carga inicial.
 
 ### Observaciones
 - Carrera de baja probabilidad: renombrar una taxonomía a la vez que se asigna al artículo puede dejar el nombre viejo en `busqueda` hasta la próxima edición. Aceptable en el MVP.
@@ -377,14 +377,14 @@ Revisó ACL y `search_path` de las 12 funciones nuevas o modificadas, el orden d
 jscpd 0 %, knip 0. Reutilización correcta (`aResumen`, `paginacion.ts`, `validarImagen`, `rechazoSinFilas`); sin dependencias nuevas; todo el acceso a datos en `packages/db`; contrato e `index.ts` coinciden (T068); commits `test(001)` antes de cada `feat(db)`; cada escenario de H4–H6 tiene test.
 
 ### Menores
-- [ ] **C7-M1.** `CLAUDE.md`: el "Estado actual" quedó viejo (conteos y pendientes ya hechos).
-- [ ] **C7-M2.** `plan.md:96`: el ítem 9 nombra `20261018120700_programacion.sql`; la real es `20261019120700`.
-- [ ] **C7-M3.** `busqueda.test.ts:35` repite las credenciales del admin demo y `equipo-perfiles.test.ts:19-22` obtiene `idAdmin` a mano. → que `sesionesDemo()` devuelva también `idAdmin` y usarlo.
-- [ ] **C7-M4.** `equipo-articulos.ts:147`: ningún test pasa por el rechazo de `cambiarEstado` con 0 filas. → casos con versión vieja (`conflicto_version`) e id inexistente (`no_encontrado`).
-- [ ] **C7-M5.** `contracts/db.md:48`: `ReferenciaTaxonomia` y `AutorPublico` no tienen `id` (y el autor no tiene `slug`), a diferencia de `tipos-publicos.ts`.
+- [x] **C7-M1.** Corregido. `CLAUDE.md`: el "Estado actual" quedó viejo (conteos y pendientes ya hechos).
+- [x] **C7-M2.** Corregido. `plan.md:96`: el ítem 9 nombra `20261018120700_programacion.sql`; la real es `20261019120700`.
+- [x] **C7-M3.** Corregido. `busqueda.test.ts:35` repite las credenciales del admin demo y `equipo-perfiles.test.ts:19-22` obtiene `idAdmin` a mano. → que `sesionesDemo()` devuelva también `idAdmin` y usarlo.
+- [x] **C7-M4.** Corregido. `equipo-articulos.ts:147`: ningún test pasa por el rechazo de `cambiarEstado` con 0 filas. → casos con versión vieja (`conflicto_version`) e id inexistente (`no_encontrado`).
+- [x] **C7-M5.** Corregido. `contracts/db.md:48`: `ReferenciaTaxonomia` y `AutorPublico` no tienen `id` (y el autor no tiene `slug`), a diferencia de `tipos-publicos.ts`.
 
 ## revisor-ux-ui: no aplica
 El diff no toca `apps/` ni `packages/ui`.
 
 ## Acciones (ronda 7)
-- Ningún bloqueante: la rama puede ir a PR (constitución §XI). Los menores se corrigen antes del PR o quedan como tareas documentadas.
+- Ningún bloqueante: la rama puede ir a PR (constitución §XI). Los 9 menores se corrigieron antes del PR, con tests (A7-M1, A7-M2, A7-M3 y C7-M4): 715 pgTAP y 147 Vitest de `@blog/db`.

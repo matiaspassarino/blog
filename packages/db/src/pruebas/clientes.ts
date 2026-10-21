@@ -25,13 +25,21 @@ export async function clienteComo(email: string, contrasenia: string) {
   return cliente;
 }
 
-/** Sesiones de los usuarios demo del seed (editor y admin) y el id del editor. */
+/** Sesión del admin demo del seed y su id. */
+export async function sesionAdminDemo() {
+  const admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+  const { data, error } = await admin.auth.getUser();
+  if (error || !data.user) throw new Error('No se pudo obtener el usuario admin');
+  return { admin, idAdmin: data.user.id };
+}
+
+/** Sesiones de los usuarios demo del seed (editor y admin) y sus ids. */
 export async function sesionesDemo() {
   const editor = await clienteComo('editor@demo.local', 'demo-editor-2026');
-  const admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+  const { admin, idAdmin } = await sesionAdminDemo();
   const { data, error } = await editor.auth.getUser();
   if (error || !data.user) throw new Error('No se pudo obtener el usuario editor');
-  return { editor, admin, idEditor: data.user.id };
+  return { editor, admin, idEditor: data.user.id, idAdmin };
 }
 
 /** Cliente con la clave de servicio: solo para dar de alta y de baja usuarios de prueba. */
