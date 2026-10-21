@@ -10,8 +10,9 @@
 | 4 · H2 | `e835a6a` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
 | 5 · H3 | `2796004` | ❌ **CAMBIOS REQUERIDOS** (3 bloqueantes) |
 | 6 · H3 | `70992a3` | ✅ **APROBADO** (0 bloqueantes; quedan menores) |
+| 7 · H4–H6 y cierre | `99b35aa` | ✅ **APROBADO** (0 bloqueantes; 9 menores) |
 
-**Resultado global vigente**: ✅ **APROBADO** (ronda 6, Historia 3: se cierran las historias P1). Ver la sección "Ronda 6" al final.
+**Resultado global vigente**: ✅ **APROBADO** (ronda 7: H4, H5, H6 y cierre de la spec). Ver la sección "Ronda 7" al final.
 
 ---
 
@@ -318,6 +319,72 @@ Corrección del informe: jscpd encuentra **3 clones (1,44 %)** en los tests nuev
 La observación de que "la base no tiene artículos" es lo esperado: hoy el seed solo carga los usuarios demo, y los artículos de demo llegan en T066 (cierre).
 
 ## Acciones (ronda 6, menores; prioridad: A6-M1 antes de H5)
-- [ ] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks
-- [ ] A6-M2 T058, carga inicial sin `version` ni `actualizado_en`
-- [ ] A6-M4 · C6-M1 a C6-M5 · bordes opcionales
+- [x] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks (etiquetas `for key share` por id y después el artículo; en `20261018120600_etiquetado.sql`)
+- [x] A6-M2 T058, carga inicial sin `version` ni `actualizado_en` (cubierta por `actualizado_en.test.sql`)
+- [x] A6-M4 `entradas_sitemap()` ya figura en la tabla de funciones de `data-model.md`.
+- [x] C6-M1 tabla "Reutilización" del plan al día (tipos de dominio, `pruebas/{afirmaciones,datos}.ts` y lo nuevo de H4–H6: `mapeo.ts`, `validar-imagen.ts`, `rechazoSinFilas`).
+- [x] C6-M2 el contrato aclara que `TABLA_TAXONOMIA` es interno.
+- [x] C6-M3 `listados.test.ts` deriva `TaxonomiaDePrueba` (`Pick<Taxonomia, …>`) y `Creado` (`ReturnType` de `crearArticuloDePrueba`).
+- [x] C6-M4 `equipo-articulos.test.ts` limpia con `registroDePrueba()`.
+- [x] C6-M5 sin cambios: H4–H6 no agregaron un tercer uso de la lectura del espía de `fetch` (sigue en `equipo-articulos` y `equipo-taxonomias`).
+- [ ] Bordes opcionales (101 copias del mismo id, arreglo bidimensional, corte de `max_rows` con más de 1.000 filas): quedan sin test, como opcionales.
+- [x] RF-013 para el cron (cierre): `notificaciones.test.sql` verifica que `publicar_programados()` emite un aviso con el slug publicado.
+
+## Desviación aceptada: CE-004 (H5, 2026-10-19)
+
+- **Medido**: 84,6 % de acierto en el top 3 (22 de 26 pares de `busqueda.test.sql`), por debajo del 95 % de CE-004.
+- **Fallos**: `publicacion` → "publicaciones", `educacion` → "educaciones", `corrio` → "correr" e `imagen` → "imágenes". Son límites del stemmer Snowball sin tildes, previstos en research D12. Las mismas consultas con tilde (`publicación`, `educación`, `corrió`) aciertan.
+- **Decisión del usuario**: implementar D12 tal cual y registrar la desviación. El test exige como mínimo el 84,6 % medido (detecta regresiones) y lista los fallos con `diag`. `pg_trgm` como respaldo queda para una spec posterior.
+- **Relacionado**: el RPC `buscar_articulos` devuelve también `categoria_id` y `categoria_nombre`, para que `buscarArticulos` entregue un `ResumenArticulo` completo, como los listados (decisión del usuario).
+
+---
+
+# Ronda 7: H4–H6 y cierre (2026-10-20)
+
+**Commit**: `99b35aa` · **Alcance**: `git diff main...HEAD` (31 archivos, +2398/−74) · **Resultado global**: ✅ **APROBADO**
+
+## Verificaciones automáticas
+
+| Comando | Resultado |
+|---|---|
+| `pnpm lint` · `typecheck` | ✅ |
+| `pnpm test` | ✅ 145 en `@blog/db` (más los de los otros paquetes) |
+| `pnpm test:db` | ✅ 709 en 20 archivos |
+| `pnpm calidad` | ✅ jscpd 0 clones, knip limpio |
+| `pnpm build` · Prettier | ✅ |
+| `pnpm test:e2e` | ✅ 147 |
+| CE-003 en vivo (T070) | ✅ 36 s entre la hora programada y la visibilidad para anon |
+
+## arquitecto-db: APROBADO
+Revisó ACL y `search_path` de las 12 funciones nuevas o modificadas, el orden de los 35 triggers (D21), los jobs de `pg_cron` y el uso del GIN. Sin órdenes de bloqueo invertidos (borrado de etiqueta y `asignar_etiquetas`: etiqueta → artículo; cron con `skip locked`). La desviación de CE-004 coincide con lo que permite D12.
+
+### Menores
+- [x] **A7-M1.** Corregido. `20261019120800_busqueda.sql:203`: `buscar_articulos` con `limite` negativo da `LIMIT must not be negative`. → `limit least(greatest(coalesce(limite, 12), 0), 50) offset greatest(coalesce(desplazamiento, 0), 0)`, con test.
+- [x] **A7-M2.** Corregido. `20261019120900_equipo.sql:57-59`: `z10_garantizar_admin` corre (y toma el lock global) en todo update de `perfiles`; sin ningún admin activo, cualquier edición de perfil y el alta de editores por la Admin API fallan con `ultimo_admin`. → `when (old.rol = 'admin' and old.activo and (new.rol, new.activo) is distinct from (old.rol, old.activo))`, con tests; y documentar que el lock serializa en READ COMMITTED (el de PostgREST).
+- [x] **A7-M3.** Corregido. `equipo-articulos.ts:85,106` y `cambiarEstado`: `.select()` devuelve `busqueda` (tsvector interno) y `Articulo` la incluye. → columnas explícitas sin `busqueda` y `Articulo = Omit<…, 'busqueda'>`.
+- [x] **A7-M4.** Corregido. `20261019120800_busqueda.sql:106-114`: documentar que `recalcular_busqueda` llamada directamente (no desde un trigger) sube la versión; para recálculos masivos, el patrón de la carga inicial.
+
+### Observaciones
+- Carrera de baja probabilidad: renombrar una taxonomía a la vez que se asigna al artículo puede dejar el nombre viejo en `busqueda` hasta la próxima edición. Aceptable en el MVP.
+- `publicar_programados` es un único update: una fila que falle un check frena a todas hasta el próximo minuto. Hoy lo previene `articulos_requisitos_publicacion`.
+- **Checklist para aplicar en la nube** (después de `supabase migration repair`):
+  1. Hay al menos un admin activo: `select count(*) from public.perfiles where rol = 'admin' and activo;` ≥ 1.
+  2. Dry-run de la carga inicial de la 120800: `select id from public.articulos where not privado.contenido_valido(contenido) or (imagen_destacada is not null and not privado.imagen_valida(imagen_destacada));` → 0 filas.
+  3. Revisar los programados vencidos, que el cron publica apenas se aplica la 120700: `select slug, programado_para from public.articulos where estado = 'programado' and programado_para <= now();`.
+  4. Los jobs quedan con owner `postgres`; `cron.schedule` por nombre es idempotente.
+
+## consistencia-codigo: APROBADO
+jscpd 0 %, knip 0. Reutilización correcta (`aResumen`, `paginacion.ts`, `validarImagen`, `rechazoSinFilas`); sin dependencias nuevas; todo el acceso a datos en `packages/db`; contrato e `index.ts` coinciden (T068); commits `test(001)` antes de cada `feat(db)`; cada escenario de H4–H6 tiene test.
+
+### Menores
+- [x] **C7-M1.** Corregido. `CLAUDE.md`: el "Estado actual" quedó viejo (conteos y pendientes ya hechos).
+- [x] **C7-M2.** Corregido. `plan.md:96`: el ítem 9 nombra `20261018120700_programacion.sql`; la real es `20261019120700`.
+- [x] **C7-M3.** Corregido. `busqueda.test.ts:35` repite las credenciales del admin demo y `equipo-perfiles.test.ts:19-22` obtiene `idAdmin` a mano. → que `sesionesDemo()` devuelva también `idAdmin` y usarlo.
+- [x] **C7-M4.** Corregido. `equipo-articulos.ts:147`: ningún test pasa por el rechazo de `cambiarEstado` con 0 filas. → casos con versión vieja (`conflicto_version`) e id inexistente (`no_encontrado`).
+- [x] **C7-M5.** Corregido. `contracts/db.md:48`: `ReferenciaTaxonomia` y `AutorPublico` no tienen `id` (y el autor no tiene `slug`), a diferencia de `tipos-publicos.ts`.
+
+## revisor-ux-ui: no aplica
+El diff no toca `apps/` ni `packages/ui`.
+
+## Acciones (ronda 7)
+- Ningún bloqueante: la rama puede ir a PR (constitución §XI). Los 9 menores se corrigieron antes del PR, con tests (A7-M1, A7-M2, A7-M3 y C7-M4): 715 pgTAP y 147 Vitest de `@blog/db`.

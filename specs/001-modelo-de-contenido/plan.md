@@ -50,7 +50,7 @@ Las reglas viven en Postgres (Supabase) mediante RLS, triggers y checks, de modo
 | Necesidad | Existente a reutilizar | Nuevo a crear | Justificación si es nuevo |
 |---|---|---|---|
 | Lista de tipos de bloque | `TIPOS_BLOQUE` (antes en `index.ts`) | `packages/bloques/src/tipos-bloque.ts` | Se movió a un módulo propio para evitar imports circulares; `index.ts` lo reexporta y un chequeo de tipos exige que el esquema cubra exactamente esa lista |
-| Tipos de dominio (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`) | — | `packages/db/src/tipos-dominio.ts` | Los comparten las consultas de artículos, taxonomías y redirecciones |
+| Tipos de dominio (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`, `Categoria`, `Etiqueta`, `Taxonomia`, `TipoTaxonomia`) y el mapa interno `TABLA_TAXONOMIA` | — | `packages/db/src/tipos-dominio.ts` | Los comparten las consultas de artículos, taxonomías, listados y redirecciones |
 | Config ESLint y Prettier | — | `packages/config/{eslint,prettier}.config.js` | La exige §III; la usan los paquetes y `apps/admin` (reglas comunes) |
 | Tipos de la base | `packages/db/src/tipos.ts` (generado) | — | Se regenera con `pnpm db:tipos` |
 | Esquema de imagen | — | `packages/bloques/src/imagen.ts` | Lo usan los bloques `imagen` y `galeria`, la imagen destacada y el avatar |
@@ -59,7 +59,11 @@ Las reglas viven en Postgres (Supabase) mediante RLS, triggers y checks, de modo
 | Traducción de errores | — | `packages/db/src/errores.ts` | No existe |
 | Rutas a revalidar | — | `packages/db/src/rutas-afectadas.ts` | La reutilizará el endpoint de `apps/web` |
 | Paginación | — | `packages/db/src/paginacion.ts` | Lo comparten listados y búsqueda; no existe |
+| Mapeo de filas a tipos de dominio (`aResumen`, `aSeo`, …) | `packages/db/src/consultas/mapeo.ts` | — | `buscarArticulos` reutiliza `aResumen` de los listados (H5) |
+| Validación de imágenes sueltas | `esquemaImagen` | `packages/db/src/validar-imagen.ts` | La comparten `imagen_destacada` (artículos) y `avatar` (perfiles, H6); mismo formato de errores que los bloques |
+| Rechazo de un update con 0 filas | — | `rechazoSinFilas` en `equipo-articulos.ts` | Lo comparten `actualizarArticulo` y `cambiarEstado` (H4): distingue `no_encontrado` de `conflicto_version` |
 | Clientes y entorno de tests | — | `packages/db/src/pruebas/{entorno,clientes}.ts` | Lo comparten todos los tests de integración; no existe |
+| Afirmaciones y datos de tests | — | `packages/db/src/pruebas/{afirmaciones,datos}.ts` | `rechazoDe`, `registroDePrueba()` y `crearArticuloDePrueba`, compartidos por las suites de integración |
 | Test de humo pgTAP | `supabase/tests/00_humo.test.sql` | — | Se conserva |
 
 ## Impacto en base de datos *(revisado con el agente arquitecto-db)*
@@ -89,9 +93,9 @@ También se incorporaron los hallazgos menores. La revisión sobre el código se
 6. `20261018120400_estados_y_publicacion.sql` (H2): máquina de estados, redirecciones de artículos, `resolver_redireccion` y `autores_publicos`.
 7. `20261018120500_notificacion.sql` (H2): `notificar_cambio_publico` vía `pg_net` + Vault.
 8. `20261018120600_etiquetado.sql` (H3): `articulos_etiquetas`, `asignar_etiquetas`, categoría en uso y redirecciones de taxonomías.
-9. `20261018120700_programacion.sql` (H4): `publicar_programados` y los jobs de cron.
-10. `20261018120800_busqueda.sql` (H5): `es_sin_tildes`, `busqueda`, `bloques_a_texto` y `buscar_articulos`.
-11. `20261019120900_equipo.sql` (H6): `perfiles_update_admin`, la ampliación de `proteger_perfil` (`create or replace`; ya existe desde la validación del MVP), `garantizar_admin` y la notificación de autor.
+9. `20261019120700_programacion.sql` (H4): `publicar_programados` y los jobs de cron.
+10. `20261019120800_busqueda.sql` (H5): `es_sin_tildes`, `busqueda`, `bloques_a_texto` y `buscar_articulos`.
+11. `20261019120900_equipo.sql` (H6): `perfiles_update_admin`, la ampliación de `proteger_perfil` (`create or replace`; ya existe desde la validación del MVP), `garantizar_admin` y `activar_perfil` (la notificación de autor pasó a la spec 002). Las migraciones 9 a 11 llevan timestamps posteriores a los de la 002.
 
 **Otros cambios**:
 - **Tablas, índices y políticas**: ver [data-model.md](data-model.md). Cada política tiene su test en `supabase/tests/`.

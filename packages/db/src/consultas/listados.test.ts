@@ -7,7 +7,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
-import { clienteAnon, clienteComo, crearMiembroDePrueba, sinSupabase } from '../pruebas/clientes';
+import type { Taxonomia } from '../tipos-dominio';
+import { clienteAnon, clienteComo, crearMiembroDePrueba, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
   listarArticulosPublicados,
@@ -21,8 +22,8 @@ import {
 const sufijo = crypto.randomUUID().slice(0, 8);
 const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
 
-type TaxonomiaDePrueba = { id: string; nombre: string; slug: string; descripcion: string | null };
-type Creado = { id: string; slug: string; version: number };
+type TaxonomiaDePrueba = Pick<Taxonomia, 'id' | 'nombre' | 'slug' | 'descripcion'>;
+type Creado = Awaited<ReturnType<typeof crearArticuloDePrueba>>;
 
 /** Verifica que los items vengan del más reciente al más antiguo (RF-017). */
 function esperarOrdenDescendente(items: { publicado_en: string }[]) {
@@ -81,7 +82,7 @@ describe.skipIf(sinSupabase)('listados públicos (integración, anon)', () => {
   }
 
   beforeAll(async () => {
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    ({ admin } = await sesionAdminDemo());
     anon = clienteAnon();
 
     categoria = await insertarTaxonomia('categorias', 'H3 Listados Categoría', 'h3-listados-categoria');

@@ -428,7 +428,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 4 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T053 [P] [H4] Crear `supabase/tests/programacion.test.sql` (H4-E1 a H4-E4, RF-011, CE-003). Debe verificar:
+- [X] T053 [P] [H4] Crear `supabase/tests/programacion.test.sql` (H4-E1 a H4-E4, RF-011, CE-003). Debe verificar:
   - programar para `now() + interval '1 day'` deja `estado = programado`, invisible para anon;
   - programar para una fecha pasada lanza `fecha_no_futura`;
   - cancelar (programado → borrador) limpia `programado_para`;
@@ -440,13 +440,13 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Implementación de la Historia 4
 
-- [ ] T054 [H4] Crear `supabase/migrations/20261019120700_programacion.sql`:
+- [X] T054 [H4] Crear `supabase/migrations/20261019120700_programacion.sql`:
   - índice `(programado_para) where estado = 'programado'`;
   - `privado.publicar_programados()`, definer: `update public.articulos set estado = 'publicado' where id in (select id from public.articulos where estado = 'programado' and programado_para <= now() for update skip locked)`;
   - `select cron.schedule('publicar-programados', '* * * * *', 'select privado.publicar_programados()')`;
   - `select cron.schedule('limpiar-historial-cron', '0 3 * * *', $$delete from cron.job_run_details where end_time < now() - interval '7 days'$$)`.
   Verificar que `a40_validar_estado` asigna `publicado_en = programado_para` cuando `not privado.es_cliente()`.
-- [ ] T055 [H4] Agregar `cambiarEstado(c, id, version, destino, { programadoPara })` en `packages/db/src/consultas/equipo-articulos.ts`, con un test en `equipo-articulos.test.ts` que verifique que `fecha_no_futura` se traduce. Ejecutar `pnpm db:reset`. Debe pasar T053.
+- [X] T055 [H4] Agregar `cambiarEstado(c, id, version, destino, { programadoPara })` en `packages/db/src/consultas/equipo-articulos.ts`, con un test en `equipo-articulos.test.ts` que verifique que `fecha_no_futura` se traduce. Ejecutar `pnpm db:reset`. Debe pasar T053.
 
 **Checkpoint**: La programación funciona sin intervención.
 
@@ -460,7 +460,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 5 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T056 [P] [H5] Crear `supabase/tests/busqueda.test.sql` (H5-E1 a H5-E4, RF-018 a RF-020, CE-004). Debe incluir:
+- [X] T056 [P] [H5] Crear `supabase/tests/busqueda.test.sql` (H5-E1 a H5-E4, RF-018 a RF-020, CE-004). Debe incluir:
   - **un conjunto de prueba explícito** de al menos 20 pares (consulta → artículo esperado), que incluye: sin tildes (`diseno` → "Diseño"), plural y singular, conjugaciones, mayúsculas, y los 3 casos difíciles conocidos (`publicaciones` frente a `publicación`, `educaciones` frente a `educación`, `correr` frente a `corrió`). Calcular el % de aciertos en el top 3 y verificar que sea **≥ 95 %**. Si no se llega, el test falla y se registra la desviación en `validacion.md` (research D12).
   - Que un término en el título rankee por encima del mismo término solo en el cuerpo.
   - Que un borrador con el término no aparezca, ni para anon **ni para un editor**, porque el filtro es explícito.
@@ -470,11 +470,11 @@ description: "Lista de tareas: modelo de contenido del blog"
   - Que los bloques `codigo` no se indexen.
   - Que las URLs de `[texto](url)` no se indexen.
   - Que renombrar una etiqueta o categoría actualice `busqueda` de sus artículos **sin** incrementar `version` y **sin** encolar notificaciones por cada artículo.
-- [ ] T057 [P] [H5] Crear `packages/db/src/consultas/busqueda.test.ts`, de integración: `buscarArticulos(c, 'diseno')` devuelve `Pagina` con los items y el total, y responde en menos de 1.000 ms sobre los datos de demo (CE-005).
+- [X] T057 [P] [H5] Crear `packages/db/src/consultas/busqueda.test.ts`, de integración: `buscarArticulos(c, 'diseno')` devuelve `Pagina` con los items y el total, y responde en menos de 1.000 ms sobre los datos de demo (CE-005).
 
 ### Implementación de la Historia 5
 
-- [ ] T058 [H5] Crear `supabase/migrations/20261019120800_busqueda.sql` (research D12):
+- [X] T058 [H5] Crear `supabase/migrations/20261019120800_busqueda.sql` (research D12):
   - `create text search configuration public.es_sin_tildes (copy = pg_catalog.spanish); alter text search configuration public.es_sin_tildes alter mapping for hword, hword_part, word with extensions.unaccent, pg_catalog.spanish_stem;`
   - `privado.bloques_a_texto(jsonb)`, `immutable`: extrae el texto de `parrafo`, `titulo`, `cita` (texto y autor), `lista`, `imagen` (`alt` y leyenda), `galeria` (alts), `cta` (título y texto) y `video` (título); excluye `codigo`; reemplaza `\[([^\]]*)\]\([^)]*\)` por `\1`; trunca a 200.000 caracteres.
   - `privado.documento_busqueda(texto text, peso "char")`: `setweight(to_tsvector('public.es_sin_tildes', coalesce(texto,'')) || to_tsvector('pg_catalog.spanish', coalesce(texto,'')), peso)`.
@@ -487,8 +487,8 @@ description: "Lista de tareas: modelo de contenido del blog"
   - Verificar que `z90_notificar_cambio` ignore estos updates (solo cambian `busqueda`, `version` y `actualizado_en`).
   - RPC `public.buscar_articulos(consulta text, limite int default 12, desplazamiento int default 0)`, `stable`, invoker. Devuelve `table(id, titulo, slug, extracto, imagen_destacada, publicado_en, categoria_slug, rango real, total bigint)`, con `q := websearch_to_tsquery('public.es_sin_tildes', consulta) || websearch_to_tsquery('pg_catalog.spanish', consulta)`, el filtro `estado = 'publicado' and publicado_en <= now() and busqueda @@ q`, `order by ts_rank_cd(busqueda, q) desc, publicado_en desc`, `limit least(limite, 50) offset greatest(desplazamiento, 0)` y `count(*) over ()`. `grant execute` a `anon, authenticated`.
   - Carga inicial de `busqueda` sin subir `version` ni mover `actualizado_en` (validación A6-M2): `alter table public.articulos disable trigger a30_controlar_version; … disable trigger a90_actualizado_en;`, después `update public.articulos set titulo = titulo` y después volver a habilitarlos, todo en la transacción de la migración. Agregar un test de que la carga no cambia `version` ni `actualizado_en`, y un test por tabla (`articulos`, `perfiles`, `categorias`, `etiquetas`) del cambio en `fijar_actualizado_en` con `pg_trigger_depth() > 1`.
-- [ ] T059 [H5] Crear `packages/db/src/consultas/busqueda.ts`, con `buscarArticulos(c, consulta, { pagina, porPagina })`, que mapea a `Pagina<ResumenArticulo>` reutilizando `packages/db/src/paginacion.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T056 y T057.
-- [ ] T060 [H5] Agregar a `supabase/tests/privilegios.test.sql`: `buscar_articulos` (anon y authenticated) y que `privado.recalcular_busqueda` no sea ejecutable por clientes.
+- [X] T059 [H5] Crear `packages/db/src/consultas/busqueda.ts`, con `buscarArticulos(c, consulta, { pagina, porPagina })`, que mapea a `Pagina<ResumenArticulo>` reutilizando `packages/db/src/paginacion.ts`. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T056 y T057.
+- [X] T060 [H5] Agregar a `supabase/tests/privilegios.test.sql`: `buscar_articulos` (anon y authenticated) y que `privado.recalcular_busqueda` no sea ejecutable por clientes.
 
 **Checkpoint**: La búsqueda en español funciona.
 
@@ -502,7 +502,7 @@ description: "Lista de tareas: modelo de contenido del blog"
 
 ### Tests de la Historia 6 (escribir PRIMERO, deben FALLAR) ⚠️
 
-- [ ] T061 [P] [H6] Crear `supabase/tests/equipo.test.sql` (H6-E1 a H6-E7, RF-021 a RF-026). Debe verificar:
+- [X] T061 [P] [H6] Crear `supabase/tests/equipo.test.sql` (H6-E1 a H6-E7, RF-021 a RF-026). Debe verificar:
   - el admin cambia el rol de un editor a admin y lo desactiva;
   - un editor que intenta cambiar su propio `rol` o `activo`, o el de otro, recibe `sin_permiso`;
   - un editor no puede cambiar `id` ni `creado_en`;
@@ -514,18 +514,18 @@ description: "Lista de tareas: modelo de contenido del blog"
   - no existe política de delete sobre `perfiles` (el delete afecta 0 filas o falla);
   - cambiar el `nombre` de un autor con publicados encola **un** mensaje `tipo = autor` con sus slugs (con secretos de Vault creados en la transacción);
   - cambiar el `nombre` de alguien sin publicados no encola nada.
-- [ ] T062 [P] [H6] Crear `packages/db/src/consultas/equipo-perfiles.test.ts`: `cambiarRol` sobre el último admin lanza `ErrorDominio('ultimo_admin')`; `actualizarPerfilPropio` valida `avatar` con `esquemaImagen`.
+- [X] T062 [P] [H6] Crear `packages/db/src/consultas/equipo-perfiles.test.ts`: `cambiarRol` sobre el último admin lanza `ErrorDominio('ultimo_admin')`; `actualizarPerfilPropio` valida `avatar` con `esquemaImagen`.
 
 ### Implementación de la Historia 6
 
-- [ ] T063 [H6] Crear `supabase/migrations/20261019120900_equipo.sql`:
+- [X] T063 [H6] Crear `supabase/migrations/20261019120900_equipo.sql`:
   - política `perfiles_update_admin` (update to authenticated, using y check `(select privado.es_admin())`);
   - **`create or replace`** de `privado.proteger_perfil()`: ya existe desde la validación del MVP (A-B1, migración de perfiles), con el trigger `a20_proteger_perfil`, y hoy no deja que ningún cliente cambie rol ni activo. Se amplía para que sí pueda el admin: `if (new.rol, new.activo) is distinct from (old.rol, old.activo) and not privado.es_admin()` lanza `sin_permiso`. **No** crear otro trigger;
   - trigger `z10_garantizar_admin` (after update, definer): `perform pg_advisory_xact_lock(hashtext('perfiles.ultimo_admin'))`; si `not exists (select 1 from public.perfiles where rol = 'admin' and activo)`, lanza `ultimo_admin`;
   - ~~trigger `z90_notificar_cambio_autor`~~: **se trasladó a la spec 002** (`20261019120100_autores_publicos.sql`, data-model 002), con `slugs = [slug del autor]`. No crearlo acá.
   - Nota (spec 002): las migraciones de H4–H6 llevan timestamps posteriores a `20261019120100` para respetar el orden de autoría.
   - Nota (spec 002, hallazgo en tests): `auth.admin.createUser` guarda `app_metadata` **después** del insert, así que `crear_perfil` no ve el rol y el perfil nace inactivo. Agregar un trigger `after update of raw_app_meta_data on auth.users` (definer) que, cuando `rol` pasa de nulo a un valor, actualice `perfiles.rol` y ponga `activo = true`. Mantiene la regla de D3 (solo el servidor activa una cuenta). Con su pgTAP.
-- [ ] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
+- [X] T064 [H6] Crear `packages/db/src/consultas/equipo-perfiles.ts`, con `actualizarPerfilPropio` (valida `avatar` con `esquemaImagen` de `@blog/bloques`), `cambiarRol` y `cambiarActivo`. Reexportar. Ejecutar `pnpm db:reset && pnpm db:tipos`. Deben pasar T061 y T062.
 
 **Checkpoint**: Las 6 historias están completas.
 
@@ -540,12 +540,12 @@ description: "Lista de tareas: modelo de contenido del blog"
   - los 10 tipos de bloque presentes en los publicados (`jsonb_path_query` sobre `contenido`);
   - toda imagen tiene `ancho` y `alto`.
 - [X] T066 Completar `supabase/seed.sql` con las categorías (Diseño, Desarrollo, Marketing, Negocios), 10 etiquetas y 14 artículos con textos realistas en español, que cubran los 10 tipos de bloque. Las imágenes son placeholders `https://picsum.photos/seed/<slug>/1600/900` con `ancho: 1600, alto: 900` y su alt. Las fechas de publicación son escalonadas en los últimos 90 días (insertadas como `postgres`, que no es cliente). Etiquetado con `insert into articulos_etiquetas` (como `postgres`), seguido de `select privado.recalcular_busqueda(array_agg(id)) from public.articulos;` para incluir las etiquetas en la búsqueda. Al final, agregar `vault.create_secret('http://172.17.0.1:4321','url_web_revalidacion')` y `vault.create_secret('<valor local de .env.example>','secreto_revalidacion')`, de forma idempotente. Debe pasar T065.
-- [ ] T067 [P] Crear `packages/db/src/invariantes.test.ts`: `select privado.tipos_bloque()` como `postgres` (vía service role, con un RPC de solo test, o leyendo con `pg` directo desde `DB_URL`) es igual a `TIPOS_BLOQUE` (research D8).
-- [ ] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
-- [ ] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
-- [ ] T070 Recorrer [quickstart.md](quickstart.md) del paso 1 al 5 y confirmar cada "Esperado". Actualizar el quickstart si algo cambió.
-- [ ] T071 Ejecutar `/validar` y resolver todos los hallazgos BLOQUEANTES de `arquitecto-db` y `consistencia-codigo` (`revisor-ux-ui` no aplica: no hay UI).
-- [ ] T072 Actualizar `CLAUDE.md` con la sección "Modelo de datos": un enlace a `specs/001-modelo-de-contenido/data-model.md` y las reglas para nuevas migraciones (prefijos de triggers, `search_path = ''`, grants explícitos).
+- [X] T067 [P] Crear `packages/db/src/invariantes.test.ts`: `select privado.tipos_bloque()` como `postgres` (vía service role, con un RPC de solo test, o leyendo con `pg` directo desde `DB_URL`) es igual a `TIPOS_BLOQUE` (research D8).
+- [X] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
+- [X] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
+- [X] T070 Recorrer [quickstart.md](quickstart.md) del paso 1 al 5 y confirmar cada "Esperado". Actualizar el quickstart si algo cambió.
+- [X] T071 Ejecutar `/validar` y resolver todos los hallazgos BLOQUEANTES de `arquitecto-db` y `consistencia-codigo` (`revisor-ux-ui` no aplica: no hay UI).
+- [X] T072 Actualizar `CLAUDE.md` con la sección "Modelo de datos": un enlace a `specs/001-modelo-de-contenido/data-model.md` y las reglas para nuevas migraciones (prefijos de triggers, `search_path = ''`, grants explícitos).
 
 ---
 

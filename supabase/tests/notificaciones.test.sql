@@ -1,6 +1,7 @@
 -- T037: notificación de cambios públicos (RF-013, research D14, contracts/revalidacion.md).
 -- privado.notificar_cambio_publico, triggers z90_notificar_cambio (articulos,
--- categorias, etiquetas) y n10_notificar_borrado (articulos).
+-- categorias, etiquetas) y n10_notificar_borrado (articulos); al final, la
+-- publicación por el cron (H4).
 -- Los secretos de Vault se crean dentro de la transacción (se deshacen con el
 -- rollback) y se cuentan las filas nuevas de net.http_request_queue: las filas
 -- sin confirmar no las ve el worker de pg_net, así que no se envía nada.
@@ -8,7 +9,7 @@
 -- No depende del seed: usuarios @prueba.local y slugs propios (prefijo h2-not-).
 begin;
 \ir helpers/pruebas.psql
-select plan(37);
+select plan(39);
 
 -- Sin secretos de revalidación al empezar, aunque el entorno los tenga configurados.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -335,6 +336,21 @@ select is_empty(
     where (headers::text || coalesce(convert_from(body, 'UTF8'), '')) like '%secreto-de-prueba-hmac%'$$,
   'D14: el secreto de revalidación no aparece en ninguna fila de la cola de pg_net'
 );
+
+-- ===========================================================================
+-- RF-013 · H4: la publicación por el cron también notifica
+-- ===========================================================================
+-- Como postgres se vence la programación (programado → programado no es un cambio
+-- público) y después corre la misma función que el job publicar-programados.
+select pruebas.como_postgres();
+update public.articulos set programado_para = now() - interval '1 minute'
+ where id = 'a2300000-0000-4000-8000-000000000008';
+select pruebas.marcar_cola();
+select privado.publicar_programados();
+select is((select count(*)::int from pruebas.cola_nueva()), 1,
+  'RF-013: publicar_programados (cron) emite un aviso');
+select is((select cuerpo -> 'slugs' from pruebas.cola_nueva()), '["h2-not-programado"]'::jsonb,
+  'RF-013: el aviso del cron lleva el slug del artículo que se publicó');
 
 select pruebas.como_postgres();
 select * from finish();

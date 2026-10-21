@@ -3,7 +3,7 @@
 // Los datos los crea y los borra el admin demo del seed (research D18).
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
-import { clienteAnon, clienteComo, sinSupabase } from '../pruebas/clientes';
+import { clienteAnon, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
 import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
 import { obtenerArticuloPublicado, resolverRedireccion } from './articulos-publicos';
 
@@ -20,7 +20,7 @@ describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, a
   const creados = registroDePrueba();
 
   beforeAll(async () => {
-    admin = await clienteComo('admin@demo.local', 'demo-admin-2026');
+    ({ admin } = await sesionAdminDemo());
     anon = clienteAnon();
 
     const { data: usuario } = await admin.auth.getUser();

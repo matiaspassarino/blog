@@ -6,7 +6,14 @@ import type { ClienteBlog } from '../cliente';
 import type { ErrorDominio } from '../errores';
 import { rechazoDe } from '../pruebas/afirmaciones';
 import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
-import { actualizarArticulo, crearArticulo, eliminarArticulo, previsualizarSlug } from './equipo-articulos';
+import { registroDePrueba } from '../pruebas/datos';
+import {
+  actualizarArticulo,
+  cambiarEstado,
+  crearArticulo,
+  eliminarArticulo,
+  previsualizarSlug,
+} from './equipo-articulos';
 
 type NuevoArticulo = Parameters<typeof crearArticulo>[1];
 type CambiosArticulo = Parameters<typeof actualizarArticulo>[3];
@@ -35,7 +42,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
   let editor: ClienteBlog;
   let admin: ClienteBlog;
   let idEditor: string;
-  const creados: string[] = [];
+  const creados = registroDePrueba();
 
   beforeAll(async () => {
     ({ editor, admin, idEditor } = await sesionesDemo());
@@ -47,7 +54,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
 
   // El editor no puede borrar: limpia el admin demo.
   afterAll(async () => {
-    if (creados.length > 0) await admin.from('articulos').delete().in('id', creados);
+    await creados.limpiar(admin);
   });
 
   // slug vacío: lo genera a10_asignar_slug (la columna tiene default '').
@@ -58,7 +65,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
       .select('id, version')
       .single();
     if (error) throw new Error(`No se pudo crear el borrador de prueba: ${error.message}`);
-    creados.push(data.id);
+    creados.articulos.push(data.id);
     return data;
   }
 
@@ -152,10 +159,12 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
         titulo: 'H1 integración: camino feliz',
         contenido: [{ id: crypto.randomUUID(), tipo: 'galeria', imagenes: [imagen(1), imagen(2)] }],
       });
-      creados.push(articulo.id);
+      creados.articulos.push(articulo.id);
 
       expect(articulo).toMatchObject({ estado: 'borrador', autor_id: idEditor, version: 1 });
       expect(articulo.contenido).toEqual([expect.objectContaining({ tipo: 'galeria', columnas: 3 })]);
+      // A7-M3: el tsvector interno no sale de packages/db.
+      expect(articulo).not.toHaveProperty('busqueda');
     });
 
     it('rechaza una imagen destacada sin alt con contenido_invalido, sin llamar a la base', async () => {
@@ -179,6 +188,94 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
 
       expect((await rechazoDe(eliminarArticulo(editor, articulo.id))).codigo).toBe('no_encontrado');
       await expect(eliminarArticulo(admin, articulo.id)).resolves.toBeUndefined();
+    });
+  });
+
+  // T055: cambiarEstado con programación (H4-E1, H4-E3, H4-E4, RF-011).
+  describe('cambiarEstado (programación)', () => {
+    const UN_DIA_MS = 24 * 60 * 60 * 1000;
+
+    /** Borrador listo para programar: con categoría (del seed) y un bloque. */
+    async function crearProgramable(titulo: string) {
+      const { data: categoria, error: errorCategoria } = await editor.from('categorias').select('id').limit(1).single();
+      if (errorCategoria) throw new Error(`No hay categorías en el seed: ${errorCategoria.message}`);
+      const articulo = await crearArticulo(editor, {
+        titulo,
+        categoria_id: categoria.id,
+        contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo programable.' }],
+      });
+      creados.articulos.push(articulo.id);
+      return articulo;
+    }
+
+    it('H4-E1: programar para mañana deja el artículo programado, envía la versión y el visitante no lo ve', async () => {
+      const articulo = await crearProgramable('H4 integración: programar');
+      const programadoPara = new Date(Date.now() + UN_DIA_MS);
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+
+      const programado = await cambiarEstado(editor, articulo.id, articulo.version, 'programado', { programadoPara });
+
+      const escrituras = peticionesDe(espiaFetch).filter(({ metodo }) => metodo === 'PATCH');
+      expect(escrituras).toHaveLength(1);
+      expect(escrituras[0]?.url.searchParams.get('version')).toBe(`eq.${articulo.version}`);
+      expect(programado).toMatchObject({
+        id: articulo.id,
+        estado: 'programado',
+        publicado_en: null,
+        version: articulo.version + 1,
+      });
+      expect(new Date(programado.programado_para ?? '').getTime()).toBe(programadoPara.getTime());
+
+      vi.restoreAllMocks();
+      const { data: visto } = await clienteAnon().from('articulos').select('id').eq('id', articulo.id);
+      expect(visto).toEqual([]);
+    });
+
+    it('H4-E3: programar para una fecha pasada se traduce a ErrorDominio(fecha_no_futura) y no cambia nada', async () => {
+      const articulo = await crearProgramable('H4 integración: fecha pasada');
+
+      const error = await rechazoDe(
+        cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+          programadoPara: new Date(Date.now() - UN_DIA_MS),
+        }),
+      );
+
+      expect(error.codigo).toBe('fecha_no_futura');
+      const { data } = await editor
+        .from('articulos')
+        .select('estado, programado_para, version')
+        .eq('id', articulo.id)
+        .single();
+      expect(data).toEqual({ estado: 'borrador', programado_para: null, version: articulo.version });
+    });
+
+    it('H4-E4: cancelar la programación (programado → borrador) limpia programado_para', async () => {
+      const articulo = await crearProgramable('H4 integración: cancelar');
+      const programado = await cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+        programadoPara: new Date(Date.now() + UN_DIA_MS),
+      });
+
+      const cancelado = await cambiarEstado(editor, articulo.id, programado.version, 'borrador');
+
+      expect(cancelado).toMatchObject({ estado: 'borrador', programado_para: null, version: programado.version + 1 });
+    });
+
+    // C7-M4: el rechazo con 0 filas de cambiarEstado (compartido con actualizarArticulo).
+    it('RF-008: cambiar el estado con una versión desactualizada se traduce a ErrorDominio(conflicto_version)', async () => {
+      const articulo = await crearProgramable('H4 integración: versión vieja');
+      await cambiarEstado(editor, articulo.id, articulo.version, 'programado', {
+        programadoPara: new Date(Date.now() + UN_DIA_MS),
+      });
+
+      const error = await rechazoDe(cambiarEstado(editor, articulo.id, articulo.version, 'borrador'));
+
+      expect(error.codigo).toBe('conflicto_version');
+    });
+
+    it('cambiar el estado de un id inexistente se traduce a ErrorDominio(no_encontrado)', async () => {
+      const error = await rechazoDe(cambiarEstado(editor, crypto.randomUUID(), 1, 'publicado'));
+
+      expect(error.codigo).toBe('no_encontrado');
     });
   });
 

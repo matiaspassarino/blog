@@ -5,6 +5,7 @@ export { ErrorDominio, traducirError, type CodigoError, type ErrorPostgrest } fr
 export {
   crearArticulo,
   actualizarArticulo,
+  cambiarEstado,
   eliminarArticulo,
   previsualizarSlug,
   type Articulo,
@@ -40,6 +41,14 @@ export {
   listarRelacionados,
   type EntradaSitemap,
 } from './consultas/listados';
+export { buscarArticulos } from './consultas/busqueda';
+export {
+  actualizarPerfilPropio,
+  cambiarRol,
+  cambiarActivo,
+  type Perfil,
+  type CambiosPerfilPropio,
+} from './consultas/equipo-perfiles';
 export {
   crearTaxonomia,
   actualizarTaxonomia,

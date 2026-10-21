@@ -1,14 +1,20 @@
 // Operaciones del equipo sobre artículos (contracts/db.md, "Operaciones del equipo").
-import { esquemaImagen, validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
+import { validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
 import type { Database, Json } from '../tipos';
-import type { TipoEntidad } from '../tipos-dominio';
+import type { EstadoArticulo, TipoEntidad } from '../tipos-dominio';
+import { validarImagen } from '../validar-imagen';
 
 type Tablas = Database['public']['Tables'];
 type Insercion = Tablas['articulos']['Insert'];
 
-export type Articulo = Tablas['articulos']['Row'];
+/** Sin `busqueda`: es un tsvector interno que mantiene a50 (validación A7-M3). */
+export type Articulo = Omit<Tablas['articulos']['Row'], 'busqueda'>;
+
+// Un solo literal: supabase-js deriva el tipo del resultado a partir del texto.
+const COLUMNAS_ARTICULO =
+  'id, titulo, slug, extracto, titulo_seo, descripcion_seo, imagen_destacada, contenido, categoria_id, autor_id, estado, programado_para, publicado_en, version, creado_en, actualizado_en';
 
 /** El autor es el usuario actual (default auth.uid()) y el slug lo genera la base si no viene. */
 export type NuevoArticulo = Pick<Insercion, 'titulo'> &
@@ -52,17 +58,9 @@ function validarCampos(datos: CamposValidables): CamposValidables {
   }
 
   if (datos.imagen_destacada !== undefined && datos.imagen_destacada !== null) {
-    const imagen = esquemaImagen.safeParse(datos.imagen_destacada);
-    if (imagen.success) validados.imagen_destacada = imagen.data as Json;
-    else {
-      errores.push(
-        ...imagen.error.issues.map((problema) => ({
-          indice: -1,
-          campo: ['imagen_destacada', ...problema.path.map(String)].join('.'),
-          mensaje: problema.message,
-        })),
-      );
-    }
+    const validacion = validarImagen(datos.imagen_destacada, 'imagen_destacada');
+    if (validacion.ok) validados.imagen_destacada = validacion.imagen;
+    else errores.push(...validacion.errores);
   } else if (datos.imagen_destacada === null) {
     validados.imagen_destacada = null;
   }
@@ -89,7 +87,7 @@ export async function crearArticulo(c: ClienteBlog, datos: NuevoArticulo): Promi
     const { data, error } = await c
       .from('articulos')
       .insert({ ...datos, ...validados, slug: datos.slug ?? '' })
-      .select()
+      .select(COLUMNAS_ARTICULO)
       .single();
     if (error) throw traducirError(error);
     return data;
@@ -110,18 +108,48 @@ export async function actualizarArticulo(
       .update({ ...cambios, ...validados, version })
       .eq('id', id)
       .eq('version', version)
-      .select()
+      .select(COLUMNAS_ARTICULO)
       .maybeSingle();
     if (error) throw traducirError(error);
     return data;
   });
   if (actualizado) return actualizado;
+  return rechazoSinFilas(c, id);
+}
 
-  // 0 filas: o no existe (o no es visible), o la versión cambió.
+/** Un update con filtro de versión afectó 0 filas: o no existe (o no es visible), o la versión cambió. */
+async function rechazoSinFilas(c: ClienteBlog, id: string): Promise<never> {
   const { data: existente, error } = await c.from('articulos').select('id').eq('id', id).maybeSingle();
   if (error) throw traducirError(error);
   if (!existente) throw new ErrorDominio('no_encontrado', 'El artículo no existe');
   throw new ErrorDominio('conflicto_version', 'El artículo cambió desde que lo abriste');
+}
+
+/**
+ * Transición de estado con bloqueo optimista (RF-009 a RF-011). La matriz, los requisitos
+ * de publicación y la fecha futura los valida la base (a40); acá solo se traducen los errores.
+ * Cancelar una programación es volver a 'borrador': la base limpia programado_para.
+ */
+export async function cambiarEstado(
+  c: ClienteBlog,
+  id: string,
+  version: number,
+  destino: EstadoArticulo,
+  opciones: { programadoPara?: Date } = {},
+): Promise<Articulo> {
+  const { data, error } = await c
+    .from('articulos')
+    .update({
+      estado: destino,
+      version,
+      ...(opciones.programadoPara && { programado_para: opciones.programadoPara.toISOString() }),
+    })
+    .eq('id', id)
+    .eq('version', version)
+    .select(COLUMNAS_ARTICULO)
+    .maybeSingle();
+  if (error) throw traducirError(error);
+  return data ?? rechazoSinFilas(c, id);
 }
 
 export async function eliminarArticulo(c: ClienteBlog, id: string): Promise<void> {
