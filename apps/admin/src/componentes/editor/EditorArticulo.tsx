@@ -392,7 +392,7 @@ export function EditorArticulo({
                         })
                       }
                     />
-                    {etiqueta.nombre}
+                    <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
                   </label>
                 ))}
               </fieldset>

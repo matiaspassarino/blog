@@ -37,7 +37,7 @@ export function TableCell({ className, etiqueta, ...props }: ComponentProps<'td'
     <td
       data-etiqueta={etiqueta}
       className={cn(
-        'px-3 py-2 max-md:flex max-md:items-baseline max-md:gap-2 max-md:px-0 max-md:before:min-w-24 max-md:before:font-semibold max-md:before:text-texto-suave max-md:before:content-[attr(data-etiqueta)]',
+        'px-3 py-2 wrap-anywhere max-md:flex max-md:items-baseline max-md:gap-2 max-md:px-0 max-md:before:min-w-24 max-md:before:font-semibold max-md:before:text-texto-suave max-md:before:content-[attr(data-etiqueta)]',
         className,
       )}
       {...props}
