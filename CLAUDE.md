@@ -52,20 +52,23 @@ Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REV
 | Vercel | `blog-admin` (root `apps/admin`): https://blog-admin-mocha-kappa.vercel.app | Variables de entorno: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`. |
 
 - Los dos proyectos de Vercel están vinculados al repo: cada push genera un preview y `main` va a producción.
-- **Historial de migraciones en la nube desalineado**: parte se aplicó con el MCP (versiones generadas) y parte con el SQL Editor (sin registro). Hay que ejecutar `supabase migration repair` antes de usar `supabase db push` por primera vez.
+- **Todas las migraciones del repo están aplicadas en la nube** (2026-10-20, hasta `20261019120900_equipo.sql`). **El historial está desalineado**: unas se aplicaron con el MCP (registradas con versiones generadas: `fundacion`, `perfiles`, `taxonomias`, `articulos`, `storage`, `tipo_entidad_autor` y `programacion`) y otras con el SQL Editor (sin registro: `estados_y_publicacion`, `notificacion`, `etiquetado`, `autores_publicos`, `busqueda` y `equipo`). Antes del primer `supabase db push` hay que alinearlo con `supabase migration repair` (necesita `supabase login` y `supabase link --project-ref kgavzwzlhbzjkvreqhbu`).
+- En la nube hay **otro proyecto de Supabase, "Indy sur"**, en la misma organización: antes de correr SQL en el editor, verificar que la URL tenga `kgavzwzlhbzjkvreqhbu`.
 - En el SQL Editor, una migración que agrega un valor a un enum (por ejemplo `20261019120000_tipo_entidad_autor.sql`) se ejecuta **sola**, separada de la siguiente, porque el editor corre todo el texto en una transacción.
 - **Vault en la nube**: cargado (`url_web_revalidacion` con la URL de producción de `blog-web` y `secreto_revalidacion`, igual a la variable de Vercel; rotado el 2026-10-19, el valor lo guarda el usuario).
 
-## Estado actual (2026-10-19, fin de la sesión)
-- **`main`** (commit `0c87344`; PR #1 y PR #2 mergeados): spec 001 hasta H3 más el seed, y **spec 002 cerrada** (sitio público; `/validar` ronda 3 APROBADO). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100. En la nube están las migraciones de la 002 y el Vault.
-- **Spec 001, rama `001-modelo-de-contenido`** (2026-10-20): **todas las tareas hechas** y `/validar` ronda 7 APROBADO, con sus 9 menores corregidos. Lista para el PR a `main`.
+## Estado actual (2026-10-20, fin de la sesión)
+- **Specs 001 y 002 cerradas y en `main`** (PR #1, #2 y #3 mergeados; #3 en el commit `b94af26`). Producción: https://blog-web-navy-gamma.vercel.app, con Lighthouse 100. En la nube están **todas las migraciones** y el Vault; los jobs de `pg_cron` (`publicar-programados` y `limpiar-historial-cron`) están activos, y los 2 programados del seed se publican solos el 26-10 y el 02-11.
+- **Spec 001** (`/validar` ronda 7 APROBADO, con sus 9 menores corregidos):
   - H4 (programación, `20261019120700_programacion.sql`), H5 (búsqueda, `20261019120800_busqueda.sql`) y H6 (equipo, `20261019120900_equipo.sql`), con los tests escritos antes por `escritor-tests`; cierre T065–T072. En local todo en verde: 715 pgTAP, 147 Vitest de `@blog/db`, lint, typecheck, calidad, build y 147 E2E. CE-003 medido en vivo: 36 s.
   - **Decisiones de la sesión**:
     - CE-004 da 84,6 % (22 de 26) y queda como **desviación aceptada** (`validacion.md` y research D12); `pg_trgm` para una spec posterior.
     - `buscar_articulos` devuelve la categoría completa (`categoria_id`, `categoria_nombre`, `categoria_slug`) para mapear a `ResumenArticulo`.
     - `cambiarRol` y `cambiarActivo` traducen 0 filas a `no_encontrado`.
     - `z10_garantizar_admin` también aplica a `postgres`.
-  - **Lo que sigue**: PR a `main` y, después del merge, aplicar en la nube las tres migraciones nuevas (`20261019120700`, `…0800` y `…0900`). Antes, `supabase migration repair` (ver "Infraestructura en la nube") y el **checklist de la ronda 7** en `specs/001-modelo-de-contenido/validacion.md`: que haya un admin activo, el dry-run de la carga inicial de `busqueda` y revisar los programados vencidos, que el cron publica apenas se aplica la de H4.
+  - **Aplicadas en la nube** (2026-10-20) después del checklist de la ronda 7: 1 admin activo, 0 artículos inválidos y ningún programado vencido. La carga inicial de `busqueda` no cambió `version` ni `actualizado_en` y no encoló avisos.
+- **Advisors de la nube** (2026-10-20): intencionales la vista definer `autores_publicos` (002) y los RPC definer `asignar_etiquetas` y `previsualizar_slug` (con chequeo de equipo). Pendientes opcionales: activar la protección de contraseñas filtradas de Auth (en el panel) y unir `perfiles_update_propio` con `perfiles_update_admin` (aviso de rendimiento por dos políticas permisivas; inofensivo con pocas filas).
+- **Lo que sigue**: la próxima spec. El panel `apps/admin` todavía no consume las operaciones del equipo (crear y editar artículos, programar, taxonomías, perfiles) ni el sitio tiene la página de búsqueda. Antes del primer `supabase db push`, alinear el historial de migraciones (ver "Infraestructura en la nube").
 - **Pendientes manuales**: borrar la redirección de prueba `diseno-grafico` en la nube (opcional) y revocar en Vercel el *Protection Bypass for Automation* de `blog-web` si no se usa.
 - **Notas de Windows**: ver `specs/002-sitio-publico/quickstart.md` ("En Windows"). Desde Git Bash, `vercel curl` necesita `MSYS_NO_PATHCONV=1`; el CLI no crea el bypass del preview cuando corre como agente.
 
