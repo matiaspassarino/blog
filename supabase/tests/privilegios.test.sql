@@ -98,21 +98,21 @@ select is_empty($$
   select p.oid::regprocedure
   from pg_proc p
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and p.proname not in ('es_cliente', 'es_equipo', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
     and has_function_privilege('anon', p.oid, 'EXECUTE')
 $$, 'anon no ejecuta funciones de privado fuera de la lista permitida');
 select is_empty($$
   select p.oid::regprocedure
   from pg_proc p
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
     and has_function_privilege('authenticated', p.oid, 'EXECUTE')
 $$, 'authenticated no ejecuta funciones de privado fuera de la lista permitida');
 select is_empty($$
   select p.oid::regprocedure
   from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida')
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
     and a.grantee = 0
     and a.privilege_type = 'EXECUTE'
 $$, 'PUBLIC no ejecuta funciones de privado fuera de la lista permitida');
