@@ -56,3 +56,40 @@ export async function actualizarPerfilPorApi(
   const cuerpo: unknown = await respuesta.json().catch(() => []);
   return { estado: respuesta.status, filas: Array.isArray(cuerpo) ? cuerpo : [] };
 }
+
+export type RespuestaApi = { estado: number; cuerpo: unknown };
+
+/**
+ * Llamada genérica a la API de Supabase (PostgREST, Storage o Auth) con la sesión del `token`, o como anónimo si es
+ * `null` (solo la clave anon). Devuelve el estado y el cuerpo ya leído; no lanza ante un 4xx: lo decide cada prueba.
+ * `cuerpo` se envía como JSON salvo que sea un `Uint8Array` (se envía tal cual, con `tipoDeContenido`).
+ */
+export async function llamarApi(
+  token: string | null,
+  metodo: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  ruta: string,
+  opciones: { cuerpo?: unknown; tipoDeContenido?: string; prefer?: string } = {},
+): Promise<RespuestaApi> {
+  const { cuerpo, tipoDeContenido, prefer = 'return=representation' } = opciones;
+  const crudo = cuerpo instanceof Uint8Array;
+  const respuesta = await fetch(`${URL_API}${ruta}`, {
+    method: metodo,
+    headers: {
+      apikey: claveAnon(),
+      Authorization: `Bearer ${token ?? claveAnon()}`,
+      Prefer: prefer,
+      ...(cuerpo !== undefined && {
+        'Content-Type': crudo ? (tipoDeContenido ?? 'application/octet-stream') : 'application/json',
+      }),
+    },
+    body: cuerpo === undefined ? undefined : crudo ? Buffer.from(cuerpo) : JSON.stringify(cuerpo),
+  });
+  const texto = await respuesta.text();
+  let parseado: unknown = texto;
+  try {
+    parseado = texto === '' ? null : JSON.parse(texto);
+  } catch {
+    // cuerpo que no es JSON: se devuelve el texto
+  }
+  return { estado: respuesta.status, cuerpo: parseado };
+}

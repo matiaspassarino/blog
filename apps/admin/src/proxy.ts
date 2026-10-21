@@ -41,7 +41,8 @@ export async function proxy(request: NextRequest) {
     const destino = request.nextUrl.clone();
     destino.pathname = '/ingreso';
     destino.search = `?volver=${encodeURIComponent(pathname + search)}`;
-    return NextResponse.redirect(destino);
+    // 303: si la petición es el POST de una Server Action, el navegador sigue con un GET y no con otro POST.
+    return NextResponse.redirect(destino, 303);
   }
 
   if (hayClaims && pathname !== '/salir') {
@@ -51,7 +52,10 @@ export async function proxy(request: NextRequest) {
       const destino = request.nextUrl.clone();
       destino.pathname = '/salir';
       destino.search = '?motivo=inactividad';
-      return NextResponse.redirect(destino);
+      // Una Server Action no puede seguir un redirect: pasa sin renovar la cookie y `obtenerMiembro()` la rechaza
+      // con el motivo `inactividad`, que lleva la interfaz a `/salir`.
+      if (request.headers.has('next-action')) return respuesta;
+      return NextResponse.redirect(destino, 303);
     }
     // La cookie dura más que el límite: lo que vence la sesión es la comparación, no la cookie.
     respuesta.cookies.set(COOKIE_ACTIVIDAD, String(Date.now()), {

@@ -2,6 +2,7 @@
 import { ErrorDominio } from '@blog/db';
 import type { ErrorBloque } from '@blog/bloques';
 import { unstable_rethrow } from 'next/navigation';
+import type { MotivoSesion } from './sesion';
 import { mensajeDeError, type CodigoMensaje } from './mensajes';
 
 export type ResultadoAccion<T = void> =
@@ -13,7 +14,7 @@ export type ResultadoAccion<T = void> =
       errores?: ErrorBloque[];
       detalle?: string;
       /** Solo con `no_autenticado`: la interfaz navega a `/salir` si es `desactivada`. */
-      motivo?: 'sin_sesion' | 'desactivada';
+      motivo?: MotivoSesion;
     };
 
 /** La base dice qué le falta al artículo con una palabra técnica; la persona necesita una frase (RF-013). */
@@ -25,7 +26,7 @@ export function exito<T>(datos: T): ResultadoAccion<T> {
 
 export function fallo(
   codigo: CodigoMensaje,
-  extra: { detalle?: string; errores?: ErrorBloque[]; motivo?: 'sin_sesion' | 'desactivada' } = {},
+  extra: { detalle?: string; errores?: ErrorBloque[]; motivo?: MotivoSesion } = {},
 ): ResultadoAccion<never> {
   return { ok: false, codigo, mensaje: mensajeDeError(codigo, extra.detalle), ...extra };
 }

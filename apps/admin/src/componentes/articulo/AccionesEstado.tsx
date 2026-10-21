@@ -3,6 +3,7 @@
 // Estado del artículo y sus acciones (Historia 3, RF-012 a RF-015): muestra el estado y la fecha de
 // publicación o programada, y ofrece solo las transiciones que permite la base. El estado se cambia sobre
 // lo guardado: con cambios sin guardar pide guardar antes. Solo "Eliminar" pide confirmación (RF-024).
+import { urlDeSalida } from '../../lib/salir';
 import type { Articulo, EstadoArticulo, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
 import { useId, useRef, useState } from 'react';
@@ -101,7 +102,7 @@ export function AccionesEstado({
         alCambiarEstado(resultado.datos);
         anunciar(ANUNCIOS[resultado.datos.estado]);
       } else if (resultado.codigo === 'no_autenticado') {
-        router.push(`/salir?motivo=${resultado.motivo === 'desactivada' ? 'desactivada' : 'sesion'}`);
+        router.push(urlDeSalida(resultado.motivo));
       } else {
         setError(resultado.mensaje);
       }

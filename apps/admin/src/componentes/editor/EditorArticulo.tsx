@@ -29,6 +29,8 @@ import { Textarea } from '../ui/textarea';
 import { resumenDeErrores } from './anuncios';
 import { AvisoConflicto } from './AvisoConflicto';
 import { ComparacionVersiones } from './ComparacionVersiones';
+import { urlDeSalida } from '../../lib/salir';
+import type { MotivoSesion } from '../../lib/sesion';
 import { useHidratado } from '../../lib/hidratado';
 import { ContextoEditor } from './ContextoEditor';
 import { aDatosArticulo, validarEditor } from './datos';
@@ -96,6 +98,8 @@ export function EditorArticulo({
   const [guardando, setGuardando] = useState(false);
   const [subidas, setSubidas] = useState(0);
   const [guardadoOk, setGuardadoOk] = useState(false);
+  const [slugAjustado, setSlugAjustado] = useState<string | null>(null);
+  const [errorTitulo, setErrorTitulo] = useState<string>();
   const [conflicto, setConflicto] = useState(false);
   const [vigente, setVigente] = useState<DatosArticulo | null>(null);
   const [verVigente, setVerVigente] = useState(false);
@@ -137,8 +141,8 @@ export function EditorArticulo({
     [rutasGuardadas],
   );
 
-  function irASalir(motivo: 'sin_sesion' | 'desactivada' | undefined) {
-    router.push(`/salir?motivo=${motivo === 'desactivada' ? 'desactivada' : 'sesion'}`);
+  function irASalir(motivo: MotivoSesion | undefined) {
+    router.push(urlDeSalida(motivo));
   }
 
   function mostrarErrores(lista: ErrorBloque[]) {
@@ -151,6 +155,16 @@ export function EditorArticulo({
     if (guardando || subidas > 0) return;
     setAviso(null);
     setConflicto(false);
+    setErrorTitulo(undefined);
+
+    if (actual.titulo.trim() === '') {
+      const mensaje = 'Escribe un título para el artículo.';
+      setErrorTitulo(mensaje);
+      setAviso(mensaje);
+      setAnuncio(mensaje);
+      setTimeout(() => document.getElementById('campo-titulo')?.focus(), 0);
+      return;
+    }
 
     const invalidos = validarEditor(actual);
     if (invalidos.length > 0) return mostrarErrores(invalidos);
@@ -177,6 +191,8 @@ export function EditorArticulo({
         despachar({ tipo: 'guardado', articulo: aDatosArticulo(guardado, actual.etiquetas) });
         setPublicacion(publicacionDe(guardado));
         setGuardadoOk(true);
+        // Si el sistema agregó un sufijo al slug escrito, se avisa cuál quedó (RF-008).
+        setSlugAjustado(actual.slug && guardado.slug !== actual.slug ? guardado.slug : null);
         if (!id) {
           setId(guardado.id);
           // El editor sigue montado: solo cambia la dirección, sin recargar ni perder el foco.
@@ -266,7 +282,7 @@ export function EditorArticulo({
         <fieldset disabled={reemplazando} className="contents">
           <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
             <div className="flex min-w-0 flex-col gap-6">
-              <CampoFormulario etiqueta="Título" id="campo-titulo">
+              <CampoFormulario etiqueta="Título" id="campo-titulo" error={errorTitulo}>
                 {(a) => (
                   <Input
                     {...a}
@@ -426,7 +442,11 @@ export function EditorArticulo({
             {sucio ? 'Cambios sin guardar' : ''}
           </p>
           <p role="status" className="font-semibold text-exito">
-            {guardadoOk && !sucio ? 'Guardado' : ''}
+            {guardadoOk && !sucio
+              ? slugAjustado
+                ? `Guardado. La dirección quedó como ${slugAjustado}`
+                : 'Guardado'
+              : ''}
           </p>
         </div>
         {/* Región persistente de anuncios (movimientos de bloques, subidas, errores): no se recrea. */}
