@@ -540,12 +540,12 @@ description: "Lista de tareas: modelo de contenido del blog"
   - los 10 tipos de bloque presentes en los publicados (`jsonb_path_query` sobre `contenido`);
   - toda imagen tiene `ancho` y `alto`.
 - [X] T066 Completar `supabase/seed.sql` con las categorías (Diseño, Desarrollo, Marketing, Negocios), 10 etiquetas y 14 artículos con textos realistas en español, que cubran los 10 tipos de bloque. Las imágenes son placeholders `https://picsum.photos/seed/<slug>/1600/900` con `ancho: 1600, alto: 900` y su alt. Las fechas de publicación son escalonadas en los últimos 90 días (insertadas como `postgres`, que no es cliente). Etiquetado con `insert into articulos_etiquetas` (como `postgres`), seguido de `select privado.recalcular_busqueda(array_agg(id)) from public.articulos;` para incluir las etiquetas en la búsqueda. Al final, agregar `vault.create_secret('http://172.17.0.1:4321','url_web_revalidacion')` y `vault.create_secret('<valor local de .env.example>','secreto_revalidacion')`, de forma idempotente. Debe pasar T065.
-- [ ] T067 [P] Crear `packages/db/src/invariantes.test.ts`: `select privado.tipos_bloque()` como `postgres` (vía service role, con un RPC de solo test, o leyendo con `pg` directo desde `DB_URL`) es igual a `TIPOS_BLOQUE` (research D8).
-- [ ] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
-- [ ] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
-- [ ] T070 Recorrer [quickstart.md](quickstart.md) del paso 1 al 5 y confirmar cada "Esperado". Actualizar el quickstart si algo cambió.
+- [X] T067 [P] Crear `packages/db/src/invariantes.test.ts`: `select privado.tipos_bloque()` como `postgres` (vía service role, con un RPC de solo test, o leyendo con `pg` directo desde `DB_URL`) es igual a `TIPOS_BLOQUE` (research D8).
+- [X] T068 [P] Ejecutar `pnpm db:tipos` final y revisar que `packages/db/src/tipos.ts` incluya las vistas y los RPC. Exportar los tipos de dominio (`ArticuloPublico`, `ResumenArticulo`, `Pagina`, `AutorPublico`, `Perfil`, `Categoria`, `Etiqueta`, `EstadoArticulo`) desde `packages/db/src/index.ts`.
+- [X] T069 Ejecutar todo: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build`. Corregir lo que falle.
+- [X] T070 Recorrer [quickstart.md](quickstart.md) del paso 1 al 5 y confirmar cada "Esperado". Actualizar el quickstart si algo cambió.
 - [ ] T071 Ejecutar `/validar` y resolver todos los hallazgos BLOQUEANTES de `arquitecto-db` y `consistencia-codigo` (`revisor-ux-ui` no aplica: no hay UI).
-- [ ] T072 Actualizar `CLAUDE.md` con la sección "Modelo de datos": un enlace a `specs/001-modelo-de-contenido/data-model.md` y las reglas para nuevas migraciones (prefijos de triggers, `search_path = ''`, grants explícitos).
+- [X] T072 Actualizar `CLAUDE.md` con la sección "Modelo de datos": un enlace a `specs/001-modelo-de-contenido/data-model.md` y las reglas para nuevas migraciones (prefijos de triggers, `search_path = ''`, grants explícitos).
 
 ---
 

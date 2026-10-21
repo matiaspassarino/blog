@@ -318,9 +318,16 @@ Corrección del informe: jscpd encuentra **3 clones (1,44 %)** en los tests nuev
 La observación de que "la base no tiene artículos" es lo esperado: hoy el seed solo carga los usuarios demo, y los artículos de demo llegan en T066 (cierre).
 
 ## Acciones (ronda 6, menores; prioridad: A6-M1 antes de H5)
-- [ ] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks
+- [x] A6-M1 / A6-M3 orden de bloqueo en `asignar_etiquetas` + tasks (etiquetas `for key share` por id y después el artículo; en `20261018120600_etiquetado.sql`)
 - [x] A6-M2 T058, carga inicial sin `version` ni `actualizado_en` (cubierta por `actualizado_en.test.sql`)
-- [ ] A6-M4 · C6-M1 a C6-M5 · bordes opcionales
+- [x] A6-M4 `entradas_sitemap()` ya figura en la tabla de funciones de `data-model.md`.
+- [x] C6-M1 tabla "Reutilización" del plan al día (tipos de dominio, `pruebas/{afirmaciones,datos}.ts` y lo nuevo de H4–H6: `mapeo.ts`, `validar-imagen.ts`, `rechazoSinFilas`).
+- [x] C6-M2 el contrato aclara que `TABLA_TAXONOMIA` es interno.
+- [x] C6-M3 `listados.test.ts` deriva `TaxonomiaDePrueba` (`Pick<Taxonomia, …>`) y `Creado` (`ReturnType` de `crearArticuloDePrueba`).
+- [x] C6-M4 `equipo-articulos.test.ts` limpia con `registroDePrueba()`.
+- [x] C6-M5 sin cambios: H4–H6 no agregaron un tercer uso de la lectura del espía de `fetch` (sigue en `equipo-articulos` y `equipo-taxonomias`).
+- [ ] Bordes opcionales (101 copias del mismo id, arreglo bidimensional, corte de `max_rows` con más de 1.000 filas): quedan sin test, como opcionales.
+- [x] RF-013 para el cron (cierre): `notificaciones.test.sql` verifica que `publicar_programados()` emite un aviso con el slug publicado.
 
 ## Desviación aceptada: CE-004 (H5, 2026-10-19)
 

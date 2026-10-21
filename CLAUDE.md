@@ -32,6 +32,15 @@ Next.js 16: antes de escribir código en `apps/admin`, leé las guías de `apps/
 - Las versiones del stack están fijadas en la constitución, §II. Agregar dependencias requiere justificarlas en el plan.
 - La protección `minimumReleaseAge` de pnpm está activa: no agregues exclusiones; elegí una versión anterior.
 
+## Modelo de datos
+Referencia: [specs/001-modelo-de-contenido/data-model.md](specs/001-modelo-de-contenido/data-model.md) (tablas, triggers, funciones y privilegios), con los cambios de la 002 en [specs/002-sitio-publico/data-model.md](specs/002-sitio-publico/data-model.md). Reglas para migraciones nuevas:
+- **Una migración por historia**, con timestamp posterior a la última existente; nunca editar una ya aplicada en la nube (salvo comentarios). Después de cada una: `pnpm db:reset && pnpm db:tipos` y commitear `packages/db/src/tipos.ts`.
+- **Triggers con prefijo** (Postgres los ejecuta por orden alfabético, research D21): `a05_`–`a90_` para los `before` (`a20_campos_sistema`, `a30_controlar_version`, `a40_validar_estado`, `a50_calcular_busqueda`, `a90_actualizado_en`…) y `z10_`–`z90_` para los `after` (`z90_notificar_*` siempre al final). Sin `update of`: cada función compara `old` con `new`. Para cambiar una función de trigger existente, `create or replace`, no un trigger nuevo.
+- **Funciones**: siempre `set search_path = ''` y nombres calificados (`public.`, `privado.`, `extensions.`, `pg_catalog.`). Las internas van en `privado`; `security definer` solo cuando hace falta, y los RPC definer chequean permisos (`privado.es_equipo()`, `privado.es_admin()`).
+- **Privilegios explícitos** (research D20): los default están revocados. Cada objeto nuevo lleva su `revoke … from public, anon, authenticated` y el `grant` mínimo de la tabla de privilegios del data-model; `privilegios.test.sql` lo verifica.
+- **RLS en todas las tablas**, con un pgTAP por política, función y trigger (constitución §V.2 y §IX.4). Las políticas invocan las auxiliares como `(select privado.es_equipo())`.
+- **Recálculos** lanzados desde otro trigger (`pg_trigger_depth() > 1`) no suben `version` ni mueven `actualizado_en`; las cargas masivas en una migración desactivan `a30` y `a90` durante el update.
+
 ## Infraestructura en la nube
 Sin secretos: las contraseñas de los usuarios demo de la nube y el `SECRETO_REVALIDACION` las guarda el usuario fuera del repo.
 

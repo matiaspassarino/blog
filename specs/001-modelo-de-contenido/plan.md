@@ -50,7 +50,7 @@ Las reglas viven en Postgres (Supabase) mediante RLS, triggers y checks, de modo
 | Necesidad | Existente a reutilizar | Nuevo a crear | Justificación si es nuevo |
 |---|---|---|---|
 | Lista de tipos de bloque | `TIPOS_BLOQUE` (antes en `index.ts`) | `packages/bloques/src/tipos-bloque.ts` | Se movió a un módulo propio para evitar imports circulares; `index.ts` lo reexporta y un chequeo de tipos exige que el esquema cubra exactamente esa lista |
-| Tipos de dominio (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`) | — | `packages/db/src/tipos-dominio.ts` | Los comparten las consultas de artículos, taxonomías y redirecciones |
+| Tipos de dominio (`TipoEntidad`, `EstadoArticulo`, `RolMiembro`, `Categoria`, `Etiqueta`, `Taxonomia`, `TipoTaxonomia`) y el mapa interno `TABLA_TAXONOMIA` | — | `packages/db/src/tipos-dominio.ts` | Los comparten las consultas de artículos, taxonomías, listados y redirecciones |
 | Config ESLint y Prettier | — | `packages/config/{eslint,prettier}.config.js` | La exige §III; la usan los paquetes y `apps/admin` (reglas comunes) |
 | Tipos de la base | `packages/db/src/tipos.ts` (generado) | — | Se regenera con `pnpm db:tipos` |
 | Esquema de imagen | — | `packages/bloques/src/imagen.ts` | Lo usan los bloques `imagen` y `galeria`, la imagen destacada y el avatar |
@@ -59,7 +59,11 @@ Las reglas viven en Postgres (Supabase) mediante RLS, triggers y checks, de modo
 | Traducción de errores | — | `packages/db/src/errores.ts` | No existe |
 | Rutas a revalidar | — | `packages/db/src/rutas-afectadas.ts` | La reutilizará el endpoint de `apps/web` |
 | Paginación | — | `packages/db/src/paginacion.ts` | Lo comparten listados y búsqueda; no existe |
+| Mapeo de filas a tipos de dominio (`aResumen`, `aSeo`, …) | `packages/db/src/consultas/mapeo.ts` | — | `buscarArticulos` reutiliza `aResumen` de los listados (H5) |
+| Validación de imágenes sueltas | `esquemaImagen` | `packages/db/src/validar-imagen.ts` | La comparten `imagen_destacada` (artículos) y `avatar` (perfiles, H6); mismo formato de errores que los bloques |
+| Rechazo de un update con 0 filas | — | `rechazoSinFilas` en `equipo-articulos.ts` | Lo comparten `actualizarArticulo` y `cambiarEstado` (H4): distingue `no_encontrado` de `conflicto_version` |
 | Clientes y entorno de tests | — | `packages/db/src/pruebas/{entorno,clientes}.ts` | Lo comparten todos los tests de integración; no existe |
+| Afirmaciones y datos de tests | — | `packages/db/src/pruebas/{afirmaciones,datos}.ts` | `rechazoDe`, `registroDePrueba()` y `crearArticuloDePrueba`, compartidos por las suites de integración |
 | Test de humo pgTAP | `supabase/tests/00_humo.test.sql` | — | Se conserva |
 
 ## Impacto en base de datos *(revisado con el agente arquitecto-db)*
