@@ -26,7 +26,7 @@ export async function tokenDe(usuario: UsuarioDemo): Promise<string> {
  * con RLS, quien no tiene permiso recibe una lista vacía (la base filtra en silencio), no un error.
  */
 export async function eliminarArticuloPorApi(token: string, id: string): Promise<{ id: string }[]> {
-  const respuesta = await fetch(`${URL_API}/rest/v1/articulos?id=eq.${id}`, {
+  const respuesta = await fetch(`${URL_API}/rest/v1/articulos?id=eq.${id}&select=id`, {
     method: 'DELETE',
     headers: { apikey: claveAnon(), Authorization: `Bearer ${token}`, Prefer: 'return=representation' },
   });

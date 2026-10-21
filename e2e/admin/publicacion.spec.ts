@@ -162,7 +162,8 @@ test.describe('Retirar del sitio (H3-E6, CE-003)', () => {
 test.describe('Solo las transiciones del estado (H3-E7, RF-012)', () => {
   const casos: { estado: EstadoVisible; acciones: AccionDeEstado[] }[] = [
     { estado: 'borrador', acciones: ['Publicar', 'Programar'] },
-    { estado: 'programado', acciones: ['Cancelar programación', 'Publicar'] },
+    // El orden es el de TODAS_LAS_ACCIONES (ayudas/estado.ts), no el de la pantalla.
+    { estado: 'programado', acciones: ['Publicar', 'Cancelar programación'] },
     { estado: 'publicado', acciones: ['Volver a borrador', 'Archivar'] },
     { estado: 'archivado', acciones: ['Volver a borrador'] },
   ];

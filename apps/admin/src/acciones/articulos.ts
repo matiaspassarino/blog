@@ -8,7 +8,9 @@ import {
   actualizarArticulo,
   asignarEtiquetas,
   borrarMedios,
+  cambiarEstado,
   crearArticulo,
+  eliminarArticulo,
   obtenerArticuloParaEditar,
   previsualizarSlug,
   rutasEnUso,
@@ -142,5 +144,51 @@ export async function leerArticuloVigente(entrada: unknown): Promise<ResultadoAc
     if (!datos.success) return fallo('validacion');
     const articulo = await obtenerArticuloParaEditar(cliente, datos.data.id);
     return articulo ? exito(articulo) : fallo('no_encontrado');
+  });
+}
+
+const esquemaEstado = z.object({
+  id: z.uuid(),
+  version: z.int().positive(),
+  destino: z.enum(['borrador', 'programado', 'publicado', 'archivado']),
+  programadoPara: z.iso.datetime().optional(),
+});
+
+/**
+ * Publica, programa, cancela, vuelve a borrador o archiva (RF-012, RF-013). La matriz de transiciones, los
+ * requisitos de publicación y la fecha futura los valida la base; aquí solo se traducen sus errores.
+ */
+export async function cambiarEstadoAccion(entrada: unknown): Promise<ResultadoAccion<Articulo>> {
+  return conPermiso('articulo.cambiar_estado', async ({ cliente }) => {
+    const datos = esquemaEstado.safeParse(entrada);
+    if (!datos.success) return fallo('validacion');
+    const { id, version, destino, programadoPara } = datos.data;
+    if (destino === 'programado' && !programadoPara) {
+      return fallo('validacion', { detalle: 'Elige la fecha y hora de publicación.' });
+    }
+
+    const articulo = await cambiarEstado(cliente, id, version, destino, {
+      programadoPara: programadoPara ? new Date(programadoPara) : undefined,
+    });
+
+    revalidatePath('/articulos');
+    revalidatePath(`/articulos/${id}`);
+    return exito(articulo);
+  });
+}
+
+/** Solo el admin elimina (RF-015); la confirmación la pide la interfaz. Borra las imágenes que nadie más usa (D11). */
+export async function eliminarArticuloAccion(entrada: unknown): Promise<ResultadoAccion<void>> {
+  return conPermiso('articulo.eliminar', async ({ cliente }) => {
+    const datos = z.object({ id: z.uuid() }).safeParse(entrada);
+    if (!datos.success) return fallo('validacion');
+    const { id } = datos.data;
+
+    const anterior = await obtenerArticuloParaEditar(cliente, id);
+    await eliminarArticulo(cliente, id);
+    if (anterior) await borrarImagenesSinUso(cliente, imagenesDe(anterior), { contenido: [], imagen_destacada: null });
+
+    revalidatePath('/articulos');
+    return exito(undefined);
   });
 }

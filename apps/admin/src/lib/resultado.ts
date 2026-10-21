@@ -16,6 +16,9 @@ export type ResultadoAccion<T = void> =
       motivo?: 'sin_sesion' | 'desactivada';
     };
 
+/** La base dice qué le falta al artículo con una palabra técnica; la persona necesita una frase (RF-013). */
+const FALTANTES: Record<string, string> = { categoria: 'sin categoría', contenido: 'sin bloques' };
+
 export function exito<T>(datos: T): ResultadoAccion<T> {
   return { ok: true, datos };
 }
@@ -38,7 +41,11 @@ export async function envolverAccion<T>(accion: () => Promise<ResultadoAccion<T>
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof ErrorDominio) {
-      return fallo(error.codigo, { detalle: error.detalle, errores: error.errores });
+      const detalle =
+        error.codigo === 'requisitos_publicacion' && error.detalle
+          ? (FALTANTES[error.detalle] ?? error.detalle)
+          : error.detalle;
+      return fallo(error.codigo, { detalle, errores: error.errores });
     }
     console.error('Error inesperado en una acción del panel', error);
     return fallo('desconocido');

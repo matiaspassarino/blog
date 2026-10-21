@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { aDatosArticulo } from '../../../../componentes/editor/datos';
 import { EditorArticulo } from '../../../../componentes/editor/EditorArticulo';
+import { obtenerMiembro } from '../../../../lib/sesion';
 import { crearClienteDeSesion } from '../../../../lib/supabase';
 
 export const metadata: Metadata = { title: 'Editar artículo' };
@@ -19,12 +20,20 @@ export default async function PaginaEditarArticulo({ params }: PageProps<'/artic
     listarEtiquetasPanel(cliente),
   ]);
   if (!articulo) notFound();
+  const { miembro } = await obtenerMiembro();
+  if (!miembro) return null;
 
   return (
     <EditorArticulo
       nuevo={false}
       id={articulo.id}
       datos={aDatosArticulo(articulo, articulo.etiquetas)}
+      publicacion={{
+        estado: articulo.estado,
+        programado_para: articulo.programado_para,
+        publicado_en: articulo.publicado_en,
+      }}
+      rol={miembro.rol}
       categorias={categorias}
       etiquetas={etiquetas}
     />

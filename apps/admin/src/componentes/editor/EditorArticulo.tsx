@@ -6,7 +6,7 @@
 // avisa antes de salir con cambios sin guardar (RF-010).
 import type { ErrorBloque } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
-import type { ReferenciaTaxonomia } from '@blog/db';
+import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
@@ -16,6 +16,7 @@ import {
   previsualizarSlugAccion,
 } from '../../acciones/articulos';
 import { agruparPorBloque, idDeCampo, mensajeDeCampo } from '../../lib/errores-campo';
+import { AccionesEstado } from '../articulo/AccionesEstado';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
 import { EnlaceConAviso } from '../salida/EnlaceConAviso';
@@ -34,11 +35,27 @@ import { ImagenEditable } from './ImagenEditable';
 import { ListaBloques } from './ListaBloques';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 
+/** Lo que el panel de publicación muestra del artículo, además de lo que edita el formulario. */
+export type Publicacion = {
+  estado: EstadoArticulo;
+  programado_para: string | null;
+  publicado_en: string | null;
+};
+
+const publicacionDe = (articulo: Articulo): Publicacion => ({
+  estado: articulo.estado,
+  programado_para: articulo.programado_para,
+  publicado_en: articulo.publicado_en,
+});
+
 type Props = {
   /** Cierto en `/articulos/nuevo`: el slug se sugiere desde el título hasta que la persona lo escribe. */
   nuevo: boolean;
   id?: string;
   datos: DatosArticulo;
+  /** Estado y fechas del artículo; en uno nuevo es un borrador. */
+  publicacion?: Publicacion;
+  rol: RolMiembro;
   categorias: ReferenciaTaxonomia[];
   etiquetas: ReferenciaTaxonomia[];
 };
@@ -56,11 +73,22 @@ function enfocarPrimerCampo(errores: ErrorBloque[]) {
 
 const vacioANulo = (valor: string) => (valor.trim() === '' ? null : valor);
 
-export function EditorArticulo({ nuevo, id: idInicial, datos, categorias, etiquetas }: Props) {
+export function EditorArticulo({
+  nuevo,
+  id: idInicial,
+  datos,
+  publicacion: publicacionInicial,
+  rol,
+  categorias,
+  etiquetas,
+}: Props) {
   const router = useRouter();
   const { setSucio } = useSalida();
   const [estado, despachar] = useReducer(reductor, undefined, () => estadoInicial(datos, { nuevo }));
   const [id, setId] = useState(idInicial);
+  const [publicacion, setPublicacion] = useState<Publicacion>(
+    publicacionInicial ?? { estado: 'borrador', programado_para: null, publicado_en: null },
+  );
   const [errores, setErrores] = useState<ErrorBloque[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const [anuncio, setAnuncio] = useState('');
@@ -145,6 +173,7 @@ export function EditorArticulo({ nuevo, id: idInicial, datos, categorias, etique
       if (resultado.ok) {
         const guardado = resultado.datos;
         despachar({ tipo: 'guardado', articulo: aDatosArticulo(guardado, actual.etiquetas) });
+        setPublicacion(publicacionDe(guardado));
         setGuardadoOk(true);
         if (!id) {
           setId(guardado.id);
@@ -289,6 +318,22 @@ export function EditorArticulo({ nuevo, id: idInicial, datos, categorias, etique
             </div>
 
             <div className="flex flex-col gap-6">
+              {id && (
+                <AccionesEstado
+                  id={id}
+                  slug={estado.guardado.slug}
+                  version={estado.guardado.version}
+                  estado={publicacion.estado}
+                  programadoPara={publicacion.programado_para}
+                  publicadoEn={publicacion.publicado_en}
+                  rol={rol}
+                  hayCambiosSinGuardar={sucio}
+                  alCambiarEstado={(articulo) => {
+                    despachar({ tipo: 'guardado', articulo: aDatosArticulo(articulo, actual.etiquetas) });
+                    setPublicacion(publicacionDe(articulo));
+                  }}
+                />
+              )}
               <CampoFormulario etiqueta="Categoría" id="campo-categoria">
                 {(a) => (
                   <Select
