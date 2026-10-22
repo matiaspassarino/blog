@@ -24,6 +24,7 @@
 //     | { tipo: 'guardado'; articulo: DatosArticulo }   (respuesta de `guardarArticulo`: adopta slug y versión definitivos)
 //     | { tipo: 'adoptar_vigente'; articulo: DatosArticulo }   ("Reemplazar con la vigente", D13: descarta lo propio)
 import { crearBloque, type Contenido } from '@blog/bloques';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 
@@ -182,5 +183,103 @@ describe('estado del editor (H2)', () => {
       expect(estado.datos).toEqual(vigente);
       expect(estaSucio(estado)).toBe(false);
     });
+  });
+});
+
+// T020 (spec 005, RF-012; data-model "Estado del editor"; research D6): el editor convierte el documento y despacha
+// la lista de bloques completa con la acción `contenido`. FASE ROJA: el reductor todavía no la conoce.
+// `CambiosDeBloque` se mueve de `reductor.ts` a `bloques/tipos.ts` (el reductor deja de saber de bloques sueltos).
+describe('acción "contenido" del reductor (spec 005)', () => {
+  const accionContenido = (valor: Contenido) => ({ tipo: 'contenido', valor }) as const;
+
+  it('RF-012: reemplaza datos.contenido por el valor recibido', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const nuevo = [parrafo('Solo uno'), parrafo('Y otro')];
+
+    const estado = reductor(inicial, accionContenido(nuevo));
+
+    expect(estado.datos.contenido).toEqual(nuevo);
+  });
+
+  it('RF-012: deja el estado sucio respecto de lo guardado', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido([parrafo('Cambiado')]));
+
+    expect(estaSucio(estado)).toBe(true);
+  });
+
+  it('RF-012: no toca lo guardado ni el resto de los datos', () => {
+    const inicial = estadoInicial(datosBase({ etiquetas: ['e1'] }), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido([]));
+
+    expect(estado.guardado).toEqual(inicial.guardado);
+    expect(estado.datos).toMatchObject({ titulo: 'Título original', slug: 'titulo-original', version: 3, etiquetas: ['e1'] });
+    expect(estado.slugManual).toBe(inicial.slugManual);
+  });
+
+  it('RF-012: abrir y no tocar no ensucia: despachar el mismo contenido deja el estado limpio', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido(structuredClone(inicial.datos.contenido)));
+
+    expect(estaSucio(estado)).toBe(false);
+  });
+
+  it('RF-012: aceptar un contenido vacío es válido (documento vacío)', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    expect(reductor(inicial, accionContenido([])).datos.contenido).toEqual([]);
+  });
+
+  it('no muta el estado recibido', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const copia = structuredClone(inicial);
+
+    reductor(inicial, accionContenido([parrafo('Otro')]));
+
+    expect(inicial).toEqual(copia);
+  });
+
+  it('D6: `guardado` sigue igual: adopta slug y versión definitivos sin tocar el contenido propio ya guardado', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const editado = reductor(inicial, accionContenido([parrafo('Editado')]));
+
+    const estado = reductor(editado, { tipo: 'guardado', articulo: { ...editado.datos, version: 4 } });
+
+    expect(estado.datos.version).toBe(4);
+    expect(estado.guardado).toEqual(estado.datos);
+    expect(estaSucio(estado)).toBe(false);
+  });
+
+  it('D13: `adoptar_vigente` sigue igual: descarta lo propio y adopta la versión del servidor', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const editado = reductor(inicial, accionContenido([parrafo('Mi versión')]));
+    const vigente = datosBase({ version: 7, contenido: [parrafo('Del otro')] });
+
+    const estado = reductor(editado, { tipo: 'adoptar_vigente', articulo: vigente });
+
+    expect(estado.datos).toEqual(vigente);
+    expect(estaSucio(estado)).toBe(false);
+  });
+});
+
+describe('CambiosDeBloque vive en bloques/tipos.ts (spec 005, plan: "Cambios de un bloque sumables")', () => {
+  const leer = (ruta: string) => readFileSync(new URL(ruta, import.meta.url), 'utf8');
+
+  it('bloques/tipos.ts exporta el tipo CambiosDeBloque', () => {
+    expect(leer('./bloques/tipos.ts')).toMatch(/export type CambiosDeBloque/);
+  });
+
+  it('reductor.ts ya no define CambiosDeBloque (lo importaría de bloques/tipos.ts si lo necesitara)', () => {
+    expect(leer('./reductor.ts')).not.toMatch(/export type CambiosDeBloque/);
+  });
+
+  it('EditorDeBloque.tsx lo importa de bloques/tipos.ts, no del reductor', () => {
+    const fuente = leer('./bloques/EditorDeBloque.tsx');
+    const importaDelReductor = /import[^;]*CambiosDeBloque[^;]*from\s+['"]\.\.\/reductor['"]/.test(fuente);
+
+    expect(importaDelReductor).toBe(false);
   });
 });

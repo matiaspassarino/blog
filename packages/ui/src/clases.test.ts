@@ -267,3 +267,36 @@ describe('Contraste WCAG 2.1 AA de cada nivel y estado (CE-004)', () => {
     expect(contraste('--control-blanco-clases', '--control-negro-clases')).toBeCloseTo(21, 1);
   });
 });
+
+// T018 (spec 005, RF-003, WCAG 1.4.1 y 1.4.11; contracts/componentes.md "Cambios en packages/ui"): el estado activo
+// de los botones de la barra del editor no puede depender solo del tinte de fondo.
+describe('Terciaria activa con borde de marca (spec 005, T018)', () => {
+  it('RF-003: la terciaria con aria-pressed suma aria-pressed:border-marca además del fondo marca-suave', () => {
+    const clases = clasesDe(conOpciones('terciaria', { tamanio: 'estandar' }));
+
+    expect(clases).toContain('aria-pressed:border-marca');
+    expect(clases).toContain('aria-pressed:bg-marca-suave');
+  });
+
+  it('RF-003: el tamaño compacto también lleva el borde de marca al estar activa', () => {
+    expect(clasesDe(conOpciones('terciaria', { tamanio: 'compacto' }))).toContain('aria-pressed:border-marca');
+  });
+
+  it.each(['primaria', 'secundaria', 'peligro'] as const)('RF-003: %s no define aria-pressed:border-marca', (variante) => {
+    expect(conOpciones(variante, { tamanio: 'estandar' })).not.toMatch(/aria-pressed:border-marca/);
+  });
+
+  it.each(['--color-fondo', '--color-superficie', '--color-marca-suave'])(
+    'WCAG 1.4.11: el borde activo (--color-marca) contrasta >= 3:1 contra %s',
+    (fondo) => {
+      expect(contraste('--color-marca', fondo)).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it('CE-005: clasesBoton() sin opciones sigue sin traer aria-pressed (el sitio no cambia)', () => {
+    for (const variante of ['primaria', 'secundaria', 'peligro'] as const) {
+      expect(clasesBoton(variante)).not.toMatch(/aria-pressed:/);
+    }
+    expect(clasesBoton('terciaria')).not.toMatch(/aria-pressed:/);
+  });
+});
