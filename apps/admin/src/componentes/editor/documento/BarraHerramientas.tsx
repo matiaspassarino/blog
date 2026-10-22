@@ -26,7 +26,7 @@ import { Button } from '../../ui/button';
 import { esEnlacePermitido } from './extensiones';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { deshacerORehacer, type ContextoDeAcciones } from './acciones-elemento';
-import { elementoActivo, salirDelModo } from './comandos';
+import { elementoActivo, salirDelModo, sincronizarConElDom } from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 import { MenuInsertar } from './MenuInsertar';
 import type { SeleccionDelDocumento } from './tipos';
@@ -197,7 +197,11 @@ function BotonAcciones({
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-disabled={bloqueado || undefined}
-        onClick={() => !bloqueado && setAbierto((previo) => !previo)}
+        onClick={() => {
+          if (bloqueado) return;
+          if (editor) sincronizarConElDom(editor);
+          setAbierto((previo) => !previo);
+        }}
         {...ctl}
       >
         <Icono nombre="acciones" />

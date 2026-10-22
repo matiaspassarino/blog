@@ -383,3 +383,20 @@ export const salirDelModo = (): Comando => (estado, despachar) => {
   }
   return true;
 };
+
+/**
+ * El navegador puede mover el cursor un instante antes de que ProseMirror lo sepa (un clic y enseguida un botón):
+ * antes de actuar sobre «el elemento del cursor» se lee la selección del DOM.
+ */
+export function sincronizarConElDom(editor: Editor) {
+  const dom = window.getSelection();
+  if (!dom?.anchorNode || !editor.view.dom.contains(dom.anchorNode)) return;
+  try {
+    const pos = editor.view.posAtDOM(dom.anchorNode, dom.anchorOffset);
+    const { selection, doc } = editor.state;
+    if (selection instanceof NodeSelection || selection instanceof SeleccionDeElementos) return;
+    if (pos !== selection.anchor) editor.view.dispatch(editor.state.tr.setSelection(Selection.near(doc.resolve(pos))));
+  } catch {
+    // posición fuera del documento: se conserva la selección del estado
+  }
+}

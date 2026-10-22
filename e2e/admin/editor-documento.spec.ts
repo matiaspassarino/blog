@@ -1702,7 +1702,11 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
       await expect(menuDeAcciones(page)).toHaveCount(0);
       await expect(panelDePropiedades(page)).toBeVisible();
 
-      await lienzo(page).getByText('Dos', { exact: true }).click();
+      // Con la hoja abierta la franja libre es angosta: se deja el texto en ella antes de hacer clic (Playwright
+      // centra el elemento, y ahí lo tapan la hoja y la barra fija).
+      const dos = lienzo(page).getByText('Dos', { exact: true });
+      await dos.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 160));
+      await dos.click();
       await page.keyboard.press('Escape');
       await page.keyboard.press('Shift+ArrowDown');
       await expect(textoDeSeleccion(page)).toHaveText('2 elementos seleccionados');

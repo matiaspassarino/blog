@@ -18,7 +18,7 @@ import type { ContextoDeAcciones } from './acciones-elemento';
 import { AsaDeElemento } from './AsaDeElemento';
 import { AyudaAtajos } from './AyudaAtajos';
 import { actualizarBloque, bloqueDeElemento, buscarElemento, SeleccionDeElementos } from './comandos';
-import { claveErrores, claveModo } from './claves';
+import { claveErrores, claveModo, claveSubidas } from './claves';
 import { crearExtensiones, type DevolucionesDelEditor, type EstadoMenu } from './extensiones';
 import { erroresPorBloqueId } from './mapa-errores';
 import { filtrarItems } from './menu-insercion';
@@ -303,6 +303,11 @@ export default function EditorDocumento({
     const mapa = mensajesPorBloque(editor, errores);
     editor.view.dispatch(editor.state.tr.setMeta(claveErrores, mapa).setMeta('addToHistory', false));
   }, [editor, errores]);
+
+  // Las islas muestran el progreso de las subidas en curso.
+  useEffect(() => {
+    editor?.view.dispatch(editor.state.tr.setMeta(claveSubidas, subidasEnCurso).setMeta('addToHistory', false));
+  }, [editor, subidasEnCurso]);
 
   useEffect(() => {
     editor?.setEditable(!bloqueado);

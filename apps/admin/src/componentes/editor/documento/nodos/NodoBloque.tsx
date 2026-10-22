@@ -5,7 +5,7 @@
 import type { Bloque } from '@blog/bloques';
 import { Bloques } from '@blog/bloques/render';
 import { NodeViewWrapper, useEditorState, type NodeViewProps } from '@tiptap/react';
-import { claveErrores } from '../claves';
+import { claveErrores, claveSubidas } from '../claves';
 import { cn } from '../../../../lib/cn';
 import { ImagenAdmin } from '../../../ImagenAdmin';
 import { nombreDeTipo } from '../../anuncios';
@@ -34,6 +34,11 @@ export function NodoBloque({ node, selected, editor, getPos }: NodeViewProps) {
     selector: ({ editor: actual }) =>
       (actual ? claveErrores.getState(actual.state)?.get(String(node.attrs.bloqueId)) : undefined) ?? SIN_ERRORES,
   });
+  const subiendo = useEditorState({
+    editor,
+    selector: ({ editor: actual }) =>
+      actual ? (claveSubidas.getState(actual.state)?.has(String(node.attrs.bloqueId)) ?? false) : false,
+  });
   const vacio =
     (bloque.tipo === 'imagen' && !bloque.imagen.ruta) || (bloque.tipo === 'galeria' && bloque.imagenes.length === 0);
   return (
@@ -45,7 +50,12 @@ export function NodoBloque({ node, selected, editor, getPos }: NodeViewProps) {
       data-seleccionado={selected ? 'si' : undefined}
       className={cn('my-4 scroll-mt-24 rounded-md outline-offset-4', selected && 'outline-2 outline-marca')}
     >
-      {vacio ? (
+      {subiendo ? (
+        <div className="flex min-h-32 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-borde bg-superficie p-4 text-texto-suave">
+          <p className="font-semibold">Subiendo imagen…</p>
+          <p className="text-sm">No se puede mover ni quitar hasta que termine.</p>
+        </div>
+      ) : vacio ? (
         <div className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-borde bg-superficie p-4 text-texto-suave">
           <p>{bloque.tipo === 'imagen' ? 'Todavía no elegiste una imagen' : 'Todavía no agregaste imágenes'}</p>
           <button

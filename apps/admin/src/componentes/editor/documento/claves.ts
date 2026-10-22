@@ -9,3 +9,6 @@ export const claveModo = new PluginKey<boolean>('modoElementos');
 
 /** La transacción ya fue confirmada por la persona (quitar una imagen ya guardada). */
 export const claveConfirmado = new PluginKey<boolean>('confirmado');
+
+/** Elementos con una subida de imagen en curso (`bloqueId`): su isla lo muestra y no se pueden mover ni quitar. */
+export const claveSubidas = new PluginKey<ReadonlySet<string>>('subidas');

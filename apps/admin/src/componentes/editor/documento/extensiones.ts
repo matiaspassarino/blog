@@ -33,7 +33,7 @@ import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { deshacerORehacer, registrarAccion } from './acciones-elemento';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
-import { claveErrores, claveModo } from './claves';
+import { claveErrores, claveModo, claveSubidas } from './claves';
 import {
   ampliarSeleccion,
   duplicarRango,
@@ -295,6 +295,13 @@ const MarcasDeError = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
+        key: claveSubidas,
+        state: {
+          init: () => new Set<string>() as ReadonlySet<string>,
+          apply: (tr, anterior) => tr.getMeta(claveSubidas) ?? anterior,
+        },
+      }),
+      new Plugin({
         key: claveErrores,
         state: {
           init: () => new Map<string, string[]>(),
@@ -446,7 +453,7 @@ function nodoEspecial(name: string) {
     parseHTML: () => [],
     renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-elemento': name })],
     addNodeView() {
-      return ReactNodeViewRenderer(NodoBloque);
+      return ReactNodeViewRenderer(NodoBloque, { attrs: { 'data-elemento': name } });
     },
   });
 }
