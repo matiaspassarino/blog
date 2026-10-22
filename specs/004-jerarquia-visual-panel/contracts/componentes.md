@@ -124,8 +124,8 @@ type Props = { tipo: 'exito' | 'error' | 'advertencia'; children: ReactNode; acc
 type Props = { children: ReactNode; destructivas?: ReactNode };
 ```
 
-- Botón `terciaria`, compacto, solo ícono, `aria-label="Más acciones"`, `aria-expanded`, `aria-controls`; visible solo por debajo de 48 rem de ancho de la barra (`@3xl:hidden`).
-- Panel: oculto hasta abrirse por debajo de 48 rem; desde ahí, `@3xl:contents` (las acciones en línea). Abre hacia arriba, `max-h` con desplazamiento, relleno para el anillo de foco; destructivas al final tras un separador.
+- Botón `terciaria`, compacto, solo ícono, `aria-label="Más acciones"`, `aria-expanded`, `aria-controls`; visible solo por debajo de 42 rem de ancho de la barra (`@2xl:hidden`).
+- Panel: oculto hasta abrirse por debajo de 42 rem; desde ahí, `@2xl:contents` (las acciones en línea). Abre hacia arriba, `max-h` con desplazamiento, relleno para el anillo de foco; destructivas al final tras un separador.
 - Esc y clic afuera cierran; Esc devuelve el foco al botón; se cierra al navegar y al ejecutar una acción. No se renderiza si no tiene hijos.
 
 ## `useDesplegable` — extraído (`apps/admin/src/lib/desplegable.ts`)
@@ -155,5 +155,5 @@ distribuirBarraEditor(e: Entrada): { enBarra: AccionBarra[]; enMenu: AccionBarra
 
 ## `BarraEditor` e `InfoPublicacion` — reemplazan a `AccionesEstado` (que se borra)
 
-- `BarraEditor`: `role="group"` "Acciones del artículo". Línea de estado arriba ("Cambios sin guardar" / "Guardado" en `aria-live`; "Sin cambios" y "Subiendo imagen…" fuera de la región y asociados a "Guardar" deshabilitado por `aria-describedby`); el error del cambio de estado en un `AvisoEstado` encima de la barra; los botones según `distribuirBarraEditor`, con `tamanio="compacto"` por debajo de 48 rem; los diálogos de programar y eliminar montados fuera de `MasAcciones`.
+- `BarraEditor`: `role="group"` "Acciones del artículo". Línea de estado arriba ("Cambios sin guardar" / "Guardado" en `aria-live`; "Sin cambios" y "Subiendo imagen…" fuera de la región y asociados a "Guardar" deshabilitado por `aria-describedby`); el error del cambio de estado en un `AvisoEstado` encima de la barra; los botones según `distribuirBarraEditor`, con `tamanio="compacto"` por debajo de 42 rem; los diálogos de programar y eliminar montados fuera de `MasAcciones`.
 - `InfoPublicacion`: sección "Publicación" (`section` con `h2`) con estado, fecha y "Ver en el sitio". Sin botones.

@@ -116,10 +116,10 @@ describe('MasAcciones (T034; RF-019, research D10)', () => {
     expect(boton?.atributos['data-tamanio']).toBe('compacto');
   });
 
-  it('el botón se ve solo en anchos angostos de la barra (@3xl:hidden)', () => {
+  it('el botón se ve solo en anchos angostos de la barra (@2xl:hidden)', () => {
     const boton = etiquetaDe(menu(), 'button', (e) => e.atributos['aria-label'] === 'Más acciones');
 
-    expect(clasesDeEtiqueta(boton)).toContain('@3xl:hidden');
+    expect(clasesDeEtiqueta(boton)).toContain('@2xl:hidden');
   });
 
   it('empieza cerrado: aria-expanded="false" y aria-controls apunta al panel', () => {
@@ -135,14 +135,14 @@ describe('MasAcciones (T034; RF-019, research D10)', () => {
     ).toBe(true);
   });
 
-  it('el panel, en anchos amplios, muestra las acciones en línea (@3xl:contents)', () => {
+  it('el panel, en anchos amplios, muestra las acciones en línea (@2xl:contents)', () => {
     const html = menu();
     const idPanel = etiquetaDe(html, 'button', (e) => e.atributos['aria-label'] === 'Más acciones')?.atributos[
       'aria-controls'
     ];
     const panel = etiquetasDe(html).find((e) => e.atributos.id === idPanel);
 
-    expect(clasesDeEtiqueta(panel)).toContain('@3xl:contents');
+    expect(clasesDeEtiqueta(panel)).toContain('@2xl:contents');
   });
 
   it('las acciones comunes y las destructivas están dentro del panel, las destructivas al final', () => {

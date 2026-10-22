@@ -52,7 +52,7 @@ Sin `opciones`, `clasesBoton` devuelve las clases de hoy, que son las que usa el
 
 Orden fijo de las posiciones: **Guardar · Publicar · (Programar | Cancelar programación | Volver a borrador) · Archivar · Vista previa · Eliminar**. Solo aparecen las que el estado y el rol permiten, y solo cambia el nivel.
 
-En el ancho de la barra por debajo de 48 rem (container query, research D10), la barra queda en una línea con estas acciones y el resto va a "Más acciones":
+En el ancho de la barra por debajo de 42 rem (container query, research D10), la barra queda en una línea con estas acciones y el resto va a "Más acciones":
 
 | Situación | En la barra | En "Más acciones" |
 |---|---|---|
@@ -62,4 +62,4 @@ En el ancho de la barra por debajo de 48 rem (container query, research D10), la
 | `publicado` | Guardar · Volver a borrador | Archivar · Vista previa · (Eliminar) |
 | `archivado` | Guardar · Volver a borrador | Vista previa · (Eliminar) |
 
-Regla: en la barra quedan "Guardar" y la primera transición del orden fijo ("Publicar" si existe). "Eliminar" solo para el admin, al final y separada. Desde 48 rem de ancho de barra se ven todas en línea.
+Regla: en la barra quedan "Guardar" y la primera transición del orden fijo ("Publicar" si existe). "Eliminar" solo para el admin, al final y separada. Desde 42 rem de ancho de barra se ven todas en línea.

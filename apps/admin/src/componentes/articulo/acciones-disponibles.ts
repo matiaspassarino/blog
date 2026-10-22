@@ -96,7 +96,7 @@ export function guardarHabilitado({
 }
 
 /**
- * Qué acciones van en la barra y cuáles en "Más acciones" (por debajo de 48 rem): en la barra quedan "Guardar" y
+ * Qué acciones van en la barra y cuáles en "Más acciones" (por debajo de 42 rem): en la barra quedan "Guardar" y
  * la primera transición del orden fijo; el resto, "Vista previa" y "Eliminar" (solo admin, al final) van al menú.
  * Un artículo nuevo solo tiene "Guardar".
  */

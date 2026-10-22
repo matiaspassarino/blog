@@ -3,7 +3,8 @@
 // Navegación del panel: barra lateral desde 1024 px y menú desplegable en pantallas angostas.
 // Primer elemento enfocable: "Saltar al contenido" (landmarks: header, nav "Principal" y main).
 import { usePathname } from 'next/navigation';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
+import { useDesplegable } from '../lib/desplegable';
 import { Icono } from './Icono';
 import { EnlaceConAviso } from './salida/EnlaceConAviso';
 import { Button } from './ui/button';
@@ -28,23 +29,10 @@ const ETIQUETA_ROL = { admin: 'Administrador', editor: 'Editor' } as const;
 
 export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: Props) {
   const ruta = usePathname();
-  // El menú está abierto "en una ruta": al navegar se cierra solo, sin efectos que reasignen el estado.
-  const [rutaAbierta, setRutaAbierta] = useState<string | null>(null);
-  const abierto = rutaAbierta === ruta;
   const idMenu = useId();
   const botonMenu = useRef<HTMLButtonElement>(null);
-
-  // Esc lo cierra y devuelve el foco al botón que lo abrió.
-  useEffect(() => {
-    if (!abierto) return;
-    const alTeclear = (evento: KeyboardEvent) => {
-      if (evento.key !== 'Escape') return;
-      setRutaAbierta(null);
-      botonMenu.current?.focus();
-    };
-    document.addEventListener('keydown', alTeclear);
-    return () => document.removeEventListener('keydown', alTeclear);
-  }, [abierto]);
+  const panelMenu = useRef<HTMLDivElement>(null);
+  const { abierto, alternar } = useDesplegable({ refBoton: botonMenu, refPanel: panelMenu });
 
   const enlaces = [...ENLACES, ...(puedeVerEquipo ? [ENLACE_EQUIPO] : []), ENLACE_PERFIL];
 
@@ -66,13 +54,13 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
             className="lg:hidden"
             aria-expanded={abierto}
             aria-controls={idMenu}
-            onClick={() => setRutaAbierta(abierto ? null : ruta)}
+            onClick={alternar}
           >
             <Icono nombre={abierto ? 'cerrar' : 'menu'} />
             <span>{abierto ? 'Cerrar menú' : 'Menú'}</span>
           </Button>
         </div>
-        <div id={idMenu} className={abierto ? 'block' : 'hidden lg:block'}>
+        <div id={idMenu} ref={panelMenu} className={abierto ? 'block' : 'hidden lg:block'}>
           <nav aria-label="Principal" className="px-2 pb-2">
             <ul className="flex flex-col gap-1">
               {enlaces.map(({ href, texto }) => {

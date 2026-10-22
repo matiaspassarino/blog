@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { AvisoEstado } from '../AvisoEstado';
 import { BarraAcciones } from '../estructura/BarraAcciones';
 import { ConfirmarAccion } from '../ConfirmarAccion';
+import { MasAcciones } from '../estructura/MasAcciones';
 import { Icono } from '../Icono';
 import { EnlaceConAviso } from '../salida/EnlaceConAviso';
 import { Button, estadoOcupado } from '../ui/button';
@@ -76,7 +77,12 @@ export function BarraEditor({
 
   /** Lleva el foco a un botón de la barra una vez que el estado nuevo se pintó (research D11). */
   function enfocar(selector: string) {
-    setTimeout(() => grupo.current?.querySelector<HTMLElement>(selector)?.focus(), 0);
+    setTimeout(() => {
+      const destino = grupo.current?.querySelector<HTMLElement>(selector);
+      // Si el disparador quedó oculto dentro de "Más acciones", el foco va al botón del menú.
+      const visible = destino && destino.getClientRects().length > 0;
+      (visible ? destino : grupo.current?.querySelector<HTMLElement>('[data-accion="mas-acciones"]'))?.focus();
+    }, 0);
   }
   const enfocarPrincipal = () => enfocar('[data-nivel="primaria"]');
 
@@ -97,12 +103,17 @@ export function BarraEditor({
     return principal === accion ? 'primaria' : 'secundaria';
   }
 
-  function boton(accion: AccionBarra) {
+  function boton(accion: AccionBarra, enLaBarra: boolean) {
+    // En la barra, los botones son compactos hasta 48 rem de barra; desde ahí vuelven al tamaño estándar.
+    const ajuste = enLaBarra
+      ? { tamanio: 'compacto' as const, className: '@3xl:px-5 @3xl:text-base' }
+      : { tamanio: 'estandar' as const };
     switch (accion) {
       case 'guardar':
         return (
           <Button
             key={accion}
+            {...ajuste}
             data-accion="guardar"
             variante={nivelDe('guardar')}
             aria-disabled={!habilitado || undefined}
@@ -115,7 +126,7 @@ export function BarraEditor({
         );
       case 'vista_previa':
         return (
-          <Button key={accion} asChild variante="terciaria">
+          <Button key={accion} asChild variante="terciaria" {...ajuste}>
             <EnlaceConAviso href={`/articulos/${id}/vista-previa`}>Vista previa</EnlaceConAviso>
           </Button>
         );
@@ -123,7 +134,7 @@ export function BarraEditor({
         return null;
       case 'programar':
         return (
-          <Button key={accion} data-accion={accion} variante="secundaria" onClick={abrirProgramar}>
+          <Button key={accion} {...ajuste} data-accion={accion} variante="secundaria" onClick={abrirProgramar}>
             {ETIQUETAS[accion]}
           </Button>
         );
@@ -131,6 +142,7 @@ export function BarraEditor({
         return (
           <Button
             key={accion}
+            {...ajuste}
             data-accion={accion}
             variante={accion === 'publicar' ? nivelDe('publicar') : 'secundaria'}
             aria-disabled={cambio.ocupado || undefined}
@@ -149,7 +161,7 @@ export function BarraEditor({
       ref={grupo}
       role="group"
       aria-label="Acciones del artículo"
-      className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8"
+      className="@container sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8"
     >
       {error && (
         <AvisoEstado tipo="error" cerrable={false}>
@@ -173,17 +185,25 @@ export function BarraEditor({
           </p>
         )}
       </div>
-      <BarraAcciones
-        destructivas={
-          puedeEliminar ? (
-            <Button data-accion="eliminar" variante="peligro" onClick={() => setEliminando(true)}>
-              <Icono nombre="papelera" />
-              {ETIQUETAS.eliminar}
-            </Button>
-          ) : undefined
-        }
-      >
-        {[...enBarra, ...enMenu].map(boton)}
+      <BarraAcciones>
+        {enBarra.map((accion) => boton(accion, true))}
+        <MasAcciones
+          destructivas={
+            puedeEliminar ? (
+              <Button
+                data-accion="eliminar"
+                variante="peligro"
+                className="@2xl:ms-auto"
+                onClick={() => setEliminando(true)}
+              >
+                <Icono nombre="papelera" />
+                {ETIQUETAS.eliminar}
+              </Button>
+            ) : undefined
+          }
+        >
+          {enMenu.filter((accion) => accion !== 'eliminar').map((accion) => boton(accion, false))}
+        </MasAcciones>
       </BarraAcciones>
 
       {guardado && (
