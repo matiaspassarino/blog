@@ -194,7 +194,9 @@ export async function controlesBajoElMinimo(page: Page, minimo = 44): Promise<st
 /** Acciones visibles que se superponen entre sí o que se salen de la pantalla (RF-009, zoom al 200 %). */
 export async function accionesSuperpuestasOCortadas(page: Page): Promise<string[]> {
   return page.evaluate(() => {
-    const acciones = [...document.querySelectorAll<HTMLElement>('[data-nivel]')].filter(
+    // Con un diálogo abierto, lo de atrás queda inerte: solo cuentan sus acciones.
+    const dialogo = document.querySelector('[role="alertdialog"], [role="dialog"], dialog[open]');
+    const acciones = [...(dialogo ?? document).querySelectorAll<HTMLElement>('[data-nivel]')].filter(
       (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden',
     );
     const nombre = (el: HTMLElement) =>
