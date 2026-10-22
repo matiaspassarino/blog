@@ -106,7 +106,7 @@ export function BarraEditor({
   function boton(accion: AccionBarra, enLaBarra: boolean) {
     // En la barra, los botones son compactos hasta 48 rem de barra; desde ahí vuelven al tamaño estándar.
     const ajuste = enLaBarra
-      ? { tamanio: 'compacto' as const, className: '@3xl:px-5 @3xl:text-base' }
+      ? { tamanio: 'compacto' as const, className: 'px-2 @3xl:px-5 @3xl:text-base' }
       : { tamanio: 'estandar' as const };
     switch (accion) {
       case 'guardar':
@@ -161,7 +161,7 @@ export function BarraEditor({
       ref={grupo}
       role="group"
       aria-label="Acciones del artículo"
-      className="@container sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8"
+      className="@container sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-4"
     >
       {error && (
         <AvisoEstado tipo="error" cerrable={false}>
@@ -185,7 +185,7 @@ export function BarraEditor({
           </p>
         )}
       </div>
-      <BarraAcciones>
+      <BarraAcciones className="gap-2 @3xl:gap-3">
         {enBarra.map((accion) => boton(accion, true))}
         <MasAcciones
           destructivas={

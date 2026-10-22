@@ -237,6 +237,8 @@ test.describe('Acción principal', () => {
       page,
     }) => {
       await abrirPantalla(page, fila);
+      // Mientras carga, el esqueleto de la lista no tiene acciones: se espera a que aparezca el título de la pantalla.
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
       const acciones = await accionesPorNivel(page);
 
@@ -933,11 +935,7 @@ test.describe('Barra del editor angosta', () => {
 
           expect(await nombresVisibles(barra)).toEqual(caso.enLinea);
           await expect(botonMasAcciones(page)).toBeHidden();
-          // RF-019 pide que se vean todas las acciones desde 768 px, no que quepan en una línea: el ancho del texto
-          // depende de la tipografía del sistema (más ancho en el CI de Linux), así que la línea única solo se
-          // exige donde sobra lugar; en 768 y 1024 px basta con que se reacomoden sin cortarse ni superponerse.
-          if (ancho >= 1440) expect(await ocupaUnaLinea(barra), `la barra ocupa una línea a ${ancho} px`).toBe(true);
-          else expect(await accionesSuperpuestasOCortadas(page)).toEqual([]);
+          expect(await ocupaUnaLinea(barra), `la barra ocupa una línea a ${ancho} px`).toBe(true);
         });
       }
     });
