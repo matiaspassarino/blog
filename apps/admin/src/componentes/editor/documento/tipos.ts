@@ -16,4 +16,4 @@ export type ElementoActivo = {
 };
 
 export type SeleccionDelDocumento =
-  { tipo: 'texto' } | { tipo: 'elementos'; desde: number; hasta: number; bloques: Bloque[] };
+  { tipo: 'texto' } | { tipo: 'elementos'; desde: number; hasta: number; bloques: Bloque[]; modo?: boolean };

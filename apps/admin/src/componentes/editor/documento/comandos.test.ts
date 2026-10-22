@@ -185,7 +185,8 @@ describe('moverRango: Alt+↑ y Alt+↓ (H3 esc. 2 y 10)', () => {
     const base = cincoParrafos();
     const { estado } = ejecutar(enModo(base, 3), moverRango(-1));
 
-    expect(rangoDeElementos(estado)).toEqual({ desde: posDe(base, 2), hasta: posDe(base, 3) });
+    // Los elementos miden distinto: el rango se mide en el documento resultante, no en el de partida.
+    expect(rangoDeElementos(estado)).toEqual({ desde: posDe(estado, 2), hasta: posDe(estado, 3) });
     const otraVez = ejecutar(estado, moverRango(-1));
     expect(idsDe(otraVez.estado)).toEqual([ID.a, ID.d, ID.b, ID.c, ID.e]);
   });
@@ -258,7 +259,7 @@ describe('duplicarRango: Mod+D (H3 esc. 5 y 10)', () => {
     const base = cincoParrafos();
     const { estado } = ejecutar(enModo(base, 1), duplicarRango());
 
-    expect(rangoDeElementos(estado)).toEqual({ desde: posDe(base, 2), hasta: posDe(base, 3) });
+    expect(rangoDeElementos(estado)).toEqual({ desde: posDe(estado, 2), hasta: posDe(estado, 3) });
   });
 
   it('H3-E5: duplicar un elemento especial copia sus datos y deja el identificador de la copia vacío', () => {

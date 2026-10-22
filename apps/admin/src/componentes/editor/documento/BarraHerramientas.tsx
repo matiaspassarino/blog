@@ -20,10 +20,14 @@ import { useDesplegable } from '../../../lib/desplegable';
 import { cn } from '../../../lib/cn';
 import { useMenuTeclado } from '../../../lib/menu-teclado';
 import { MasAcciones } from '../../estructura/MasAcciones';
+import { nombreDeTipo } from '../anuncios';
 import { Icono, type NombreIcono } from '../../Icono';
 import { Button } from '../../ui/button';
 import { esEnlacePermitido } from './extensiones';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
+import type { ContextoDeAcciones } from './acciones-elemento';
+import { elementoActivo } from './comandos';
+import { MenuAcciones } from './MenuAcciones';
 import { MenuInsertar } from './MenuInsertar';
 import type { SeleccionDelDocumento } from './tipos';
 
@@ -33,6 +37,8 @@ type Props = {
   seleccion: SeleccionDelDocumento;
   /** Abre el panel de propiedades del elemento seleccionado. */
   alPropiedades?: () => void;
+  /** Lo que necesita el menú «Acciones»; sin él (servidor o librería cargando) el botón se dibuja deshabilitado. */
+  contextoDeAcciones?: ContextoDeAcciones;
 };
 
 type Estilo = { nombre: string; activo: (editor: Editor) => boolean; aplicar: (editor: Editor) => void };
@@ -61,6 +67,12 @@ const ESTILOS: Estilo[] = [
 const estiloVigente = (editor: Editor | null) =>
   ESTILOS.find((estilo) => editor && estilo.activo(editor))?.nombre ?? 'Párrafo';
 
+/** Nombre del botón «Acciones»: dice sobre qué elemento actúa. */
+function etiquetaDeAcciones(editor: Editor | null) {
+  const activo = editor ? elementoActivo(editor.state) : null;
+  return activo ? `Acciones del elemento ${activo.posicion}, ${nombreDeTipo(activo.tipo)}` : 'Acciones';
+}
+
 function estadoDe(editor: Editor | null) {
   return {
     negrita: editor?.isActive('bold') ?? false,
@@ -74,6 +86,7 @@ function estadoDe(editor: Editor | null) {
     sinListas: editor
       ? editor.isActive('heading') || editor.isActive('codeBlock') || editor.isActive('blockquote')
       : false,
+    etiquetaAcciones: etiquetaDeAcciones(editor),
     puedeDeshacer: editor?.can().undo() ?? false,
     puedeRehacer: editor?.can().redo() ?? false,
   };
@@ -125,10 +138,13 @@ function SelectorDeEstilo({
       {abierto && (
         <div
           id={idPanel}
-          ref={refPanel}
           aria-label="Estilo de párrafo"
           className="absolute top-full left-0 z-20 mt-1 flex w-44 flex-col rounded-md border border-borde bg-fondo p-1 shadow-tarjeta"
           {...propsDeContenedor}
+          ref={(elemento) => {
+            refPanel.current = elemento;
+            propsDeContenedor.ref(elemento);
+          }}
         >
           {ESTILOS.map((e, indice) => (
             <button
@@ -148,6 +164,60 @@ function SelectorDeEstilo({
   );
 }
 
+/** Botón «Acciones» con su menú: actúa sobre el elemento del cursor o sobre los seleccionados. */
+function BotonAcciones({
+  editor,
+  contexto,
+  etiqueta,
+  bloqueado,
+  ctl,
+}: {
+  editor: Editor | null;
+  contexto: ContextoDeAcciones | undefined;
+  etiqueta: string;
+  bloqueado: boolean;
+  ctl: ControlProps;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const raiz = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const alPulsar = (evento: PointerEvent) => {
+      if (!raiz.current?.contains(evento.target as Node)) setAbierto(false);
+    };
+    document.addEventListener('pointerdown', alPulsar);
+    return () => document.removeEventListener('pointerdown', alPulsar);
+  }, [abierto]);
+  return (
+    <div ref={raiz} className="relative">
+      <Button
+        variante="terciaria"
+        tamanio="compacto"
+        aria-label={etiqueta}
+        aria-haspopup="menu"
+        aria-expanded={abierto}
+        aria-disabled={bloqueado || undefined}
+        onClick={() => !bloqueado && setAbierto((previo) => !previo)}
+        {...ctl}
+      >
+        <Icono nombre="acciones" />
+        Acciones
+      </Button>
+      {abierto && editor && contexto && (
+        <MenuAcciones
+          editor={editor}
+          contexto={contexto}
+          alCerrar={(devolverFoco) => {
+            setAbierto(false);
+            if (devolverFoco) editor.commands.focus();
+          }}
+          className="top-full left-0"
+        />
+      )}
+    </div>
+  );
+}
+
 type ControlProps = {
   'data-barra': string;
   tabIndex: number;
@@ -155,7 +225,7 @@ type ControlProps = {
   onPointerDown: (evento: React.PointerEvent) => void;
 };
 
-export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropiedades }: Props) {
+export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropiedades, contextoDeAcciones }: Props) {
   const barra = useRef<HTMLDivElement>(null);
   const idInsertar = useId();
   const idEnlace = useId();
@@ -260,7 +330,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
 
   const cantidad = seleccion.tipo === 'elementos' ? seleccion.hasta - seleccion.desde : 0;
   // Con un solo elemento seleccionado no hace falta el conteo: se anuncia y el panel lo muestra.
-  const enModoElementos = cantidad > 1;
+  const enModoElementos = seleccion.tipo === 'elementos' && (seleccion.modo === true || cantidad > 1);
   const deshacerYRehacer: ReactNode[] = [
     boton('deshacer', 'Deshacer', 'deshacer', (e) => e.chain().focus().undo().run(), {}, !estado.puedeDeshacer),
     boton('rehacer', 'Rehacer', 'rehacer', (e) => e.chain().focus().redo().run(), {}, !estado.puedeRehacer),
@@ -368,18 +438,13 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
               Propiedades
             </Button>
           )}
-        {/* Las acciones sobre los elementos (mover, duplicar, quitar) llegan con la Historia 3. */}
-        <Button
-          variante="terciaria"
-          tamanio="compacto"
-          aria-haspopup="menu"
-          aria-expanded={false}
-          aria-disabled
-          {...ctl('acciones')}
-        >
-          <Icono nombre="acciones" />
-          Acciones
-        </Button>
+        <BotonAcciones
+          editor={editor}
+          contexto={contextoDeAcciones}
+          etiqueta={estado.etiquetaAcciones}
+          bloqueado={sinEditor || !contextoDeAcciones}
+          ctl={ctl('acciones')}
+        />
         <MasAcciones corte="md" direccion="abajo" propsBoton={ctl('mas')}>
           {deshacerYRehacer}
         </MasAcciones>

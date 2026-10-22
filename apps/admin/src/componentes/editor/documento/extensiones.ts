@@ -11,7 +11,7 @@ import {
   type AnyExtension,
   type Editor,
 } from '@tiptap/core';
-import { NodeSelection, Plugin, PluginKey, Selection } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   CLASES_CITA,
@@ -32,7 +32,9 @@ import Suggestion from '@tiptap/suggestion';
 import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
-import { claveErrores } from './claves';
+import { claveErrores, claveModo } from './claves';
+import { ampliarSeleccion, duplicarRango, moverRango, quitarRango, rangoDeElementos } from './comandos';
+import { proteger, type DevolucionesDeProteccion } from './proteger';
 import { NodoBloque } from './nodos/NodoBloque';
 
 declare module '@tiptap/core' {
@@ -306,10 +308,44 @@ const MarcasDeError = Extension.create({
   },
 });
 
-/** Modo elementos: `Esc` selecciona el elemento entero (sin escribir en él), `Enter` abre sus propiedades. */
-const claveModo = new PluginKey<boolean>('modoElementos');
+/** Ícono de verificación de la marca de selección (no depende del color). */
+function iconoDeSeleccion() {
+  const icono = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icono.setAttribute('viewBox', '0 0 24 24');
+  icono.setAttribute('aria-hidden', 'true');
+  icono.setAttribute('focusable', 'false');
+  icono.setAttribute('class', 'absolute -left-7 top-1 size-5 text-marca');
+  icono.setAttribute('fill', 'none');
+  icono.setAttribute('stroke', 'currentColor');
+  icono.setAttribute('stroke-width', '3');
+  icono.setAttribute('stroke-linecap', 'round');
+  icono.setAttribute('stroke-linejoin', 'round');
+  const trazo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  trazo.setAttribute('d', 'M5 12l5 5 9-10');
+  icono.appendChild(trazo);
+  return icono;
+}
 
+/** Cursor de texto dentro del elemento (o en el texto contiguo, si es un elemento especial). */
+function volverAlTexto(editor: Editor) {
+  const { doc, selection, tr } = editor.state;
+  const inicio = selection.from;
+  const nodo = selection instanceof NodeSelection ? selection.node : doc.resolve(inicio).nodeAfter;
+  const destino =
+    nodo?.isAtom || !nodo ? Selection.near(doc.resolve(selection.to), 1) : Selection.near(doc.resolve(inicio + 1));
+  editor.view.dispatch(tr.setSelection(destino).setMeta(claveModo, false));
+}
+
+/**
+ * Modo elementos (contracts/atajos.md): `Esc` selecciona el elemento entero, `Shift+↑/↓` suma contiguos, `Alt+↑/↓`
+ * mueve, `Mod+D` duplica, `Supr`/`Retroceso` quita y `Enter` abre las propiedades. Cada elemento seleccionado lleva
+ * una marca que no depende del color: borde a la izquierda, un ícono de verificación y `data-seleccionado`.
+ */
 function modoElementos(devoluciones: DevolucionesDelEditor) {
+  const sobreRango =
+    (comando: (estado: EditorState, despachar?: (tr: Transaction) => void) => boolean) =>
+    ({ editor }: { editor: Editor }) =>
+      comando(editor.state, (tr) => editor.view.dispatch(tr));
   return Extension.create({
     name: 'modoElementos',
     priority: 900,
@@ -321,6 +357,41 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
             init: () => false,
             apply: (tr, anterior) => tr.getMeta(claveModo) ?? (tr.selectionSet || tr.docChanged ? false : anterior),
           },
+          props: {
+            decorations: (estado) => {
+              const rango = rangoDeElementos(estado);
+              if (!rango) return DecorationSet.empty;
+              const decoraciones: Decoration[] = [];
+              estado.doc.nodesBetween(rango.desde, rango.hasta, (nodo, pos, padre) => {
+                if (padre !== estado.doc) return false;
+                decoraciones.push(
+                  Decoration.node(pos, pos + nodo.nodeSize, {
+                    'data-seleccionado': 'true',
+                    class: 'relative -ml-4 border-l-2 border-marca pl-3',
+                  }),
+                );
+                if (!nodo.isAtom)
+                  decoraciones.push(Decoration.widget(pos + 1, iconoDeSeleccion, { side: -1, key: `marca-${pos}` }));
+                return false;
+              });
+              return DecorationSet.create(estado.doc, decoraciones);
+            },
+            handleKeyDown: (vista, evento) => {
+              const { selection } = vista.state;
+              const entero = selection instanceof NodeSelection && selection.$from.depth === 0;
+              if (!entero || evento.key.length !== 1 || evento.ctrlKey || evento.metaKey || evento.altKey) return false;
+              // Escribir sobre un elemento seleccionado lo reemplazaría: en el modo elementos se sale al texto; con un
+              // elemento especial tocado, la tecla se ignora.
+              if (claveModo.getState(vista.state) || !selection.node.isAtom) {
+                const { doc, tr } = vista.state;
+                vista.dispatch(
+                  tr.setSelection(Selection.near(doc.resolve(selection.from + 1))).setMeta(claveModo, false),
+                );
+                return false;
+              }
+              return true;
+            },
+          },
         }),
       ];
     },
@@ -330,13 +401,8 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           if (devoluciones.menuAbierto()) return false;
           const { doc, selection, tr } = editor.state;
           if (claveModo.getState(editor.state)) {
-            // Volver al texto: el cursor queda dentro del elemento (o en el siguiente texto, si es un elemento especial).
-            const inicio = selection.from;
-            const nodo = selection instanceof NodeSelection ? selection.node : null;
-            const destino = nodo?.isAtom
-              ? Selection.near(doc.resolve(inicio + nodo.nodeSize), 1)
-              : Selection.near(doc.resolve(inicio + 1));
-            editor.view.dispatch(tr.setSelection(destino).setMeta(claveModo, false));
+            // Esc dentro del modo: vuelve al texto.
+            volverAlTexto(editor);
             return true;
           }
           const { $from } = selection;
@@ -350,6 +416,13 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           devoluciones.alPropiedades();
           return true;
         },
+        'Alt-ArrowUp': sobreRango(moverRango(-1)),
+        'Alt-ArrowDown': sobreRango(moverRango(1)),
+        'Mod-d': sobreRango(duplicarRango()),
+        Delete: sobreRango(quitarRango()),
+        Backspace: sobreRango(quitarRango()),
+        'Shift-ArrowUp': sobreRango(ampliarSeleccion(-1)),
+        'Shift-ArrowDown': sobreRango(ampliarSeleccion(1)),
       };
     },
   });
@@ -381,6 +454,8 @@ export type EstadoMenu = {
 };
 
 export type DevolucionesDelEditor = {
+  /** Lo que `proteger` necesita saber para decidir si se puede quitar o mover un elemento. */
+  proteccion: DevolucionesDeProteccion;
   /** Anuncios para la región de estado persistente. */
   anunciar: (mensaje: string) => void;
   /** Si el menú «/» está abierto: `Esc` lo cierra antes de entrar al modo elementos. */
@@ -495,6 +570,7 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
     }),
     MarcasDeError,
     modoElementos(devoluciones),
+    Extension.create({ name: 'proteger', addProseMirrorPlugins: () => [proteger(devoluciones.proteccion)] }),
     menuBarra(devoluciones),
     anunciarAtajos(devoluciones),
   ];

@@ -191,6 +191,12 @@ export function EditorArticulo({
     // `guardado` solo cambia al guardar o al adoptar la versión vigente.
     [estado.guardado],
   );
+  // Qué elementos tienen una subida en curso: no se pueden mover ni quitar mientras suben.
+  const [subidasPorId, setSubidasPorId] = useState<ReadonlyMap<string, number>>(new Map());
+  const idsSubiendo = useMemo(
+    () => new Set([...subidasPorId].filter(([, cuenta]) => cuenta > 0).map(([id]) => id)),
+    [subidasPorId],
+  );
   const contexto = useMemo(
     () => ({
       anunciar: setAnuncio,
@@ -198,6 +204,20 @@ export function EditorArticulo({
       imagenGuardada: (ruta: string) => rutasGuardadas.has(ruta),
     }),
     [rutasGuardadas],
+  );
+
+  // Las subidas que empiezan en el panel de un elemento quedan asociadas a ese elemento.
+  const contextoDelPanel = useMemo(
+    () => ({
+      ...contexto,
+      subiendo: (delta: 1 | -1) => {
+        contexto.subiendo(delta);
+        const id = elemento?.bloqueId;
+        if (!id) return;
+        setSubidasPorId((previas) => new Map(previas).set(id, (previas.get(id) ?? 0) + delta));
+      },
+    }),
+    [contexto, elemento?.bloqueId],
   );
 
   function irASalir(motivo: MotivoSesion | undefined) {
@@ -392,6 +412,7 @@ export function EditorArticulo({
                   alPropiedades={alPropiedades}
                   acciones={acciones}
                   anunciar={setAnuncio}
+                  subidasEnCurso={idsSubiendo}
                   bloqueado={reemplazando}
                 />
               </section>
@@ -532,14 +553,16 @@ export function EditorArticulo({
                   hidden={pestania !== 'elemento'}
                   data-panel-propiedades
                 >
-                  <PropiedadesDelElemento
-                    variante="lateral"
-                    seleccion={seleccion}
-                    posicion={elemento?.posicion ?? 0}
-                    indice={elemento?.indice ?? -1}
-                    errores={errores.filter((error) => error.indice === elemento?.indice)}
-                    alCambiar={alCambiarElemento}
-                  />
+                  <ContextoEditor.Provider value={contextoDelPanel}>
+                    <PropiedadesDelElemento
+                      variante="lateral"
+                      seleccion={seleccion}
+                      posicion={elemento?.posicion ?? 0}
+                      indice={elemento?.indice ?? -1}
+                      errores={errores.filter((error) => error.indice === elemento?.indice)}
+                      alCambiar={alCambiarElemento}
+                    />
+                  </ContextoEditor.Provider>
                 </div>
               )}
             </div>
@@ -558,18 +581,20 @@ export function EditorArticulo({
               acciones.current?.enfocar();
             }}
           >
-            <PropiedadesDelElemento
-              variante="hoja"
-              seleccion={seleccion}
-              posicion={elemento.posicion}
-              indice={elemento.indice}
-              errores={errores.filter((error) => error.indice === elemento.indice)}
-              alCambiar={alCambiarElemento}
-              alCerrar={() => {
-                setHojaAbierta(false);
-                acciones.current?.enfocar();
-              }}
-            />
+            <ContextoEditor.Provider value={contextoDelPanel}>
+              <PropiedadesDelElemento
+                variante="hoja"
+                seleccion={seleccion}
+                posicion={elemento.posicion}
+                indice={elemento.indice}
+                errores={errores.filter((error) => error.indice === elemento.indice)}
+                alCambiar={alCambiarElemento}
+                alCerrar={() => {
+                  setHojaAbierta(false);
+                  acciones.current?.enfocar();
+                }}
+              />
+            </ContextoEditor.Provider>
           </div>
         )}
 

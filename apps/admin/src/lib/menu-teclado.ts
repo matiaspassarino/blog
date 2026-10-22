@@ -45,12 +45,15 @@ type Opciones = {
   abierto: boolean;
   alCerrar: () => void;
   alElegir: (indice: number) => void;
+  /** Al abrir, el foco va al primer ítem (por defecto). Con `false` queda en el contenedor y la flecha baja al primero. */
+  enfocarPrimero?: boolean;
 };
 
 const PAUSA_DE_ESCRITURA_MS = 700;
 
 /** Props de un menú de botones (`role="menu"`): el foco entra al primer ítem al abrir y se mueve con el teclado. */
-export function useMenuTeclado({ items, abierto, alCerrar, alElegir }: Opciones) {
+export function useMenuTeclado({ items, abierto, alCerrar, alElegir, enfocarPrimero = true }: Opciones) {
+  const contenedor = useRef<HTMLElement | null>(null);
   const itemsActuales = useRef(items);
   const elementos = useRef<(HTMLElement | null)[]>([]);
   const escrito = useRef({ texto: '', hasta: 0 });
@@ -62,8 +65,12 @@ export function useMenuTeclado({ items, abierto, alCerrar, alElegir }: Opciones)
   useEffect(() => {
     if (!abierto) return;
     const primero = indicePrimero(itemsActuales.current);
-    if (primero >= 0) elementos.current[primero]?.focus();
-  }, [abierto]);
+    if (enfocarPrimero) {
+      if (primero >= 0) elementos.current[primero]?.focus();
+    } else {
+      contenedor.current?.focus();
+    }
+  }, [abierto, enfocarPrimero]);
 
   const enfocar = (indice: number) => {
     if (indice >= 0) elementos.current[indice]?.focus();
@@ -99,7 +106,14 @@ export function useMenuTeclado({ items, abierto, alCerrar, alElegir }: Opciones)
   };
 
   return {
-    propsDeContenedor: { role: 'menu' as const, onKeyDown: alTeclear },
+    propsDeContenedor: {
+      role: 'menu' as const,
+      onKeyDown: alTeclear,
+      tabIndex: -1,
+      ref: (elemento: HTMLElement | null) => {
+        contenedor.current = elemento;
+      },
+    },
     propsDeItem: (indice: number) => ({
       role: 'menuitem' as const,
       tabIndex: -1,

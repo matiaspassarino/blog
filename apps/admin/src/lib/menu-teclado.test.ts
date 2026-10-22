@@ -22,7 +22,9 @@ import {
 
 const items = (...etiquetas: string[]): ItemMenu[] => etiquetas.map((etiqueta) => ({ etiqueta }));
 const conDeshabilitados = (...etiquetas: string[]): ItemMenu[] =>
-  etiquetas.map((etiqueta) => (etiqueta.startsWith('!') ? { etiqueta: etiqueta.slice(1), deshabilitado: true } : { etiqueta }));
+  etiquetas.map((etiqueta) =>
+    etiqueta.startsWith('!') ? { etiqueta: etiqueta.slice(1), deshabilitado: true } : { etiqueta },
+  );
 
 const ACCIONES = items('Subir', 'Bajar', 'Duplicar', 'Convertir en…', 'Quitar', 'Seleccionar', 'Propiedades', 'Atajos');
 
