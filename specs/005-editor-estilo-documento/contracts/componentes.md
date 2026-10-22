@@ -71,7 +71,7 @@ useMenuTeclado({ items, abierto, alCerrar, alElegir }): { propsDeContenedor, pro
 type Props = { editor: Editor };
 ```
 
-- **Asa flotante única** que sigue al elemento activo (el que tiene el cursor o está seleccionado). Es para ratón y toque: botón con `tabindex=-1` y nombre "Acciones del elemento N, tipo"; arrastra y, al pulsarla, abre el mismo menú de acciones. El camino de teclado y de lector de pantalla es el botón «Acciones» de la barra.
+- **Asa propia** (la de la librería se descartó en la Fase 0, research D17): una sola asa flotante que sigue al elemento activo (el que tiene el cursor o está seleccionado). Es para ratón y toque: botón con `tabindex=-1` y nombre "Acciones del elemento N, tipo"; arrastra y, al pulsarla, abre el mismo menú de acciones. El camino de teclado y de lector de pantalla es el botón «Acciones» de la barra.
 - Ubicación: desde 768 px en un carril a la izquierda del lienzo de ancho `--tactil-min`; por debajo de 768 px aparece solo sobre el elemento activo, en su esquina superior derecha y sin carril permanente, para no restar ancho a un lienzo de unos 280 px. `touch-action: none` solo en el propio botón.
 - El nodo no es arrastrable por sí mismo (`draggable=false`).
 - El indicador de destino al arrastrar lleva texto ("Soltar aquí: posición 3 de 8") además de la línea de la librería; el desplazamiento automático respeta `prefers-reduced-motion`.
