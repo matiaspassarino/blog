@@ -23,8 +23,20 @@
   /* Anillo de foco (§VII.4) */
   --foco-ancho: 3px;
   --foco-separacion: 3px;
-  --color-exito: oklch(0.6 0.15 150);
-  --color-error: oklch(0.58 0.2 27);
+  /* Estados (spec 003): texto ≥ 4,5:1 sobre fondo, superficie y su fondo suave; bordes ≥ 3:1. */
+  --color-exito: oklch(0.45 0.13 150);
+  --color-exito-suave: oklch(0.95 0.04 150);
+  --color-exito-borde: oklch(0.55 0.13 150);
+  --color-error: oklch(0.5 0.2 27);
+  --color-error-suave: oklch(0.95 0.03 27);
+  --color-error-borde: oklch(0.58 0.2 27);
+  --color-advertencia: oklch(0.45 0.1 70);
+  --color-advertencia-suave: oklch(0.95 0.05 80);
+  --color-advertencia-borde: oklch(0.55 0.12 70);
+  /* Fondo de los diálogos modales. */
+  --color-overlay: oklch(0 0 0 / 0.5);
+  /* Área táctil mínima (44 px, §VII.4): se usa como min-h-tactil / min-w-tactil. */
+  --tactil-min: 2.75rem;
 
   /* Tipografía */
   /* Las familias coinciden con @blog/ui/identidad; --fuente-* las define la API de

@@ -5,7 +5,9 @@
       "entry": ["e2e/**/*.spec.ts"]
     },
     "apps/web": {},
-    "apps/admin": {},
+    "apps/admin": {
+      "entry": ["src/app/**/{page,layout,route,loading,not-found,forbidden,robots}.{ts,tsx}"]
+    },
     "packages/*": {}
   },
   "ignore": ["packages/db/src/tipos.ts"],

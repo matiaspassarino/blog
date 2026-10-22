@@ -1,8 +1,7 @@
 // Datos estructurados de schema.org (specs/002-sitio-publico/spec.md RSEO-002 y RSEO-003).
 // Funciones puras: reciben los datos de dominio y la URL del sitio, y devuelven objetos listos
 // para <Seo jsonLd>. Todas las URLs son absolutas.
-import type { ArticuloPublico, AutorPublico } from '@blog/db';
-import { urlImagen } from './imagenes';
+import { urlImagen, type ArticuloPublico, type AutorPublico } from '@blog/db';
 
 export type SitioJsonLd = { url: string; nombre: string; logo: string; supabaseUrl: string };
 type Miga = { nombre: string; ruta: string };

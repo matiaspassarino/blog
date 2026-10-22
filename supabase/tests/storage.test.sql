@@ -142,8 +142,8 @@ select policy_roles_are('storage', 'objects', 'medios_select', array['authentica
   'medios_select aplica solo a authenticated');
 select results_eq(
   $$select file_size_limit, allowed_mime_types from storage.buckets where id = 'medios'$$,
-  $$values (5242880::bigint, array['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']::text[])$$,
-  'A-M3: medios acepta solo imágenes de hasta 5 MB'
+  $$values (5242880::bigint, array['image/jpeg', 'image/png', 'image/webp', 'image/avif']::text[])$$,
+  'A-M3: medios acepta solo JPEG, PNG, WebP y AVIF de hasta 5 MB (sin GIF)'
 );
 select pruebas.como('h1-medios-inactivo@prueba.local');
 select is_empty($$select 1 from storage.objects where bucket_id = 'medios'$$,

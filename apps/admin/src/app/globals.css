@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @import '@blog/ui/tokens.css';
+@import '@blog/ui/base.css';
+/* Los renderers de bloques (vista previa) usan clases que Tailwind debe ver. */
+@source '../../../../packages/bloques/src/render';
+@source '../../../../packages/ui/src';
 
 body {
   background: var(--color-fondo);

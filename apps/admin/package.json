@@ -11,12 +11,21 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@blog/bloques": "workspace:*",
+    "@blog/db": "workspace:*",
     "@blog/ui": "workspace:*",
+    "@radix-ui/react-alert-dialog": "1.2.1",
+    "@radix-ui/react-slot": "1.5.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
     "next": "16.4.2",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "3.7.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@blog/config": "workspace:*",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24",
     "@types/react": "^19",
@@ -25,8 +34,7 @@
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
-    "vitest": "5.0.5",
-    "@blog/config": "workspace:*"
+    "vitest": "5.0.5"
   },
   "packageManager": "pnpm@12.14.0"
 }

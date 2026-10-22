@@ -8,6 +8,8 @@ const BOTON_BASE =
 const VARIANTES_BOTON = {
   primaria: 'bg-marca text-marca-contraste hover:bg-marca-hover',
   secundaria: 'border border-borde bg-fondo text-texto hover:bg-superficie',
+  // Acciones destructivas del panel (eliminar, desactivar): texto de error sobre su fondo suave (≥ 4,5:1).
+  peligro: 'border border-error-borde bg-error-suave text-error hover:bg-fondo',
 } as const;
 
 export type VarianteBoton = keyof typeof VARIANTES_BOTON;

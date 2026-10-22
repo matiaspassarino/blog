@@ -30,8 +30,8 @@ jobs:
       - run: pnpm formato:verificar
       - run: pnpm lint
       - run: pnpm typecheck
-      # Los tests de integración de @blog/db necesitan Supabase: corren en el job base-de-datos.
-      - run: pnpm turbo run test --filter='!@blog/db'
+      # Los tests de integración de @blog/db y de apps/admin necesitan Supabase: corren en el job base-de-datos.
+      - run: pnpm turbo run test --filter='!@blog/db' --filter='!admin'
       - run: pnpm calidad
       - run: pnpm build
 
@@ -53,6 +53,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Tests de integración de @blog/db
         run: pnpm --filter @blog/db test
+        env:
+          CI: 'true'
+      # Las acciones del panel se prueban contra la base real (invitaciones, permisos, imágenes).
+      - name: Tests de integración de apps/admin
+        run: pnpm --filter admin test
         env:
           CI: 'true'
 
@@ -81,6 +86,16 @@ jobs:
             echo "PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
             grep '^SECRETO_REVALIDACION=' .env.example
           } > apps/web/.env.local
+      - name: Variables de apps/admin para los E2E
+        run: |
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_URL_ADMIN=http://localhost:3100"
+            echo "NEXT_PUBLIC_URL_SITIO=http://localhost:4321"
+          } > apps/admin/.env.local
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - if: failure()

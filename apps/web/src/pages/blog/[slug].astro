@@ -3,7 +3,7 @@
 // HTML cacheado en el CDN e invalidado por tags (research D1–D3).
 import type { Contenido, Imagen } from '@blog/bloques';
 import { Bloques } from '@blog/bloques/render';
-import { listarRelacionados, obtenerArticuloPublicado, resolverRedireccion } from '@blog/db';
+import { listarRelacionados, obtenerArticuloPublicado, resolverRedireccion, urlImagen } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
 import AvatarAutor from '../../components/AvatarAutor.astro';
@@ -18,7 +18,7 @@ import { cacheArticulo, cacheNoEncontrado, cacheRedireccion } from '../../lib/ca
 import { datos } from '../../lib/datos';
 import { fechaLarga } from '../../lib/fechas';
 import { ANCHOS_IMAGEN } from '../../lib/anchos-imagen';
-import { CALIDAD_IMAGEN, precalcularVariantes, urlImagen } from '../../lib/imagenes';
+import { CALIDAD_IMAGEN, precalcularVariantes } from '../../lib/imagenes';
 import { migasDelBlog } from '../../lib/listados';
 import { blogPosting, migas as migasJsonLd } from '../../lib/json-ld';
 import { resolverEntidad, respuestaNoEncontrado } from '../../lib/resolver';

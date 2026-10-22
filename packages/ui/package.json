@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css",
     "./identidad": "./src/identidad.ts",
     "./clases": "./src/clases.ts"
   },

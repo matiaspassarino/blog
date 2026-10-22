@@ -1,12 +1,12 @@
 ---
 // Tarjeta única de artículo (RF-009): portada, listados y relacionados. Un solo enlace, en el
 // título, que se extiende a toda la tarjeta.
-import type { ResumenArticulo } from '@blog/db';
+import { urlImagen, type ResumenArticulo } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
 import { fechaLarga } from '../lib/fechas';
 import { ANCHOS_IMAGEN } from '../lib/anchos-imagen';
-import { CALIDAD_IMAGEN, urlImagen } from '../lib/imagenes';
+import { CALIDAD_IMAGEN } from '../lib/imagenes';
 
 interface Props {
   articulo: ResumenArticulo;
