@@ -57,8 +57,8 @@ Mejoras (sin hacer, menores): la regla ESLint `no-restricted-imports` no prohíb
 
 ## Pendientes de medición (T103) y de la nube (T106)
 
-- [ ] Recorrer el quickstart (A a F) a mano. Los flujos A a F los cubren los 443 E2E, que pasaron en el CI del PR #5; falta el recorrido manual, que se puede hacer junto con CE-001.
-- [ ] CE-001: cronometrar con una persona que no haya usado el panel la creación y publicación de un artículo de 5 bloques con una imagen (menos de 5 minutos).
+- [x] Recorrer el quickstart (A a F) a mano: sin observaciones, 2026-10-21 en local, según informó el usuario. Los mismos flujos los cubren los 443 E2E que pasaron en el CI del PR #5.
+- [x] CE-001: cronometrar con una persona que no haya usado el panel la creación y publicación de un artículo de 5 bloques con una imagen (menos de 5 minutos). Cumplido el 2026-10-21 en local (`next start` con el seed): **unos 2 minutos**, según informó el usuario.
 - [x] CE-006: Lighthouse 13.5 (solo Accesibilidad), 2026-10-21, sobre `next start` local con el seed y sesión de admin. `/ingreso`, `/articulos`, el editor (`/articulos/[id]`) y `/equipo` dan **100 en los 16 casos** (360 y 768 px como móvil; 1024 y 1440 px como escritorio).
 - [x] CE-007: navegación con el menú, medida dentro de la página (del clic hasta que aparece el `h1` de la pantalla nueva), 7 vueltas tras una de calentamiento, `next start` local, 1440 px. Medianas: Categorías 91 ms, Etiquetas 51 ms, Equipo 57 ms, Mi perfil 57 ms, Artículos 309 ms y el editor unos 100 ms; **máximo 311 ms**. Artículos da siempre unos 300 ms porque React deja visible el esqueleto de `loading.tsx` un mínimo de 300 ms; el servidor la responde en unos 35 ms.
 - [x] `X-Robots-Tag: noindex, nofollow` en `/ingreso` y `robots.txt` con `Disallow: /`.
