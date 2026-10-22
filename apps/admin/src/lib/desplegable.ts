@@ -35,11 +35,19 @@ export function useDesplegable({ refBoton, refPanel }: Opciones) {
       if (destino && (refBoton.current?.contains(destino) || refPanel.current?.contains(destino))) return;
       setRutaAbierta(null);
     };
+    // Si el foco sale por Tab, el panel no queda flotando.
+    const alMoverFoco = (evento: FocusEvent) => {
+      const destino = evento.target as Node | null;
+      if (destino && (refBoton.current?.contains(destino) || refPanel.current?.contains(destino))) return;
+      setRutaAbierta(null);
+    };
     document.addEventListener('keydown', alTeclear);
     document.addEventListener('click', alHacerClic);
+    document.addEventListener('focusin', alMoverFoco);
     return () => {
       document.removeEventListener('keydown', alTeclear);
       document.removeEventListener('click', alHacerClic);
+      document.removeEventListener('focusin', alMoverFoco);
     };
   }, [abierto, refBoton, refPanel]);
 

@@ -20,7 +20,7 @@ export function AlertDialogContent({
       <AlertDialogPrimitive.Overlay className="fixed inset-0 bg-overlay" />
       <AlertDialogPrimitive.Content
         className={cn(
-          'fixed inset-x-4 top-1/2 mx-auto max-w-md -translate-y-1/2 rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
+          'fixed inset-x-4 top-1/2 mx-auto max-h-dvh max-w-md -translate-y-1/2 overflow-y-auto rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
           className,
         )}
         {...props}

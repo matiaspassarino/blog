@@ -37,7 +37,6 @@ import { ImagenEditable } from './ImagenEditable';
 import { ListaBloques } from './ListaBloques';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
-import { EstadoVacio } from '../estructura/EstadoVacio';
 import { TituloSeccion } from '../estructura/TituloSeccion';
 
 /** Lo que el panel de publicación muestra del artículo, además de lo que edita el formulario. */
@@ -361,7 +360,7 @@ export function EditorArticulo({
 
                 <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
                   <legend className="px-1 font-semibold">Etiquetas</legend>
-                  {etiquetas.length === 0 && <EstadoVacio mensaje="Todavía no hay etiquetas." />}
+                  {etiquetas.length === 0 && <p className="text-sm text-texto-suave">Todavía no hay etiquetas.</p>}
                   {etiquetas.map((etiqueta) => (
                     <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
                       <Checkbox
