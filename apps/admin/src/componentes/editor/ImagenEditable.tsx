@@ -13,6 +13,7 @@ import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { useEditor } from './ContextoEditor';
 import { SelectorImagen } from './SelectorImagen';
+import { Icono } from '../Icono';
 
 type Props = {
   imagen: Imagen | null;
@@ -61,7 +62,12 @@ export function ImagenEditable({
   }
 
   const quitar = () => alCambiar(null);
-  const botonQuitar = <Button variante="secundaria">Quitar imagen</Button>;
+  const botonQuitar = (
+    <Button variante="peligro">
+      <Icono nombre="papelera" />
+      Quitar imagen
+    </Button>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -108,7 +114,8 @@ export function ImagenEditable({
           {botonQuitar}
         </ConfirmarAccion>
       ) : (
-        <Button variante="secundaria" className="self-start" onClick={quitar}>
+        <Button variante="peligro" className="self-start" onClick={quitar}>
+          <Icono nombre="papelera" />
           Quitar imagen
         </Button>
       )}

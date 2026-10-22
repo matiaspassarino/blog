@@ -6,7 +6,7 @@ import { useActionState } from 'react';
 import { definirContrasena } from '../../acciones/acceso';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 
 export function FormularioNuevaContrasena() {
@@ -27,8 +27,8 @@ export function FormularioNuevaContrasena() {
       <CampoFormulario etiqueta="Repite la contraseña">
         {(atributos) => <Input {...atributos} name="repetir" type="password" autoComplete="new-password" required />}
       </CampoFormulario>
-      <Button type="submit" aria-disabled={pendiente} disabled={pendiente}>
-        {pendiente ? 'Guardando…' : 'Guardar contraseña'}
+      <Button type="submit" variante="primaria" {...estadoOcupado(pendiente, 'Guardando…')}>
+        Guardar contraseña
       </Button>
     </form>
   );

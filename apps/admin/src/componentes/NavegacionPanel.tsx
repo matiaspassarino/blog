@@ -61,8 +61,9 @@ export function NavegacionPanel({ nombre, rol, puedeVerEquipo, cerrarSesion }: P
           <p className="font-titulos text-lg font-semibold">Panel del blog</p>
           <Button
             ref={botonMenu}
-            variante="secundaria"
-            className="min-w-(--tactil-min) px-3 lg:hidden"
+            variante="terciaria"
+            tamanio="compacto"
+            className="lg:hidden"
             aria-expanded={abierto}
             aria-controls={idMenu}
             onClick={() => setRutaAbierta(abierto ? null : ruta)}

@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { ConfirmarAccion } from '../ConfirmarAccion';
 import { Button } from '../ui/button';
+import { Icono } from '../Icono';
 
 type Props = { alVerVigente: () => void; alReemplazar: () => void };
 
@@ -35,7 +36,10 @@ export function AvisoConflicto({ alVerVigente, alReemplazar }: Props) {
           variante="peligro"
           onConfirmar={alReemplazar}
         >
-          <Button variante="peligro">Reemplazar con la vigente</Button>
+          <Button variante="peligro">
+            <Icono nombre="prohibido" />
+            Reemplazar con la vigente
+          </Button>
         </ConfirmarAccion>
       </div>
     </div>

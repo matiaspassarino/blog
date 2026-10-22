@@ -91,7 +91,7 @@ export function DialogoEdicion({ tipo, taxonomia, alCerrar }: Props) {
           <Button variante="secundaria" onClick={() => dialogo.current?.close()}>
             Cancelar
           </Button>
-          <Button type="submit" aria-disabled={guardando || undefined}>
+          <Button type="submit" variante="primaria" aria-disabled={guardando || undefined}>
             Guardar cambios
           </Button>
         </div>

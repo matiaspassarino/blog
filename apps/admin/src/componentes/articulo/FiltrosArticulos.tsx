@@ -74,7 +74,9 @@ export function FiltrosArticulos({ filtros, categorias, autores }: Props) {
         {(a) => <Input {...a} name="q" type="search" defaultValue={filtros.q ?? ''} maxLength={100} />}
       </CampoFormulario>
       <div className="flex flex-wrap items-center gap-3 md:col-span-2 lg:col-span-1">
-        <Button type="submit">Filtrar</Button>
+        <Button type="submit" variante="secundaria">
+          Filtrar
+        </Button>
         {hayFiltros(filtros) && (
           <Link href="/articulos" className="flex min-h-(--tactil-min) items-center underline">
             Quitar filtros

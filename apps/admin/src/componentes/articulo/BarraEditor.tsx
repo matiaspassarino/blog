@@ -10,7 +10,7 @@ import { BarraAcciones } from '../estructura/BarraAcciones';
 import { ConfirmarAccion } from '../ConfirmarAccion';
 import { Icono } from '../Icono';
 import { EnlaceConAviso } from '../salida/EnlaceConAviso';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import {
   accionPrincipalEditor,
   distribuirBarraEditor,
@@ -74,10 +74,6 @@ export function BarraEditor({
       ? 'Sin cambios'
       : null;
 
-  const propsOcupado = guardando
-    ? ({ ocupado: true, textoOcupado: 'Guardando…' } as const)
-    : ({ ocupado: false } as const);
-
   /** Lleva el foco a un botón de la barra una vez que el estado nuevo se pintó (research D11). */
   function enfocar(selector: string) {
     setTimeout(() => grupo.current?.querySelector<HTMLElement>(selector)?.focus(), 0);
@@ -111,7 +107,7 @@ export function BarraEditor({
             variante={nivelDe('guardar')}
             aria-disabled={!habilitado || undefined}
             aria-describedby={motivo ? idMotivo : undefined}
-            {...propsOcupado}
+            {...estadoOcupado(guardando, 'Guardando…')}
             onClick={alGuardar}
           >
             Guardar

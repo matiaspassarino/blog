@@ -85,7 +85,7 @@ export function FormularioAlta({ tipo, alError }: Props) {
           <Textarea {...a} value={descripcion} maxLength={300} onChange={(e) => setDescripcion(e.target.value)} />
         )}
       </CampoFormulario>
-      <Button type="submit" aria-disabled={enviando || undefined} className="self-start">
+      <Button type="submit" variante="primaria" aria-disabled={enviando || undefined} className="self-start">
         {textos.crear}
       </Button>
     </form>

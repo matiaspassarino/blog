@@ -96,7 +96,12 @@ export function FormularioPerfil({ perfil }: Props) {
             errorAlt={mensajeDeCampo(errores, 'avatar.alt')}
           />
         </div>
-        <Button type="submit" aria-disabled={guardando || subidas > 0 || undefined} className="self-start">
+        <Button
+          type="submit"
+          variante="primaria"
+          aria-disabled={guardando || subidas > 0 || undefined}
+          className="self-start"
+        >
           Guardar perfil
         </Button>
         <p role="status" className="sr-only">

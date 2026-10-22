@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { DialogoEdicion } from './DialogoEdicion';
 import { FormularioAlta } from './FormularioAlta';
 import { TEXTOS, cuentaDeArticulos, type Tipo } from './textos';
+import { Icono } from '../Icono';
 
 type Props = { tipo: Tipo; taxonomias: TaxonomiaConConteo[] };
 
@@ -78,7 +79,10 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
                       variante="peligro"
                       onConfirmar={() => eliminar(taxonomia)}
                     >
-                      <Button variante="peligro">{`Eliminar ${taxonomia.nombre}`}</Button>
+                      <Button variante="peligro">
+                        <Icono nombre="papelera" />
+                        {`Eliminar ${taxonomia.nombre}`}
+                      </Button>
                     </ConfirmarAccion>
                   </div>
                 </TableCell>

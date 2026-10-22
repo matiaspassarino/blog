@@ -37,7 +37,7 @@ export function BarraMarcas({ area, idArea, valor, alCambiar }: Props) {
   return (
     <div role="toolbar" aria-label="Formato del texto" aria-controls={idArea} className="flex flex-wrap gap-2">
       {MARCAS.map(({ marca, nombre }) => (
-        <Button key={marca} variante="secundaria" className="px-3" onClick={() => aplicar(marca)}>
+        <Button key={marca} variante="terciaria" tamanio="compacto" onClick={() => aplicar(marca)}>
           {nombre}
         </Button>
       ))}

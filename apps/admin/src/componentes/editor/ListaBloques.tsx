@@ -110,8 +110,8 @@ export function ListaBloques({ contenido, errores, despachar, anunciar }: Props)
                   return (
                     <Button
                       key={accion}
-                      variante="secundaria"
-                      className="px-3"
+                      variante="terciaria"
+                      tamanio="compacto"
                       data-accion={accion}
                       aria-label={nombreDeBoton(accion, posicion, bloque.tipo)}
                       aria-disabled={sinEfecto || undefined}
@@ -147,6 +147,7 @@ export function ListaBloques({ contenido, errores, despachar, anunciar }: Props)
           )}
         </CampoFormulario>
         <Button
+          variante="secundaria"
           onClick={() => {
             foco.current = { tipo: 'grupo', indice: contenido.length };
             despachar({ tipo: 'agregar_bloque', bloque: tipoNuevo });

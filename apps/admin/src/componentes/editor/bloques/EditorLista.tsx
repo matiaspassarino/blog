@@ -30,7 +30,8 @@ export function EditorLista({ bloque, indice, errores, cambiar }: PropsEditorBlo
             />
           </div>
           <Button
-            variante="secundaria"
+            variante="terciaria"
+            tamanio="compacto"
             onClick={() => cambiar({ items: bloque.items.filter((_item, otro) => otro !== i) })}
           >
             {`Quitar ítem ${i + 1}`}

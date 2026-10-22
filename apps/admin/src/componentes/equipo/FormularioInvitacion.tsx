@@ -61,7 +61,7 @@ export function FormularioInvitacion({ alExito, alError }: Props) {
           )}
         </CampoFormulario>
       </div>
-      <Button type="submit" aria-disabled={enviando || undefined} className="self-start">
+      <Button type="submit" variante="primaria" aria-disabled={enviando || undefined} className="self-start">
         Enviar invitación
       </Button>
     </form>

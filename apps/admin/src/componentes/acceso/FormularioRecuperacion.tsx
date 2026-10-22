@@ -6,7 +6,7 @@ import { useActionState } from 'react';
 import { pedirRecuperacion } from '../../acciones/acceso';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 
 const MENSAJE_ENVIADO = 'Si el correo pertenece al equipo, te enviamos un enlace. Revisa también la carpeta de spam';
@@ -29,8 +29,8 @@ export function FormularioRecuperacion() {
       <CampoFormulario etiqueta="Correo">
         {(atributos) => <Input {...atributos} name="correo" type="email" autoComplete="email" autoFocus required />}
       </CampoFormulario>
-      <Button type="submit" aria-disabled={pendiente} disabled={pendiente}>
-        {pendiente ? 'Enviando…' : 'Enviar enlace'}
+      <Button type="submit" variante="primaria" {...estadoOcupado(pendiente, 'Enviando…')}>
+        Enviar enlace
       </Button>
     </form>
   );

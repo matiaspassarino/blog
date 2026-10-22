@@ -10,7 +10,7 @@ export default function SinPermiso() {
     <main id="contenido" className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 p-4">
       <h1 className="font-titulos text-titulo-2 font-semibold">No tienes permiso para ver esta página</h1>
       <p className="text-texto-suave">Si crees que es un error, habla con un administrador.</p>
-      <Button asChild className="self-start">
+      <Button asChild variante="secundaria" className="self-start">
         <Link href="/articulos">Ir a los artículos</Link>
       </Button>
     </main>

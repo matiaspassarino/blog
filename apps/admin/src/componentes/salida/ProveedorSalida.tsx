@@ -5,6 +5,7 @@
 // confirmar antes de salir por un enlace del panel.
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Icono } from '../Icono';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +88,7 @@ export function ProveedorSalida({ children }: { children: ReactNode }) {
                 if (siguiente) router.push(siguiente);
               }}
             >
+              <Icono nombre="papelera" />
               Salir sin guardar
             </AlertDialogAction>
           </AlertDialogFooter>

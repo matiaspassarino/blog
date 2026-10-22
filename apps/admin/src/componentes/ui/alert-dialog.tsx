@@ -61,7 +61,7 @@ export function AlertDialogAction({
   variante,
   className,
   ...props
-}: ComponentProps<typeof AlertDialogPrimitive.Action> & { variante?: 'primaria' | 'peligro' }) {
+}: ComponentProps<typeof AlertDialogPrimitive.Action> & { variante: 'primaria' | 'peligro' }) {
   return (
     <AlertDialogPrimitive.Action asChild>
       <Button variante={variante} className={className} {...props} />

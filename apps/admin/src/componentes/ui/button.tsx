@@ -6,15 +6,19 @@ import type { ComponentProps, MouseEvent } from 'react';
 import { cn } from '../../lib/cn';
 
 type PropsButton = ComponentProps<'button'> & {
-  variante?: VarianteBoton;
+  variante: VarianteBoton;
   tamanio?: TamanioBoton;
   asChild?: boolean;
 } & ({ soloIcono: true; tamanio: 'compacto'; 'aria-label': string; asChild?: false } | { soloIcono?: false }) &
   ({ ocupado: true; textoOcupado: string; asChild?: false } | { ocupado?: false; textoOcupado?: never });
 
+/** Props de `ocupado` según un booleano, para no repetir la unión discriminada en cada formulario. */
+export const estadoOcupado = (ocupado: boolean, textoOcupado: string) =>
+  ocupado ? ({ ocupado: true, textoOcupado } as const) : ({ ocupado: false } as const);
+
 /** Botón del panel: las clases salen de `clasesBoton` (una sola definición, constitución §VII.3). */
 export function Button({
-  variante = 'primaria',
+  variante,
   tamanio = 'estandar',
   soloIcono = false,
   ocupado = false,

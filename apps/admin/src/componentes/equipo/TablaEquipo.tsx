@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Select } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Icono } from '../Icono';
 
 type Props = {
   equipo: FilaEquipo[];
@@ -109,7 +110,10 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: false }), 'Miembro desactivado')
                     }
                   >
-                    <Button variante="peligro">{`Desactivar ${fila.nombre}`}</Button>
+                    <Button variante="peligro">
+                      <Icono nombre="prohibido" />
+                      {`Desactivar ${fila.nombre}`}
+                    </Button>
                   </ConfirmarAccion>
                 ) : (
                   <Button
