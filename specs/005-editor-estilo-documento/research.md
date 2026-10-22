@@ -15,7 +15,7 @@ Decisiones de la Fase 0 del plan, ya corregidas con las revisiones de `consisten
 | `@tiptap/starter-kit` | extensiones base | aprobado, **con medición**: arrastra strike, underline y link que se desactivan pero se empaquetan; si en la Fase 0 pesan, se reemplaza por los paquetes `@tiptap/extension-*` individuales que el esquema usa |
 | `@tiptap/extensions` | `Placeholder`, `TrailingNode` (párrafo final obligatorio), `CharacterCount` y el historial (`UndoRedo`) | aprobado; reemplaza a `@tiptap/extension-placeholder`, que en la versión 3 solo reexporta lo de este paquete |
 | `@tiptap/suggestion` | menú «/» | aprobado |
-| `@tiptap/extension-drag-handle`, `@tiptap/extension-drag-handle-react`, `@tiptap/extension-node-range` | asa, arrastre y selección de rangos | **condicionado a la Fase 0** (D10) |
+| `@tiptap/extension-drag-handle`, `@tiptap/extension-drag-handle-react`, `@tiptap/extension-node-range` | asa, arrastre y selección de rangos | **descartados por la Fase 0** (2026-10-22): traen `yjs` al cliente (+50 KB gzip); el asa es propia (D10). No hace falta otra aprobación: no se suma ninguna dependencia |
 
 - **`@floating-ui/dom`** es *peer* de `@tiptap/suggestion` (y dependencia directa solo del asa): **no se importa** desde `apps/admin`. El menú se posiciona con el `clientRect` que entrega `Suggestion` y un cálculo propio con `visualViewport` (D7).
 - **Pares del asa**: `@tiptap/extension-drag-handle` declara como peers obligatorios `@tiptap/y-tiptap` y `@tiptap/extension-collaboration` (y, por ellos, `yjs`, `y-protocols`, `lib0` y paquetes `prosemirror-*`): unos cinco paquetes más en el lockfile y código de colaboración que el editor no usa. **No se escriben en `package.json` hasta que la Fase 0 decida** (D10): la prueba se hace con `pnpm add` en una rama descartable y el `package.json` definitivo lleva solo lo que sobrevive.
@@ -99,7 +99,7 @@ Decisiones de la Fase 0 del plan, ya corregidas con las revisiones de `consisten
 - **Dos modos de selección** ([contracts/atajos.md](contracts/atajos.md)): un rango de **texto** que cruza párrafos sirve para dar formato y no habilita mover ni quitar; el **modo elementos** se entra con `Esc`, con Shift + clic sobre el asa o con «Seleccionar» en el menú, y permite ampliar con `Shift+↑/↓`. Esto evita quitar dos párrafos enteros por tener resaltado solo el medio de cada uno.
 - **Asa**: **una sola asa flotante** que sigue al elemento activo, para ratón y toque (`tabindex=-1`); el camino de teclado y de lector de pantalla es el botón «Acciones» de la barra. Desde 768 px vive en un carril a la izquierda (`--carril-asa`); por debajo de 768 px solo aparece sobre el elemento activo, sin carril. `touch-action: none` solo en el propio botón; los nodos no son arrastrables por sí mismos (`draggable=false`).
 - **Comandos y una sola ruta**: `moverRango`, `duplicarRango`, `quitarRango` y `convertirElemento` son transacciones (un Deshacer las revierte). Un plugin `proteger` intercepta **toda** vía que quite o mueva elementos y aplica las mismas reglas (subida en curso, confirmación de imagen guardada, anuncio con "Ctrl+Z para deshacer").
-- **Peso y plan alternativo** (R3): se mide con y sin `@tiptap/extension-drag-handle`. Si trae `yjs` y colaboración al cliente o supera el tope de peso (D17), se implementa un **asa propia** con el arrastre de ProseMirror y, probablemente, sin `@tiptap/extension-node-range` (los comandos de rango son propios); los comandos y los atajos no cambian.
+- **Peso y decisión** (R3, resuelto el 2026-10-22): la medición mostró que el asa de la librería suma 50 KB gzip y trae `yjs` al cliente, así que se implementa un **asa propia** con el arrastre de ProseMirror y **sin** `@tiptap/extension-node-range` (los comandos de rango son propios); los comandos y los atajos no cambian.
 - **Dedo** (R4): el arrastre nativo HTML5 no está garantizado con el dedo. Criterio de la Fase 0 en dispositivos reales; si falla, arrastre con eventos de puntero sobre el asa y, si tampoco se logra, se vuelve a consultar al usuario (el requisito se acordó el 2026-10-22).
 - **Alternativa al arrastre (WCAG 2.5.7)**: el menú de acciones y los atajos dan el mismo resultado en un paso; en documentos largos se evalúa un «Mover a…» con lista (sugerencia, fuera de alcance si no hace falta).
 
@@ -149,6 +149,28 @@ Rama descartable con una pantalla en `apps/admin` (editor, barra, asa, un nodo d
 | Descubribilidad | 2 o 3 personas con la maqueta: ¿encuentran «Insertar», el asa y el panel? | Las tres cosas en menos de un minuto sin ayuda | Rediseñar antes de seguir |
 
 **Regla de decisión**: un fallo crítico de accesibilidad (lectores de pantalla) **por sí solo** dispara la comparación con **Lexical** con la misma pantalla; fallos de peso, dedo o teclados se resuelven primero con sus caminos alternativos. Si dos o más criterios no se resuelven dentro del plan, se compara con Lexical y se decide con el usuario antes de seguir.
+
+### Resultados de la Fase 0 (2026-10-22)
+
+Medidos por Claude sobre una pantalla descartable (rama `005-spike-tiptap`, no se mergea), con el *build* de producción y Chromium. **No se pudieron medir** T004, T005 (lectores de pantalla reales), T006 (teclados móviles) y T010 (personas): no hay dispositivos ni personas disponibles.
+
+| Criterio | Resultado | Veredicto |
+|---|---|---|
+| Peso (T003) | Ruta actual del editor: 278 KB gzip. Editor de Tiptap con `starter-kit`: **+141 KB gzip** (se retiran 113 KB del editor anterior). Con el asa de la librería: **+50 KB** y **`yjs` en el cliente** (~44 KB gzip de código de colaboración) | Tope de 250 KB: cumplido. «Sin `yjs` en el cliente»: **incumplido por el asa** → asa propia |
+| Reglas de entrada, escritorio (T006) | `## `, `### `, `#### `, `- `, `* `, `1. `, `> `, `---`, `**x**`, `_x_` y `` `x` `` convierten bien; Deshacer inmediato de `## ` deja el texto; `/` abre el menú solo al comienzo de una línea vacía (no en `a/`). Las tres comillas invertidas piden Espacio o Enter al final | Aprobado en escritorio; teclados móviles sin medir |
+| Latencia (T008) | 200 elementos, solo el editor (sin la conversión a bloques): máxima 24 ms (CPU 1×), 40 ms (4×), 80 ms (6×); el menú `/` abre en 4 a 35 ms | Umbrales cumplidos (< 100 ms y < 200 ms); **falta medir con `documentoABloques` en cada transacción** (T081) |
+| Árbol de accesibilidad (T005, aproximación) | Barra con nombre y botones nombrados, lienzo con nombre, listbox con opciones y `aria-activedescendant` mientras el menú está abierto, "Imagen, 4 de 5" | Sin fallos visibles; **no reemplaza** a NVDA, VoiceOver ni TalkBack |
+| `forced-colors` (T009) | Los botones conservan el borde y el elemento seleccionado se ve; el estado `aria-pressed` (solo tinte) **no se distingue** | Falla leve: agregar estilos para `forced-colors` en el estado activo (borde con color del sistema) |
+| Zoom de 400 % (320 px) (T009) | Sin desborde horizontal; la barra se reacomoda | Aprobado |
+| Hoja a 360 × 340 con el teclado virtual (T009) | La hoja ocupa 45 % del alto, los campos quedan cortados y el elemento seleccionado queda tapado | Falla prevista: exige `scroll-margin-bottom` y `visualViewport` (ya en D9) |
+| Colisiones de atajos (T007, solo documentación de navegadores) | `Mod+B/I/E/K/D` los puede interceptar la página (el navegador deja `preventDefault`); `Alt+↑/↓` no choca en Windows y en Mac solo mueve el cursor, que en modo elementos no existe; `Esc`, `Supr` y `Shift+↑/↓` sin conflicto | Sin cambios; **sin verificar en Mac ni Linux** |
+
+**Decisión (compuerta T011)**:
+- **Se mantiene Tiptap** (no se compara con Lexical: ningún criterio falló de forma crítica y los que no se pudieron medir se asumen como riesgo).
+- **Asa propia**: sin `@tiptap/extension-drag-handle*` ni `@tiptap/extension-node-range`. El arrastre usa el arrastre de ProseMirror con eventos de puntero para el dedo; el modo elementos y el botón «Acciones» siguen siendo la alternativa. La lista de dependencias queda en seis paquetes, todos ya aprobados por `consistencia-codigo` (2026-10-22): `@tiptap/core`, `@tiptap/pm`, `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extensions` y `@tiptap/suggestion`.
+- **`starter-kit` completo** (no hace falta pasar a extensiones individuales: el peso entra en el tope).
+- **Lienzo con el `contenteditable` nativo y sin forzar `role="textbox"`**, como está en [contracts/atajos.md](contracts/atajos.md); queda por confirmar con un lector real.
+- **Riesgos asumidos por falta de mediciones** (se vuelven a mirar en T081 y T082 si aparece un dispositivo o una persona): arrastre con el dedo (R4), anuncios con lectores de pantalla reales (R5), teclados móviles y composición (R11) y descubribilidad de «Insertar», el asa y el panel. Mitigaciones ya previstas: el menú de acciones y el modo «Seleccionar» cubren el movimiento sin arrastrar, `axe` y Lighthouse corren en CI y las reglas de entrada se prueban con teclado de escritorio.
 
 ## D18. Retiro del editor anterior
 

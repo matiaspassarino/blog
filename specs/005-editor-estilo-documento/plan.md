@@ -30,9 +30,9 @@ Antes de construir, una **Fase 0** (prueba de concepto con umbrales escritos ant
 | `@tiptap/starter-kit` | extensiones base (con medición; si pesa, extensiones individuales) | pedida su aprobación |
 | `@tiptap/extensions` | `Placeholder`, `TrailingNode`, `CharacterCount` e historial | pedida su aprobación |
 | `@tiptap/suggestion` | menú «/» | pedida su aprobación |
-| `@tiptap/extension-drag-handle`, `@tiptap/extension-drag-handle-react`, `@tiptap/extension-node-range` | asa y arrastre | **condicionada a la Fase 0**: sus pares obligatorios (`@tiptap/y-tiptap`, `@tiptap/extension-collaboration`, `yjs`, `y-protocols`, `lib0`, `prosemirror-*`) no se escriben en `package.json` si el asa propia los reemplaza |
+| ~~`@tiptap/extension-drag-handle*`, `@tiptap/extension-node-range`~~ | asa y arrastre | **descartadas por la Fase 0** (traen `yjs` al cliente, +50 KB gzip): el asa es propia y no suma dependencias |
 
-`@floating-ui/dom` **no se importa** (es *peer* de `suggestion`; el menú se posiciona con el `clientRect` y `visualViewport`). La Fase 0 se hace con `pnpm add` en una rama descartable y el `package.json` definitivo lleva solo lo que sobrevive. Tras el merge se enmienda la tabla de §II de la constitución con la fila "Editor de texto: Tiptap 3.31".
+`@floating-ui/dom` **no se importa** (es *peer* de `suggestion`; el menú se posiciona con el `clientRect` y `visualViewport`). La Fase 0 se hizo con `pnpm add` en una rama descartable (`005-spike-tiptap`): el `package.json` definitivo lleva **seis paquetes** (core, pm, react, starter-kit, extensions y suggestion). Tras el merge se enmienda la tabla de §II de la constitución con la fila "Editor de texto: Tiptap 3.31".
 
 **Almacenamiento**: N/A (sin cambios en tablas ni en buckets; las imágenes siguen el flujo de hoy).
 
@@ -214,7 +214,7 @@ e2e/admin/
 |---|---|---|
 | R1 | El refactor de `TextoEnLinea`, `Parrafo` y `textoPlano` cambia la salida del sitio o los extractos | Pruebas de caracterización de la salida actual sobre un corpus **antes** de mover el analizador; `texto-en-linea.test.tsx`, `seguridad.test.tsx` y los E2E del sitio pasan sin cambios |
 | R2 | Texto plano que el sitio leería como formato (la gramática no tiene escape) | Reglas de entrada, normalización y autocorrección del editor y U+200B como último recurso (D3) |
-| R3 | El asa arrastra `yjs` al cliente | Fase 0 con umbral; asa propia (D10) |
+| R3 | El asa de la librería arrastra `yjs` al cliente | **Resuelto** en la Fase 0 (2026-10-22): asa propia, sin la extensión (D10) |
 | R4 | El arrastre con el dedo no funciona con el asa de la librería | Fase 0 en dispositivos reales; eventos de puntero; si no, volver a consultar |
 | R5 | Accesibilidad de un editor de texto enriquecido con lector de pantalla | Fase 0 con guion y varios lectores; roles de [atajos.md](contracts/atajos.md); axe y Lighthouse en CI; un fallo crítico dispara Lexical |
 | R6 | Peso del editor en el panel | Importación dinámica, medición y tope de 250 KB gzip (D17) |
