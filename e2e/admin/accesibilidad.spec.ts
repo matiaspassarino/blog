@@ -32,13 +32,15 @@ import {
 import { nombreDePrueba } from './ayudas/datos';
 import { agregarBloque, esperarEditorListo, grupoDeBloque } from './ayudas/editor';
 import { correoUnico, filaDelMiembro, estadoDeLaFila } from './ayudas/equipo';
+import { abrirDialogoProgramar } from './ayudas/estado';
+import { barraDelEditor } from './ayudas/jerarquia';
+import { ANCHOS, PANTALLAS, abrirPantalla as abrir, datosDePantallas } from './ayudas/pantallas';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 import { crearMiembro, eliminarPorCorreo, servicio, type MiembroDePrueba } from './ayudas/servicio';
 
 const PREFIJO = 'e2e-ac-';
 const titulo = (etiqueta: string) => nombreDePrueba(`ac-${etiqueta}`);
 const ETIQUETAS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
-const ANCHOS = [360, 768, 1024, 1440] as const;
 
 let idDiezBloques = '';
 let idTresParrafos = '';
@@ -54,6 +56,8 @@ test.beforeAll(async () => {
   const ruta = `pruebas-e2e/${crypto.randomUUID()}.png`;
   await subirObjeto(ruta, pngDecodificable(4, 3));
   idDiezBloques = (await sembrarArticulo({ titulo: titulo('diez'), contenido: diezBloques(imagenSemilla(ruta)) })).id;
+  datosDePantallas.prefijoLista = PREFIJO;
+  datosDePantallas.idArticulo = idDiezBloques;
   idTresParrafos = (
     await sembrarArticulo({
       titulo: titulo('tres'),
@@ -96,44 +100,6 @@ test.afterAll(async () => {
 });
 
 // --- Ayudas ---------------------------------------------------------------------------------------------------------
-
-type Pantalla = {
-  nombre: string;
-  ruta: () => string;
-  /** `null`: sin sesión. */
-  usuario: keyof typeof USUARIOS | null;
-  listo?: (page: Page) => Promise<void>;
-};
-
-const PANTALLAS: Pantalla[] = [
-  { nombre: 'el ingreso', ruta: () => '/ingreso', usuario: null },
-  { nombre: 'la recuperación de contraseña', ruta: () => '/olvide-contrasena', usuario: null },
-  { nombre: 'la lista de artículos', ruta: () => `/articulos?q=${PREFIJO}`, usuario: 'editor' },
-  { nombre: 'un artículo nuevo', ruta: () => '/articulos/nuevo', usuario: 'editor', listo: esperarEditorListo },
-  {
-    nombre: 'el editor con los 10 bloques',
-    ruta: () => `/articulos/${idDiezBloques}`,
-    usuario: 'editor',
-    listo: esperarEditorListo,
-  },
-  { nombre: 'la vista previa', ruta: () => `/articulos/${idDiezBloques}/vista-previa`, usuario: 'editor' },
-  { nombre: 'las categorías', ruta: () => '/categorias', usuario: 'editor' },
-  { nombre: 'las etiquetas', ruta: () => '/etiquetas', usuario: 'editor' },
-  { nombre: 'el equipo', ruta: () => '/equipo', usuario: 'admin' },
-  {
-    nombre: 'el perfil',
-    ruta: () => '/perfil',
-    usuario: 'editor',
-    listo: (page) => expect(page.locator('[data-perfil="listo"]')).toBeVisible(),
-  },
-];
-
-async function abrir(page: Page, pantalla: Pantalla) {
-  if (pantalla.usuario) await ingresar(page, USUARIOS[pantalla.usuario], pantalla.ruta());
-  else await page.goto(pantalla.ruta());
-  await page.waitForLoadState('load');
-  await pantalla.listo?.(page);
-}
 
 async function violacionesDeAxe(page: Page) {
   const resultado = await new AxeBuilder({ page }).withTags(ETIQUETAS_WCAG).exclude('nextjs-portal').analyze();
@@ -439,6 +405,36 @@ test.describe('Todas las variantes de Badge y de AvisoEstado, a la vista y revis
 
     await expect(page.getByLabel('Título', { exact: true })).toHaveAttribute('aria-invalid', 'true');
     await expect(page.getByLabel('Título', { exact: true })).toBeFocused();
+  });
+
+  test('CE-004: "Guardar" en un artículo nuevo sigue habilitado aunque no haya cambios (spec 004, RF-005)', async ({
+    page,
+  }) => {
+    await ingresar(page, USUARIOS.editor, '/articulos/nuevo');
+    await esperarEditorListo(page);
+
+    const guardar = barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true });
+
+    await expect(guardar).toBeVisible();
+    await expect(guardar).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(guardar).toBeEnabled();
+  });
+
+  test('CE-004: el diálogo de programar abierto pasa axe, atrapa el foco y lo deja en el campo de fecha', async ({
+    page,
+  }) => {
+    await ingresar(page, USUARIOS.editor, `/articulos/${idTresParrafos}`);
+    await esperarEditorListo(page);
+
+    await abrirDialogoProgramar(page);
+
+    await expect(page.getByLabel('Fecha y hora de publicación', { exact: true })).toBeFocused();
+    await esperarSinViolaciones(page, 'el diálogo de programar la publicación');
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press('Tab');
+      const dentro = await page.evaluate(() => document.activeElement?.closest('[role="alertdialog"]') !== null);
+      expect(dentro, 'el foco salió del diálogo de programar').toBe(true);
+    }
   });
 
   test('CE-006: el diálogo de confirmación abierto pasa axe y atrapa el foco', async ({ page }) => {

@@ -8,7 +8,7 @@
 //     (editor y admin), editor y admin. Un miembro desactivado se comporta como anónimo en cada fila.
 //   - [H6] Gestión del equipo, solo admin: ver también equipo.spec.ts; aquí se cubre la fila de la tabla.
 //
-// Supuestos de interfaz: ver ./ayudas/estado.ts (botón "Eliminar" en el grupo "Publicación", solo admin; `alertdialog`
+// Supuestos de interfaz: ver ./ayudas/estado.ts (botón "Eliminar" en la barra "Acciones del artículo", solo admin; `alertdialog`
 // con "Cancelar" y "Eliminar"; al confirmar navega a /articulos). "Por fuera de la interfaz" se prueba con la API de
 // Supabase y la sesión real del editor (./ayudas/api.ts): la base rechaza el DELETE (RLS) y el artículo sigue existiendo.
 // Una Server Action no se puede invocar a mano sin su identificador interno, así que su rechazo (`sin_permiso`) lo cubre
@@ -39,12 +39,13 @@ import {
 } from './ayudas/equipo';
 import {
   botonDeEstado,
-  campoFechaProgramada,
   esperarEnElSitio,
   esperarEstado,
   panelPublicacion,
+  programarArticulo,
   urlDelArticulo,
 } from './ayudas/estado';
+import { barraDelEditor } from './ayudas/jerarquia';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 import { crearMiembro, eliminarPorCorreo, servicio, type MiembroDePrueba } from './ayudas/servicio';
 import { crearPorLaInterfaz, filaDe } from './ayudas/taxonomias';
@@ -67,7 +68,10 @@ test.describe('[H3] Eliminar artículos (H3-E8, CE-002)', () => {
     await ingresar(page, USUARIOS.editor);
     await page.goto(urlDelArticulo(articulo.id));
 
+    // La barra tiene que existir y tener "Guardar": si no, la ausencia de "Eliminar" pasaría en falso.
     await expect(panelPublicacion(page)).toBeVisible();
+    await expect(barraDelEditor(page)).toBeVisible();
+    await expect(barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
     await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /eliminar/i })).toHaveCount(0);
 
@@ -82,6 +86,7 @@ test.describe('[H3] Eliminar artículos (H3-E8, CE-002)', () => {
     await page.goto(urlDelArticulo(publicado.id));
 
     await expect(panelPublicacion(page)).toBeVisible();
+    await expect(barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
 
     await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(0);
   });
@@ -364,8 +369,7 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
       await esperarEstado(page, 'publicado');
       await botonDeEstado(page, 'Volver a borrador').click();
       await esperarEstado(page, 'borrador');
-      await campoFechaProgramada(page).fill(fechaFutura(60 * 24));
-      await botonDeEstado(page, 'Programar').click();
+      await programarArticulo(page, fechaFutura(60 * 24));
       await esperarEstado(page, 'programado');
       await botonDeEstado(page, 'Cancelar programación').click();
       await esperarEstado(page, 'borrador');

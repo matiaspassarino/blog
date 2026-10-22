@@ -26,7 +26,7 @@ Hallazgos del relevamiento del código que motivan las decisiones:
 |---|---|---|---|---|
 | `primaria` | `bg-marca` / `text-marca-contraste` (5,18:1) | `bg-marca-hover` | `bg-marca-hover` + desplazamiento de 1 px | — |
 | `secundaria` | `bg-fondo`, `border-borde` (3,83:1), `text-texto` | `bg-superficie` | `bg-separador` | — |
-| `terciaria` | sin fondo, borde transparente, `text-marca` (≥ 4,6:1 sobre fondo, superficie y marca-suave) | `bg-marca-suave` + subrayado | `bg-separador` | `bg-marca-suave`, `text-marca` |
+| `terciaria` | sin fondo, borde transparente, `text-marca` (≥ 4,6:1 sobre fondo, superficie y marca-suave) | `bg-marca-suave` + subrayado | `bg-marca-suave` (4,60:1; con `bg-separador` daba 3,96:1) | `bg-marca-suave`, `text-marca` |
 | `peligro` | `bg-error-suave`, `border-error-borde`, `text-error` (5,66:1) + ícono | `bg-fondo` | `bg-separador` | — |
 
 - **Por qué**: RF-001, RF-004 y RF-010. La terciaria en color de marca con subrayado al pasar el puntero se reconoce como acción (el hover sobre `superficie` daba 1,06:1, invisible) y sigue el lenguaje de los enlaces del panel. El ícono en las destructivas evita que se distingan solo por el tono, que un daltónico apenas percibe.

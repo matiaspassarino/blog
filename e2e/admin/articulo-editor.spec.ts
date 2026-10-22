@@ -8,7 +8,8 @@
 //   - Los campos con error tienen `aria-invalid="true"` y el mensaje (el de `validarContenido`) visible dentro del bloque.
 //   - Barra de formato del texto: `role="toolbar"` dentro del bloque, con exactamente 4 botones: Negrita, Cursiva,
 //     Código, Enlace. Insertan `**texto**`, `_texto_`, `` `texto` `` y `[texto](url)`; el foco vuelve al textarea.
-//   - Indicador "Cambios sin guardar" (texto visible) mientras hay cambios. Salir por un enlace del panel abre un
+//   - Indicador "Cambios sin guardar" (texto visible, spec 004: en la línea de estado de la barra "Acciones del artículo",
+//     dentro de una región `aria-live`) mientras hay cambios. Salir por un enlace del panel abre un
 //     `alertdialog` con "Seguir editando" (foco inicial) y "Salir sin guardar"; Esc lo cierra y devuelve el foco al enlace.
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -31,6 +32,7 @@ import {
   type TipoDeBloque,
 } from './ayudas/editor';
 import { nombreDePrueba } from './ayudas/datos';
+import { barraDelEditor } from './ayudas/jerarquia';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 
 const PREFIJO = 'e2e-ed-';
@@ -285,13 +287,16 @@ test.describe('Cambios sin guardar (H2-E6)', () => {
   test('H2-E6: con cambios aparece el indicador, y desaparece al guardar', async ({ page }) => {
     const articulo = await sembrarArticulo({ titulo: titulo('indicador') });
     await page.goto(`/articulos/${articulo.id}`);
-    await expect(page.getByText('Cambios sin guardar')).toHaveCount(0);
+    const aviso = barraDelEditor(page).getByText('Cambios sin guardar');
+    await expect(barraDelEditor(page)).toBeVisible();
+    await expect(aviso).toHaveCount(0);
 
     await page.getByLabel('Extracto', { exact: true }).fill('Un extracto nuevo');
-    await expect(page.getByText('Cambios sin guardar')).toBeVisible();
+    await expect(aviso).toBeVisible();
+    await expect(aviso.locator('xpath=ancestor-or-self::*[@aria-live][1]')).toHaveCount(1); // se anuncia (región aria-live)
 
     await guardarYEsperar(page);
-    await expect(page.getByText('Cambios sin guardar')).toHaveCount(0);
+    await expect(aviso).toHaveCount(0);
   });
 
   // Recargar y cerrar la pestaña pasan por el mismo evento `beforeunload`; Playwright solo informa el diálogo
