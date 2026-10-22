@@ -1,83 +1,127 @@
 # Investigación: Jerarquía visual del panel
 
-**Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Fecha**: 2026-10-21
+**Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Fecha**: 2026-10-21 (revisada el mismo día con los informes de `revisor-ux-ui` y `consistencia-codigo`)
 
-Hallazgos del relevamiento del código (2026-10-21) que motivan las decisiones:
+Hallazgos del relevamiento del código que motivan las decisiones:
 
-- `clasesBoton` (`packages/ui/src/clases.ts`) lo usan tres consumidores: el `Button` del panel, `Boton.astro` del sitio y el renderer `Cta.tsx` de `@blog/bloques`. Tiene tres variantes y un solo tamaño (`min-h-11 px-5 py-2.5`).
-- **Causa de los "tamaños desparejos"**: la variante `secundaria` tiene `border` de 1 px y la `primaria` no. Con el mismo relleno, la secundaria mide 46 px y la primaria 44 px, así que en una misma barra quedan desparejas. Además hay ajustes sueltos (`px-3`, `self-start`, `w-full`, `mt-2`) que cambian el ancho según la pantalla.
-- **Causa de "todo pesa igual"**: el `Button` del panel tiene `variante = 'primaria'` por defecto. 23 botones no declaran variante y salen como primarios: "Filtrar", "Guardar" del editor, "Ir a los artículos", "Crear", "Enviar invitación", etc. En el editor compiten "Guardar" (barra fija) y "Publicar" (recuadro "Publicación").
-- Títulos: 11 `h1` con `text-titulo-2` y uno con `text-titulo-1` (ingreso). Las secciones usan `h2` con `text-xl` (5 casos) o `legend` con `font-semibold` del tamaño del cuerpo (4 casos), así que dos secciones del mismo nivel se ven distintas. El espaciado es `gap-6` en casi todas las pantallas, sin distinguir entre secciones y dentro de ellas.
+- `clasesBoton` (`packages/ui/src/clases.ts`) lo usan tres consumidores: el `Button` del panel, `Boton.astro` del sitio y el renderer `Cta.tsx` de `@blog/bloques` (que lo llama con `bloque.variante`, `'primaria' | 'secundaria' | undefined`). Tiene tres variantes y un solo tamaño (`min-h-11 px-5 py-2.5`). `apps/web/src/styles/global.css` hace `@source` de `packages/ui/src`, así que las clases del panel también entran en el CSS del sitio (unos pocos bytes, sin cambio visual).
+- **Causa de los "tamaños desparejos"**: la variante `secundaria` tiene `border` de 1 px y la `primaria` no. Con el mismo relleno, la secundaria mide 46 px y la primaria 44 px. Además hay ajustes sueltos (`px-3`, `self-start`, `w-full`, `mt-2`) y `Paginacion.tsx` arma a mano otra versión del botón.
+- **Causa de "todo pesa igual"**: el `Button` del panel tiene `variante = 'primaria'` por defecto. 14 `<Button>` no declaran variante y salen como primarios ("Filtrar", "Guardar" del editor, "Ir a los artículos", "Crear", "Enviar invitación", etc.); 5 `<ConfirmarAccion>` dependen de su `'peligro'` por defecto. En el editor compiten "Guardar" (barra fija) y "Publicar" (recuadro "Publicación").
+- Títulos: 11 `h1` con `text-titulo-2`; la vista previa usa `text-titulo-1` porque muestra el título del artículo como en el sitio. Las secciones usan `h2` con `text-xl` (5 casos) o `legend` del tamaño del cuerpo (4 casos); los títulos de los diálogos usan `text-xl`.
+- Estados: `AvisoEstado` solo tiene `'exito' | 'error'` con texto plano. Hay avisos armados a mano en `DialogoEdicion` (advertencia), `EditorArticulo` (resumen de errores y "Cambios sin guardar"), `AvisoConflicto` (error con botones) y la vista previa. Hay cuatro estados vacíos distintos: la lista, `GestorTaxonomias`, `TablaEquipo` y las etiquetas del editor.
+- Pruebas: `apps/admin/vitest.config.ts` corre en `environment: 'node'`, sin DOM ni Testing Library. El `cn` del panel (`tailwind-merge`) toma `text-titulo-*` como un color y lo descarta al combinarlo con `text-texto`.
 
 ## D1. Una sola definición del botón, con el aspecto del sitio intacto
 
-- **Decisión**: `clasesBoton(variante, opciones?)` sigue siendo la única definición (constitución §VII.3). Sin `opciones` devuelve **exactamente** las clases de hoy (las usan `Boton.astro` y `Cta.tsx`). Con `opciones.tamanio` (`'estandar' | 'compacto'`) devuelve la versión del panel: altura fija, borde en todas las variantes (transparente en la primaria y la terciaria) y relleno horizontal según el tamaño.
-- **Por qué**: RF-016 y CE-005 piden que el sitio no cambie. Un test de unidad fija el texto exacto de `clasesBoton('primaria')` y `clasesBoton('secundaria')`: si el texto no cambia, el aspecto tampoco.
-- **Alternativas descartadas**: (a) corregir la base para todos: arregla también los 2 px del sitio, pero viola RF-016; (b) una función `clasesBotonPanel` aparte: duplica la primitiva y viola §VII.3 y §VIII.
+- **Decisión**: `clasesBoton(variante = 'primaria', opciones?)` sigue siendo la única definición (§VII.3). Sin `opciones` devuelve **exactamente** las clases de hoy para `primaria`, `secundaria` y `peligro`, también con `clasesBoton()` y `clasesBoton(undefined)` (el camino de `Cta.tsx`). Con `opciones` devuelve la versión del panel (D3).
+- **Por qué**: RF-016 y CE-005. Un test fija el texto exacto: si el texto no cambia, el aspecto tampoco.
+- **Alternativas descartadas**: corregir la base para todos (viola RF-016); una `clasesBotonPanel` aparte (duplica la primitiva, §VII.3 y §VIII); una captura de pantalla de Playwright del sitio (frágil entre máquinas y redundante con el test de texto exacto; la comprobación visual queda en el quickstart).
 
 ## D2. Cuatro niveles; el nivel es obligatorio en el panel
 
-- **Decisión**: se agrega la variante `terciaria` a `VarianteBoton` (sin fondo, sin borde visible y texto del color del texto, con fondo `superficie` al pasar el puntero). Las cuatro quedan: `primaria`, `secundaria`, `terciaria` y `peligro`. En el `Button` del panel la prop `variante` pasa a ser **obligatoria** (sin valor por defecto), igual que en `AlertDialogAction` y `ConfirmarAccion`.
-- **Por qué**: RF-004 pide que ninguna acción quede como principal por omisión. Con la prop obligatoria, `pnpm typecheck` falla si falta, sin depender de una revisión manual. `Button` además expone `data-nivel` y `data-tamanio` para que las pruebas cuenten las acciones por nivel (CE-001).
-- **Alternativas descartadas**: una regla de ESLint (más código y se puede desactivar); dejar `secundaria` por defecto (sigue permitiendo omitir el nivel).
+- **Decisión**: se agrega `terciaria` a `VarianteBoton`. En el `Button` del panel y en `ConfirmarAccion` la prop `variante` pasa a ser **obligatoria** (14 + 5 usos a completar; `AlertDialogAction` ya la recibe explícita en sus dos usos). `Button` expone `data-nivel` y `data-tamanio` para las pruebas.
+- **Aspecto por estado** (contrastes calculados por `revisor-ux-ui` con los tokens actuales):
 
-## D3. Tamaños: estándar y compacto, los dos de 44 px
+| Variante | Reposo | Puntero | Presionado | Activo (`aria-pressed`) |
+|---|---|---|---|---|
+| `primaria` | `bg-marca` / `text-marca-contraste` (5,18:1) | `bg-marca-hover` | `bg-marca-hover` + desplazamiento de 1 px | — |
+| `secundaria` | `bg-fondo`, `border-borde` (3,83:1), `text-texto` | `bg-superficie` | `bg-separador` | — |
+| `terciaria` | sin fondo, borde transparente, `text-marca` (≥ 4,6:1 sobre fondo, superficie y marca-suave) | `bg-marca-suave` + subrayado | `bg-separador` | `bg-marca-suave`, `text-marca` |
+| `peligro` | `bg-error-suave`, `border-error-borde`, `text-error` (5,66:1) + ícono | `bg-fondo` | `bg-separador` | — |
 
-- **Decisión**: `estandar` = altura `--tactil-min` (44 px), `px-5`, texto base. `compacto` = misma altura y ancho mínimo de 44 px, `px-3`, texto `text-sm`. Los botones de solo ícono usan `compacto` más el modificador cuadrado (`aspect-square px-0`). La altura es fija (`h-*`), no mínima, para que todos los botones de un grupo midan lo mismo; los textos largos se parten en dos líneas solo en el estándar, con `h-auto` y el mismo `min-h`.
-- **Por qué**: RF-006 a RF-008 y CE-003. El compacto se distingue por el ancho y el tamaño del texto, no por la altura, así cumple el área táctil (§VII.4) sin trucos de pseudo-elementos.
-- **Alternativas descartadas**: un compacto de 36 px con área táctil ampliada por `::before`: es más difícil de probar (el área no la mide el `boundingBox`) y se superpone con los vecinos en las tablas.
+- **Por qué**: RF-001, RF-004 y RF-010. La terciaria en color de marca con subrayado al pasar el puntero se reconoce como acción (el hover sobre `superficie` daba 1,06:1, invisible) y sigue el lenguaje de los enlaces del panel. El ícono en las destructivas evita que se distingan solo por el tono, que un daltónico apenas percibe.
+- **Alternativas descartadas**: una regla de ESLint para exigir el nivel (más código y se puede desactivar); `secundaria` por defecto (sigue permitiendo omitirlo).
 
-## D4. Componentes de estructura: encabezado, barra de acciones y títulos de sección
+## D3. Tamaños: estándar y compacto, los dos con 44 px mínimos
 
-- **Decisión**: tres componentes nuevos en `apps/admin/src/componentes/estructura/`:
-  - `EncabezadoPagina` (`titulo`, `descripcion?`, `acciones?`): `h1` con `text-titulo-2`, descripción con el tratamiento de texto de apoyo y las acciones a la derecha del título desde 768 px, o debajo del título en pantallas más angostas. Reemplaza los 12 `h1` sueltos (el `h1` enfocable del editor recibe `ref` y `tabIndex`).
-  - `BarraAcciones` (`children`, `destructivas?`): `flex flex-wrap items-center gap-3`; las destructivas van al final, separadas con `ms-auto` desde 768 px.
-  - `TituloSeccion` (`como: 'h2' | 'legend'`, `nivel: 'seccion' | 'subseccion'`): una sola escala para los `h2` y los `legend` de los recuadros.
-- **Por qué**: RF-009, RF-011 y RF-012. Con un componente por patrón se aplica igual en todas las pantallas y la revisión de consistencia lo puede verificar.
-- **Alternativas descartadas**: clases utilitarias compartidas (`CLASES_TITULO_SECCION`): no garantizan la estructura (el orden de título, descripción y acciones) ni el nivel del encabezado.
+- **Decisión**: una sola regla de altura para los dos tamaños: `min-h-(--tactil-min)` y `text-balance`. `estandar` = `px-5`, texto base. `compacto` = `min-w-(--tactil-min)`, `px-3`, texto `text-sm`. Los dos llevan borde de 1 px (transparente en `primaria` y `terciaria`), así todos miden lo mismo con una línea de texto. `BarraAcciones` usa `items-stretch`: si un texto se parte en dos líneas, los botones de esa línea se estiran a la misma altura. `soloIcono` (cuadrado) se tipa como unión discriminada: solo existe con `tamanio: 'compacto'` y exige `aria-label`.
+- **Textos de las filas**: los botones de fila llevan el nombre del elemento como sufijo invisible ("Reenviar invitación<span class=\"sr-only\"> a Ana</span>"), así el texto visible es corto, el nombre accesible no cambia (las pruebas que hoy lo usan siguen andando) y el texto visible está al principio del nombre (WCAG 2.5.3).
+- **Por qué**: RF-006 a RF-008, CE-003 y el caso borde de textos largos.
+- **Alternativas descartadas**: altura fija (`h-11`), que corta los textos largos de las filas; un compacto de 36 px con área ampliada por pseudo-elemento (no lo mide el `boundingBox` de las pruebas y se superpone en las tablas).
 
-## D5. Escala tipográfica y espaciado como tokens
+## D4. Componentes de estructura
 
-- **Decisión**: se usan los tokens de título que ya existen (`titulo-2` para la pantalla y `titulo-3` para la sección) y se agrega `--text-titulo-4: 1.125rem` para la subsección. Para el espaciado se agregan `--spacing-panel-seccion: 2.5rem` (entre secciones) y `--spacing-panel-grupo: 1rem` (dentro de una sección), con su uso como `gap-panel-seccion` y `gap-panel-grupo`. El texto de apoyo sigue con `text-sm text-texto-suave` (contraste 4,5:1 ya verificado en la spec 003).
-- **Por qué**: RF-012 y RF-013 con tokens (§VII.1 y §VII.2). Los títulos del sitio no se tocan: los tokens nuevos solo los usa el panel.
-- **Alternativas descartadas**: usar `text-xl` y `text-lg` de Tailwind (no son tokens del proyecto y ya están desparejos).
+- **Decisión**: en `apps/admin/src/componentes/estructura/`:
+  - `EncabezadoPagina` (`titulo`, `descripcion?`, `acciones?`, `refTitulo?`, `tituloEnfocable?`): `h1` con `text-titulo-2`; las acciones de pantalla a la derecha del título desde 768 px y debajo en pantallas angostas. Se aplica en las 11 pantallas con `h1` (categorías y etiquetas comparten `PaginaTaxonomias`). La vista previa queda afuera: su `h1` es el título del artículo con el aspecto del sitio (RF-011).
+  - `BarraAcciones` (`children`, `destructivas?`, `alineacion?`): `flex flex-wrap items-stretch gap-3`; las destructivas al final y separadas (`ms-auto` desde 768 px). `AlertDialogFooter` y el pie de `DialogoEdicion` pasan a ser `BarraAcciones alineacion="fin"`: una sola pieza para los pies de diálogo (§VIII), con "Cancelar" primero en el DOM y la confirmación a la derecha, sin `flex-col-reverse` (el orden visual y el del teclado coinciden; excepción de RF-009).
+  - `TituloSeccion` (`como: 'h2' | 'legend'`, `id?`): una sola escala, `text-titulo-3`.
+  - `EstadoVacio` (`mensaje`, `accion?`): reemplaza los cuatro estados vacíos. La acción va como `Button asChild variante="secundaria"` con `Link`, así "Quitar filtros" sigue siendo un enlace (lo esperan las pruebas de la lista).
+- **Por qué**: RF-009, RF-011, RF-012 y RF-014; un componente por patrón garantiza la misma estructura en todas las pantallas.
+
+## D5. Escala tipográfica y espaciado
+
+- **Decisión**:
+  - Títulos: pantalla = `titulo-2`; sección = `titulo-3`; títulos de diálogo = `titulo-3`. **No se agrega** un nivel de subsección: ninguna pantalla lo necesita hoy y a 360 px no se distinguiría del de sección.
+  - Secciones del editor y del perfil: "Contenido", "Imagen destacada", "Taxonomías", "Para buscadores" y "Publicación" son secciones (`section` con `h2` y `aria-labelledby`), así aparecen en la navegación por encabezados. Los `fieldset` que agrupan controles (por ejemplo las etiquetas) quedan dentro, con su `legend` como etiqueta del grupo.
+  - Espaciado: un token nuevo, `--spacing-panel-seccion: clamp(1.5rem, 1rem + 2vw, 2.5rem)` (`gap-panel-seccion`), entre secciones. Dentro de una sección se usa `gap-4` de la escala de Tailwind, como hoy. `--spacing-bloque` (1,5 rem) no sirve: es el espacio entre bloques del sitio y su valor fijo no alcanza para separar secciones del panel en escritorio.
+  - `apps/admin/src/lib/cn.ts` pasa a `extendTailwindMerge` con `theme.text: ['titulo-1', 'titulo-2', 'titulo-3']`; sin eso, `cn` descarta `text-titulo-*` al combinarlo con un color.
+- **Por qué**: RF-012 y RF-013 con tokens (§VII.1 y §VII.2).
 
 ## D6. Estados con un formato único
 
-- **Decisión**: se reutilizan `AvisoEstado` (error, éxito y advertencia) y el esqueleto de `loading.tsx`. Se crea `EstadoVacio` (`mensaje`, `accion?`) para la lista de artículos, las categorías, las etiquetas y la tabla de equipo, con la acción como `secundaria`. El esqueleto de carga se mueve a un componente `EsqueletoPantalla` que imita el `EncabezadoPagina`, así no salta el diseño al terminar de cargar.
-- **Por qué**: RF-014. Hoy el vacío de la lista es un `div` armado a mano y las taxonomías tienen el suyo.
+- **Decisión**: `AvisoEstado` se amplía: `tipo: 'exito' | 'error' | 'advertencia'`, `children: ReactNode` y una zona opcional de acciones. Se migran a él el aviso de `DialogoEdicion`, el resumen de errores del editor, `AvisoConflicto` y el aviso de la vista previa. Su botón "Cerrar aviso" pasa a `Button` terciaria, compacto y solo ícono. La carga sigue con el `loading.tsx` existente, que pasa a imitar `EncabezadoPagina`; no se crea un componente de esqueleto porque hay un solo `loading.tsx`.
+- **Por qué**: RF-014.
 
-## D7. Acción principal del editor: una función pura
+## D7. La barra del editor sale de funciones puras
 
-- **Decisión**: `accionPrincipalEditor({ estado, hayCambiosSinGuardar })` en `apps/admin/src/componentes/articulo/acciones-disponibles.ts` devuelve `'guardar' | 'publicar'`: `'publicar'` solo para un borrador sin cambios pendientes, `'guardar'` en cualquier otro caso (RF-005, aclaración 3). La barra pinta esa acción como `primaria` y las demás como `secundaria`; "Eliminar" va como `peligro`.
-- **Por qué**: es lógica de dominio de la interfaz y se prueba con Vitest sin montar el editor (constitución §III.5 y §IX.1). Vive junto a `accionesDisponibles`, que ya decide qué transiciones se ofrecen.
+- **Decisión**: en `apps/admin/src/componentes/articulo/acciones-disponibles.ts`, junto a `accionesDisponibles`:
+  - `accionPrincipalEditor({ estado, guardado, hayCambiosSinGuardar })` → `'guardar' | 'publicar'`: `'publicar'` solo en un borrador guardado sin cambios pendientes.
+  - `guardarHabilitado({ guardado, hayCambiosSinGuardar, ocupado })`: en un artículo nuevo, siempre (muestra qué falta completar, como hoy); en uno guardado, solo con cambios.
+  - `distribuirBarraEditor({ estado, rol, guardado, hayCambiosSinGuardar })` → `{ enBarra, enMenu }`: qué acción va en la barra y cuál en "Más acciones" en pantallas angostas, con posiciones fijas (D8).
+  - Las etiquetas (`ETIQUETAS`) y los anuncios (`ANUNCIOS`) salen de `AccionesEstado.tsx` y se mudan a este archivo; `ahoraLocal()` se muda a `apps/admin/src/lib/fechas.ts` (junto a `aIsoUtc`), con test.
+- **Por qué**: RF-005 y RF-019 se prueban con Vitest sin montar nada (§III.5 y §IX.1).
 
-## D8. La barra fija del editor junta "Guardar" y las acciones de estado
+## D8. Barra fija del editor
 
-- **Decisión**: `AccionesEstado` se divide en dos: `InfoPublicacion` (el recuadro "Publicación", que queda solo con el estado, la fecha y "Ver en el sitio") y `BarraEditor` (la barra fija: "Guardar", las transiciones de `accionesDisponibles`, el aviso "Cambios sin guardar" y el error de cambio de estado). La lógica de `ejecutar` y `eliminar` pasa a un hook `useCambioDeEstado` dentro de la misma carpeta, para no duplicarla entre la barra y el menú.
-- **Por qué**: aclaración 1 (opción B). El orden en la barra es: principal, la otra de "Guardar" o "Publicar", el resto de las transiciones, "Vista previa" (terciaria) y, al final y separada, "Eliminar".
+- **Decisión**: `AccionesEstado.tsx` **se borra** y se reemplaza por:
+  - `InfoPublicacion`: la sección "Publicación" (`section` con su `h2`, research D5), con el estado, la fecha y "Ver en el sitio", sin botones.
+  - `BarraEditor`: la barra fija, un `role="group"` con nombre "Acciones del artículo". **Posiciones fijas** (excepción de RF-009): Guardar · Publicar · Programar / Cancelar programación / Volver a borrador · Archivar · Vista previa · (separado) Eliminar. Solo cambia el nivel: la principal según `accionPrincipalEditor`, las demás `secundaria`, "Vista previa" `terciaria` y "Eliminar" `peligro`.
+  - El texto de estado ("Cambios sin guardar", "Guardado", "Sin cambios", "Subiendo imagen…") va en su propia línea, encima de los botones. "Cambios sin guardar" y "Guardado" siguen en la región `aria-live`; "Sin cambios" queda fuera de ella para no anunciarse junto con "Guardado". "Guardar" deshabilitado se asocia con su motivo por `aria-describedby`.
+  - El error del cambio de estado se muestra con `AvisoEstado` encima de la barra, no dentro, para no agrandarla.
+  - La lógica de `ejecutar` y `eliminar` va a `componentes/articulo/cambio-de-estado.ts` (hook `useCambioDeEstado`).
+- **Por qué**: aclaraciones 1 y 3, y el menor 4 de `revisor-ux-ui`: si "Guardar" y "Publicar" intercambiaran de lugar con la primera tecla, el botón se movería debajo del puntero.
 
 ## D9. "Programar" abre un diálogo con fecha
 
-- **Decisión**: `DialogoProgramar` reutiliza las primitivas de `ui/alert-dialog.tsx` (Radix AlertDialog, ya instalado), con el campo "Fecha y hora de publicación" (`datetime-local`, mínimo = ahora) y los botones "Cancelar" (`secundaria`) y "Programar" (`primaria`). El foco inicial va al campo (`onOpenAutoFocus`). Si la fecha falta o está en el pasado, la confirmación hace `preventDefault`, el diálogo no se cierra y muestra el mismo mensaje de hoy ("Elige la fecha y hora de publicación." o el error de la base) asociado al campo.
-- **Por qué**: aclaración 2. Un diálogo de confirmación que pide un dato encaja con `alertdialog`, y no hace falta agregar `@radix-ui/react-dialog`.
-- **Alternativas descartadas**: `@radix-ui/react-dialog` (una dependencia nueva para lo mismo); el `<dialog>` nativo que usa `DialogoEdicion` (sirve, pero tendría un foco y un cierre distintos a los de las confirmaciones del editor).
+- **Decisión**: se extiende `ConfirmarAccion` en lugar de crear un tercer andamiaje de AlertDialog (ya hay dos: `ConfirmarAccion` y `ProveedorSalida`):
+  - nuevas props: `cuerpo?: ReactNode` (el campo de fecha), `abierto`/`alCambiarAbierto` (controlado) y `onConfirmar` que devuelve `boolean | Promise<boolean>`: con `false`, el diálogo no se cierra;
+  - `focoInicial?: RefObject<HTMLElement>` para enfocar el campo en lugar de "Cancelar".
+  - `DialogoProgramar` es una composición fina sobre `ConfirmarAccion`: título "Programar la publicación", campo "Fecha y hora de publicación" (`datetime-local`, mínimo = `ahoraLocal()`), "Cancelar" `secundaria` y "Programar" `primaria`. Con una fecha que falta, pasada o rechazada por la base, el diálogo no se cierra, el mensaje aparece junto al campo con `role="alert"` y el foco vuelve al campo.
+  - "Programar" no es un disparador directo: si hay cambios sin guardar, muestra el aviso de guardar antes (regla de hoy) y no abre el diálogo.
+- **Por qué**: aclaración 2, RF-018 y §VIII.2. No hace falta `@radix-ui/react-dialog`.
 
-## D10. "Más acciones" como disclosure, sin dependencias
-
-- **Decisión**: por debajo de 768 px, la barra del editor muestra la acción principal, la secundaria relacionada y un botón "Más acciones" (`terciaria`, con `aria-expanded` y `aria-controls`) que despliega una lista de botones. Esc la cierra y devuelve el foco al botón, un clic afuera también la cierra, y "Eliminar" va al final después de un separador. Desde 768 px los mismos botones se ven en línea. La versión angosta y la ancha se resuelven con clases responsive (`md:hidden` y `hidden md:flex`), así que no hay que detectar el ancho con JavaScript ni hay diferencias de hidratación. El cierre con Esc y la devolución del foco salen de un hook `useDesplegable`, extraído de `NavegacionPanel` (que hoy ya lo hace para el menú del panel), al que se le suma el cierre con clic afuera.
-- **Por qué**: aclaración 4 y RF-019. El patrón *disclosure* de WAI-ARIA alcanza para una lista corta de acciones y no exige navegación con flechas; un `role="menu"` sí la exigiría.
-- **Alternativas descartadas**: `@radix-ui/react-dropdown-menu` (otra dependencia, y la semántica `menu` exige más comportamiento); el atributo `popover` nativo (no devuelve el foco solo y todavía tiene diferencias entre navegadores).
-
-## D11. Estados del botón: deshabilitado y ocupado
-
-- **Decisión**: el panel sigue usando `aria-disabled` (el botón queda enfocable y se anuncia) y se mantiene `opacity-60` con `cursor-not-allowed`, pero sin cambiar de color hacia el rojo ni el borde de error. "Guardar" deshabilitado se acompaña del texto "Sin cambios" en la barra, en el lugar de "Cambios sin guardar". El estado ocupado (`aria-busy`) superpone un indicador de giro (respeta `prefers-reduced-motion`: sin giro, solo los tres puntos) y vuelve transparente el texto, así el botón conserva el ancho.
-- **Por qué**: RF-010 y el caso borde de la acción principal deshabilitada. Los textos "Ingresando…" o "Guardando…" de los formularios de acceso cambian el ancho del botón; con el indicador superpuesto se conserva y el texto accesible sigue siendo el de la acción.
-
-## D12. Pruebas
+## D10. "Más acciones" como disclosure, con una sola renderización
 
 - **Decisión**:
-  - **Vitest**: `packages/ui/src/clases.test.ts` (el texto exacto sin opciones, las cuatro variantes y los dos tamaños, y que no haya valores fuera de tokens); `acciones-disponibles.test.ts` (la tabla completa de `accionPrincipalEditor`); tests de componente para `EncabezadoPagina`, `BarraAcciones`, `MasAcciones` y `DialogoProgramar`.
-  - **Playwright**: `e2e/admin/jerarquia.spec.ts`, que recorre cada pantalla y diálogo y cuenta `[data-nivel="primaria"]` visibles por contexto (CE-001 y CE-002), y mide alturas y alineación de los grupos y el área táctil en 360, 768, 1024 y 1440 px (CE-003). Las pruebas de programación y publicación siguen pasando con la ayuda `e2e/admin/ayudas/estado.ts` actualizada para abrir el diálogo y usar "Más acciones" en móvil (CE-006). `e2e/admin/accesibilidad.spec.ts` (axe) cubre las pantallas y diálogos nuevos.
-  - **Lighthouse** (CE-004): el mismo recorrido de T103 de la spec 003 (16 mediciones), documentado en `quickstart.md`.
-- **Por qué**: cada criterio de aceptación queda con al menos una prueba (§IX.5).
+  - La barra se renderiza una sola vez. Las acciones que `distribuirBarraEditor` manda al menú están dentro del panel de `MasAcciones`, que en anchos grandes se muestra en línea (`@3xl:contents`) y en angostos queda oculto detrás del botón; el botón "Más acciones" solo se ve en angostos (`@3xl:hidden`). El corte lo decide una *container query* sobre la barra, no el ancho de la ventana, porque la barra comparte el ancho con la navegación lateral desde 1024 px.
+  - En angostos la barra usa `tamanio="compacto"` y "Más acciones" es un botón de solo ícono (`aria-label="Más acciones"`, ícono de puntos suspensivos nuevo), así entra en una línea a 360 px (328 px útiles).
+  - `MasAcciones` es un *disclosure* (`aria-expanded`, `aria-controls`): abre hacia arriba, con `max-h` y desplazamiento propio para el zoom al 200 %, y relleno para que el anillo de foco no se corte. Esc y el clic afuera lo cierran; Esc devuelve el foco al botón. Se cierra al navegar.
+  - El comportamiento de abrir, cerrar con Esc y devolver el foco se extrae de `NavegacionPanel` a `apps/admin/src/lib/desplegable.ts` (`useDesplegable`), con el cierre al cambiar de ruta que ya tiene y el clic afuera.
+  - Si `enMenu` queda vacío (por ejemplo en un artículo nuevo), `MasAcciones` no se renderiza.
+- **Por qué**: aclaración 4 y RF-019. Una sola renderización evita botones y diálogos duplicados en el DOM, falsos positivos en las pruebas y clones para jscpd.
+- **Alternativas descartadas**: dos barras con `md:hidden` / `hidden md:flex` (duplicaban botones y diálogos); `@radix-ui/react-dropdown-menu` (dependencia nueva y semántica `menu`, que exige navegación con flechas).
+
+## D11. Foco y anuncios al cambiar de estado
+
+- **Decisión**: los diálogos de la barra (programar y eliminar) son controlados y se montan fuera del panel de `MasAcciones`, así no se desmontan cuando el menú se cierra. Se usa `onCloseAutoFocus` con `preventDefault()` y foco explícito:
+  - si el usuario canceló: al botón que abrió el diálogo, si sigue visible; si no, a "Más acciones";
+  - si el cambio salió bien: a la nueva acción principal de la barra, junto con el `anunciar(...)` que ya existe ("El artículo quedó programado", etc.).
+  - Lo mismo cuando un cambio de estado sin diálogo ("Publicar", "Archivar") hace desaparecer el botón que lo disparó.
+- **Por qué**: WCAG 2.4.3. Hoy el foco cae en `body` cuando el botón usado desaparece, y el plan rehace esa pieza.
+
+## D12. Estados del botón: deshabilitado y ocupado
+
+- **Decisión**:
+  - **Deshabilitado**: `aria-disabled` (el botón sigue enfocable y se anuncia), `opacity-60` y `cursor-not-allowed`. El `Button` llama a `preventDefault()` en el clic mientras está deshabilitado u ocupado, así un `type="submit"` no envía el formulario (tampoco con Enter) y un enlace con `asChild` no navega.
+  - **Ocupado** (`ocupado`): la etiqueta va en un `span` con `opacity-0` (conserva el ancho y el nombre accesible, y se respeta en alto contraste), un indicador encima con `aria-hidden` y `currentColor`, un `<span role="status" class="sr-only">` con el texto de la acción en curso (por ejemplo "Ingresando…", por prop `textoOcupado`) y el botón queda además `aria-disabled`. Con `prefers-reduced-motion`, el indicador no gira.
+  - `ocupado` y `soloIcono` no se pueden combinar con `asChild` (el `Slot` exige un único hijo); el tipo lo impide.
+- **Por qué**: RF-010. `aria-busy` en un botón no lo anuncia ningún lector de pantalla y `text-transparent` falla en alto contraste.
+
+## D13. Pruebas sin dependencias nuevas
+
+- **Decisión**: no se agregan jsdom ni Testing Library (§II). En consecuencia:
+  - **Vitest** (entorno `node`): `packages/ui/src/clases.test.ts` (texto exacto sin opciones, variantes, estados y tamaños); `acciones-disponibles.test.ts` (`accionPrincipalEditor`, `guardarHabilitado`, `distribuirBarraEditor` en los 4 estados × 2 roles × con y sin cambios, y el artículo nuevo); `lib/fechas.test.ts` (`ahoraLocal`); y tests de render estático (`renderToStaticMarkup`, como en `packages/bloques`) de `Button`, `EncabezadoPagina`, `BarraAcciones`, `TituloSeccion`, `EstadoVacio` y `AvisoEstado`: atributos `data-*` y `aria-*`, orden en el DOM y sufijos `sr-only`.
+  - **Playwright** para todo lo interactivo: `e2e/admin/jerarquia.spec.ts` (una principal visible por contexto según la matriz, alturas y alineación, área táctil, una sola línea a 360 px en los 4 estados con rol admin, "Más acciones" con teclado, foco después de cambiar de estado, diálogo de programar, orden de las barras, rol editor sin huecos, textos largos a 360 px y zoom al 200 %). Cuenta solo elementos visibles y, con un diálogo abierto, solo dentro del diálogo. `ANCHOS` y `PANTALLAS` pasan de `accesibilidad.spec.ts` a `e2e/admin/ayudas/pantallas.ts` para no duplicarlos.
+  - **Pruebas existentes a adaptar** (CE-006): `e2e/admin/ayudas/estado.ts` (los botones salen del grupo "Publicación" y pasan al grupo "Acciones del artículo"; programar abre un diálogo), `programacion.spec.ts`, `publicacion.spec.ts`, `permisos.spec.ts` (la aserción "Eliminar no existe" tiene que buscar en la barra nueva, o pasaría en falso), `casos-borde.spec.ts`, `accesibilidad.spec.ts`, `lista-articulos.spec.ts` y `articulo-editor.spec.ts`.
+  - **Lighthouse** (CE-004) con el procedimiento de T103 de la spec 003.
+- **Por qué**: cada criterio de aceptación queda con al menos una prueba (§IX.5) sin abrir el stack.
