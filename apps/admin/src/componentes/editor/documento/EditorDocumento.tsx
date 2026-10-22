@@ -292,7 +292,11 @@ export default function EditorDocumento({
   // El conteo del modo elementos se anuncia al entrar y al terminar de ampliar (no en cada paso) y se borra al salir.
   const cantidadEnModo = seleccion.tipo === 'elementos' && seleccion.modo ? seleccion.hasta - seleccion.desde : 0;
   useEffect(() => {
-    if (cantidadEnModo === 0) return void ultimo.current.anunciar('');
+    if (cantidadEnModo === 0) {
+      // Al salir del modo se borra el conteo, salvo que una acción (quitar, por ejemplo) acabe de anunciar algo.
+      if (Date.now() - ultimaAccion.current > 400) ultimo.current.anunciar('');
+      return;
+    }
     const programado = Date.now();
     const espera = setTimeout(() => {
       if (ultimaAccion.current < programado) ultimo.current.anunciar(anuncioModoElementos(cantidadEnModo));

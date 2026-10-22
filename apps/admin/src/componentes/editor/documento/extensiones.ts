@@ -30,10 +30,19 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Suggestion from '@tiptap/suggestion';
 import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
+import { deshacerORehacer, registrarAccion } from './acciones-elemento';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { claveErrores, claveModo } from './claves';
-import { ampliarSeleccion, duplicarRango, moverRango, quitarRango, rangoDeElementos, salirDelModo } from './comandos';
+import {
+  ampliarSeleccion,
+  duplicarRango,
+  moverRango,
+  quitarRango,
+  rangoDeElementos,
+  salirDelModo,
+  SeleccionDeElementos,
+} from './comandos';
 import { proteger, type DevolucionesDeProteccion } from './proteger';
 import { NodoBloque } from './nodos/NodoBloque';
 
@@ -264,7 +273,15 @@ const AsignarIds = Extension.create({
             }
             pos += nodo.nodeSize;
           });
-          return tr.docChanged ? tr.setMeta('addToHistory', false) : null;
+          if (!tr.docChanged) return null;
+          // Marcar los atributos puede deshacer una selección de elementos enteros: se vuelve a poner igual.
+          const { selection } = despues;
+          if (selection instanceof SeleccionDeElementos) {
+            tr.setSelection(new SeleccionDeElementos(tr.doc, selection.from, selection.to));
+          } else if (selection instanceof NodeSelection && selection.$from.depth === 0) {
+            tr.setSelection(NodeSelection.create(tr.doc, selection.from));
+          }
+          return tr.setMeta('addToHistory', false).setMeta(claveModo, claveModo.getState(despues) ?? false);
         },
       }),
     ];
@@ -333,9 +350,12 @@ function iconoDeSeleccion() {
  */
 function modoElementos(devoluciones: DevolucionesDelEditor) {
   const sobreRango =
-    (comando: (estado: EditorState, despachar?: (tr: Transaction) => void) => boolean) =>
-    ({ editor }: { editor: Editor }) =>
-      comando(editor.state, (tr) => editor.view.dispatch(tr));
+    (comando: (estado: EditorState, despachar?: (tr: Transaction) => void) => boolean, accion?: string) =>
+    ({ editor }: { editor: Editor }) => {
+      const aplicado = comando(editor.state, (tr) => editor.view.dispatch(tr));
+      if (aplicado && accion) registrarAccion(editor, accion);
+      return aplicado;
+    };
   return Extension.create({
     name: 'modoElementos',
     priority: 900,
@@ -410,11 +430,14 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           devoluciones.alPropiedades();
           return true;
         },
-        'Alt-ArrowUp': sobreRango(moverRango(-1)),
-        'Alt-ArrowDown': sobreRango(moverRango(1)),
-        'Mod-d': sobreRango(duplicarRango()),
-        Delete: sobreRango(quitarRango()),
-        Backspace: sobreRango(quitarRango()),
+        'Alt-ArrowUp': sobreRango(moverRango(-1), 'mover elemento'),
+        'Alt-ArrowDown': sobreRango(moverRango(1), 'mover elemento'),
+        'Mod-d': sobreRango(duplicarRango(), 'duplicar elemento'),
+        Delete: sobreRango(quitarRango(), 'quitar elemento'),
+        Backspace: sobreRango(quitarRango(), 'quitar elemento'),
+        'Mod-z': ({ editor }) => deshacerORehacer(editor, false, devoluciones.anunciar),
+        'Mod-Shift-z': ({ editor }) => deshacerORehacer(editor, true, devoluciones.anunciar),
+        'Mod-y': ({ editor }) => deshacerORehacer(editor, true, devoluciones.anunciar),
         'Shift-ArrowUp': sobreRango(ampliarSeleccion(-1)),
         'Shift-ArrowDown': sobreRango(ampliarSeleccion(1)),
       };

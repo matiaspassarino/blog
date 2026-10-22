@@ -9,7 +9,7 @@ import { useEditorState } from '@tiptap/react';
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react';
 import { nombreDeTipo } from '../anuncios';
 import { Icono } from '../../Icono';
-import type { ContextoDeAcciones } from './acciones-elemento';
+import { registrarAccion, type ContextoDeAcciones } from './acciones-elemento';
 import { elementoActivo, moverElementoA, seleccionarElementos, tipoDeElemento } from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 
@@ -107,7 +107,9 @@ export function AsaDeElemento({ editor, contexto, contenedor }: Props) {
       evento.clientX <= raiz.right + 48 &&
       evento.clientY >= raiz.top &&
       evento.clientY <= raiz.bottom;
-    if (dentro) moverElementoA(actual.desde, actual.indice)(editor.state, (tr) => editor.view.dispatch(tr));
+    if (dentro && moverElementoA(actual.desde, actual.indice)(editor.state, (tr) => editor.view.dispatch(tr))) {
+      registrarAccion(editor, 'mover elemento');
+    }
     editor.commands.focus();
   }
 

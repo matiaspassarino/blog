@@ -25,7 +25,7 @@ import { Icono, type NombreIcono } from '../../Icono';
 import { Button } from '../../ui/button';
 import { esEnlacePermitido } from './extensiones';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
-import type { ContextoDeAcciones } from './acciones-elemento';
+import { deshacerORehacer, type ContextoDeAcciones } from './acciones-elemento';
 import { elementoActivo, salirDelModo } from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 import { MenuInsertar } from './MenuInsertar';
@@ -332,8 +332,24 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
   // Con un solo elemento seleccionado no hace falta el conteo: se anuncia y el panel lo muestra.
   const enModoElementos = seleccion.tipo === 'elementos' && (seleccion.modo === true || cantidad > 1);
   const deshacerYRehacer: ReactNode[] = [
-    boton('deshacer', 'Deshacer', 'deshacer', (e) => e.chain().focus().undo().run(), {}, !estado.puedeDeshacer),
-    boton('rehacer', 'Rehacer', 'rehacer', (e) => e.chain().focus().redo().run(), {}, !estado.puedeRehacer),
+    boton(
+      'deshacer',
+      'Deshacer',
+      'deshacer',
+      (e) =>
+        contextoDeAcciones ? deshacerORehacer(e, false, contextoDeAcciones.anunciar) : e.chain().focus().undo().run(),
+      {},
+      !estado.puedeDeshacer,
+    ),
+    boton(
+      'rehacer',
+      'Rehacer',
+      'rehacer',
+      (e) =>
+        contextoDeAcciones ? deshacerORehacer(e, true, contextoDeAcciones.anunciar) : e.chain().focus().redo().run(),
+      {},
+      !estado.puedeRehacer,
+    ),
   ];
 
   return (

@@ -3,7 +3,7 @@
 // menú, los atajos y el arrastre comparten el mismo camino.
 import type { Editor } from '@tiptap/core';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
-import { anuncioConvertido, anuncioDuplicado } from '../anuncios';
+import { anuncioConvertido, anuncioDeshacer, anuncioDuplicado, anuncioRehacer } from '../anuncios';
 import {
   convertirElemento,
   duplicarRango,
@@ -12,6 +12,7 @@ import {
   pierdeAlConvertir,
   quitarRango,
   rangoDeElementos,
+  salirDelModo,
   seleccionarElementoActivo,
   type TipoDeTexto,
 } from './comandos';
@@ -27,6 +28,9 @@ export const teclaModificadora = () => (esMac() ? '⌘' : 'Ctrl');
 /** El estado con el elemento activo ya seleccionado en modo elementos (sin despacharlo), o `null` si no hay. */
 function estadoEnModo(estado: EditorState): EditorState | null {
   if (rangoDeElementos(estado)) return estado;
+  // Un rango de texto que cruza elementos es para dar formato: no habilita mover, duplicar ni quitar.
+  const { $from, $to } = estado.selection;
+  if ($from.depth > 0 && $from.index(0) !== $to.index(0)) return null;
   let tr: Transaction | null = null;
   if (!seleccionarElementoActivo()(estado, (t) => (tr = t))) return null;
   return tr ? estado.apply(tr) : null;
@@ -117,6 +121,7 @@ export function convertirDesdeMenu(editor: Editor, estilo: EstiloDeConversion, c
 export function ejecutarAccion(editor: Editor, id: IdDeAccion, contexto: ContextoDeAcciones) {
   if (id === 'atajos') return contexto.abrirAtajos();
   if (id === 'propiedades') return contexto.alPropiedades();
+  const estabaEnModo = rangoDeElementos(editor.state) !== null;
   entrarAlModo(editor);
   const comandos = { subir: moverRango(-1), bajar: moverRango(1), duplicar: duplicarRango(), quitar: quitarRango() };
   if (id in comandos && comandos[id as keyof typeof comandos](editor.state, despachar(editor))) {
@@ -124,7 +129,42 @@ export function ejecutarAccion(editor: Editor, id: IdDeAccion, contexto: Context
       const copia = elementoActivo(editor.state);
       if (copia) contexto.anunciar(anuncioDuplicado(copia.posicion, copia.total));
     }
+    registrarAccion(editor, NOMBRES_DE_ACCION[id as keyof typeof comandos]);
+    // Desde el menú, el cursor queda dentro del elemento; en el modo elementos (atajos) la selección sigue.
+    if (!estabaEnModo && id !== 'quitar') salirDelModo()(editor.state, despachar(editor));
   }
   if (id !== 'seleccionar') editor.commands.focus();
   else editor.view.focus();
+}
+
+// Deshacer y rehacer anuncian la acción (RF-008): se recuerda el nombre de las últimas acciones sobre elementos.
+const NOMBRES_DE_ACCION = {
+  subir: 'mover elemento',
+  bajar: 'mover elemento',
+  duplicar: 'duplicar elemento',
+  quitar: 'quitar elemento',
+} as const;
+const historial = new WeakMap<Editor, { hechas: string[]; rehechas: string[] }>();
+const de = (editor: Editor) => {
+  const actual = historial.get(editor) ?? { hechas: [], rehechas: [] };
+  historial.set(editor, actual);
+  return actual;
+};
+
+/** Anota una acción sobre elementos para anunciarla al deshacer o rehacer. */
+export function registrarAccion(editor: Editor, nombre: string) {
+  const { hechas, rehechas } = de(editor);
+  hechas.push(nombre);
+  rehechas.length = 0;
+}
+
+/** Deshace o rehace y anuncia qué se deshizo o rehízo, si fue una acción sobre elementos. */
+export function deshacerORehacer(editor: Editor, rehacer: boolean, anunciar: (mensaje: string) => void) {
+  const { hechas, rehechas } = de(editor);
+  const aplicado = rehacer ? editor.commands.redo() : editor.commands.undo();
+  const nombre = rehacer ? rehechas.pop() : hechas.pop();
+  if (!aplicado || !nombre) return aplicado;
+  (rehacer ? hechas : rehechas).push(nombre);
+  anunciar(rehacer ? anuncioRehacer(nombre) : anuncioDeshacer(nombre));
+  return aplicado;
 }
