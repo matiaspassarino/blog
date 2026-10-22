@@ -3,6 +3,7 @@
 // y se puede copiar.
 import { textoPlano } from '@blog/bloques';
 import type { DatosArticulo } from './reductor';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 function Columna({ rotulo, datos, otra }: { rotulo: string; datos: DatosArticulo; otra: DatosArticulo }) {
   const campos = [
@@ -16,7 +17,7 @@ function Columna({ rotulo, datos, otra }: { rotulo: string; datos: DatosArticulo
   ];
   return (
     <div className="min-w-0 flex-1 rounded-md border border-borde p-4">
-      <h3 className="font-titulos text-lg font-semibold">{rotulo}</h3>
+      <h3 className="font-titulos text-base font-semibold">{rotulo}</h3>
       <dl className="mt-3 flex flex-col gap-3">
         {campos.map(({ nombre, valor, distinto }) => (
           <div key={nombre}>
@@ -35,9 +36,7 @@ function Columna({ rotulo, datos, otra }: { rotulo: string; datos: DatosArticulo
 export function ComparacionVersiones({ propia, vigente }: { propia: DatosArticulo; vigente: DatosArticulo }) {
   return (
     <section aria-labelledby="titulo-comparacion" className="flex flex-col gap-3">
-      <h2 id="titulo-comparacion" className="font-titulos text-xl font-semibold">
-        Comparar versiones
-      </h2>
+      <TituloSeccion id="titulo-comparacion">Comparar versiones</TituloSeccion>
       <div className="flex flex-col gap-4 lg:flex-row">
         <Columna rotulo="Tu versión" datos={propia} otra={vigente} />
         <Columna rotulo="Versión vigente" datos={vigente} otra={propia} />

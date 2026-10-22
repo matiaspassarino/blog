@@ -1,7 +1,5 @@
 // T045 (spec 004, RF-010, RF-014; research D6): `AvisoEstado` con un formato único para éxito, error y advertencia, con
 // render estático (`renderToStaticMarkup`, entorno `node`). El cierre del aviso (clic) se prueba con Playwright.
-// FASE ROJA: hoy no existe `advertencia`, `children` solo admite texto y no hay zona de acciones; el botón de cerrar
-// es un `<button>` suelto, sin `data-nivel`.
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';

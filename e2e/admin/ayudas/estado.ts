@@ -1,5 +1,4 @@
 // Ayudas de los E2E de publicación, programación y permisos (spec 003, H3; adaptadas en la spec 004, T017).
-// FASE ROJA de la spec 004: hasta T024/T025 el editor sigue con `AccionesEstado` (grupo "Publicación").
 //
 // CONTRATO DE INTERFAZ SUPUESTO (spec 004: `BarraEditor`, `InfoPublicacion` y `DialogoProgramar`, dentro de
 // /articulos/[id]). Si la interfaz real difiere, se ajusta aquí, en un solo lugar.

@@ -1,6 +1,4 @@
 // T015, T016, T031 a T033 y T046 (spec 004, CE-001, CE-002, CE-003, H1 a H3, RF-002 a RF-014, RF-018, RF-019; research D8 a D13).
-// FASE ROJA: hoy casi ningún botón expone `data-nivel`, no existe la barra "Acciones del artículo", ni "Más acciones", ni
-// `EncabezadoPagina`/`EstadoVacio`/`TituloSeccion`.
 //
 // SUPUESTOS DE INTERFAZ (contracts/componentes.md y contracts/matriz-acciones.md; si la real difiere, se ajusta aquí):
 //   - Todo `Button` (y todo enlace con aspecto de botón de `Button asChild`) lleva `data-nivel` y `data-tamanio`. La

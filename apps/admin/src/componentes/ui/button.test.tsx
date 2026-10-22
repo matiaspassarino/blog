@@ -1,8 +1,7 @@
 // T004 (spec 004, RF-004, RF-007, RF-010, CE-001, CE-003; research D2, D3, D12): contrato de `Button`, con render
 // estático (`renderToStaticMarkup`, entorno `node`, como packages/bloques/src/render). La interacción (clic bloqueado,
 // Enter, foco) se prueba con Playwright en e2e/admin/jerarquia.spec.ts.
-// FASE ROJA: hoy `variante` es opcional, no hay `tamanio`, `soloIcono` ni `ocupado`, y el botón no expone `data-nivel`.
-// Los `@ts-expect-error` de `variante` obligatoria pasan recién en T030 (`pnpm typecheck`).
+// Los `@ts-expect-error` de más abajo los verifica `pnpm typecheck`.
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';

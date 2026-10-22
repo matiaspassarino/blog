@@ -1,7 +1,6 @@
 // T005, T034 y T044 (spec 004, RF-008, RF-009, RF-011, RF-012, RF-014, RF-019; contracts/componentes.md): componentes
 // de estructura del panel, con render estático (`renderToStaticMarkup`, entorno `node`; research D13). La interacción
 // de "Más acciones" (Enter, Tab, Esc, clic afuera, foco) se prueba con Playwright.
-// FASE ROJA: ninguno de los cinco componentes existe todavía (T011, T037, T048, T049).
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ancestrosEn, clasesDeEtiqueta, etiquetaDe, etiquetasDe } from '../../pruebas/html-estatico';

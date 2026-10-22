@@ -1,4 +1,4 @@
-// T069 (spec 003, H3-E8, CE-002 parcial). FASE ROJA: AccionesEstado (T072) no existe aún en /articulos/[id].
+// T069 (spec 003, H3-E8, CE-002 parcial). Acciones de estado del editor por rol.
 //
 // Este archivo se AMPLÍA en T099 (matriz completa de permisos por rol) y en H6 (equipo). Por eso queda organizado en
 // bloques por tema: cada historia agrega su `test.describe` aquí, con su propio prefijo de datos y sin tocar los demás.

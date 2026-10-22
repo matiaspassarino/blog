@@ -1,5 +1,4 @@
-// T067 y T072 (spec 003, H3-E7, E8, RF-012, RF-015): qué botones muestra AccionesEstado. Lógica pura.
-// FASE ROJA: `./acciones-disponibles` no existe aún.
+// T067 y T072 (spec 003, H3-E7, E8, RF-012, RF-015): qué acciones de estado se ofrecen. Lógica pura.
 //
 // Firmas supuestas, exportadas desde `componentes/articulo/acciones-disponibles.ts` (sin React):
 //   type AccionEstado = 'publicar' | 'programar' | 'cancelar_programacion' | 'volver_a_borrador' | 'archivar' | 'eliminar'
@@ -82,7 +81,7 @@ describe('destinoDe', () => {
 });
 
 // T013 (spec 004, RF-005, RF-019, H1 esc. 2 y 3; research D7; data-model.md "Acción principal del editor" y "Barra del
-// editor"). FASE ROJA: `accionPrincipalEditor`, `guardarHabilitado`, `distribuirBarraEditor` y `AccionBarra` no existen.
+// editor").
 //
 // Firmas supuestas (contracts/componentes.md):
 //   type AccionBarra = 'guardar' | AccionEstado | 'vista_previa'

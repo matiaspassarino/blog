@@ -1,6 +1,5 @@
 // T003 (spec 004, RF-001, RF-006, RF-007, RF-010, RF-016, CE-004, CE-005; research D1 a D3): `clasesBoton`, la
-// única definición del botón (constitución §VII.3). FASE ROJA: hoy solo existen `primaria`, `secundaria` y `peligro`,
-// sin segundo parámetro.
+// única definición del botón (constitución §VII.3).
 //
 // Firma supuesta (contracts/componentes.md):
 //   clasesBoton(variante?: 'primaria' | 'secundaria' | 'terciaria' | 'peligro',

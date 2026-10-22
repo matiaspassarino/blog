@@ -82,8 +82,7 @@ describe('formatearFecha (D18)', () => {
   });
 });
 
-// T014 (spec 004, RF-018, H1; research D7): `ahoraLocal()` pasa de AccionesEstado.tsx a este módulo. FASE ROJA: aún no
-// está exportada desde `./fechas`.
+// T014 (spec 004, RF-018, H1; research D7): `ahoraLocal()` vive en este módulo (antes, en el panel de estado del editor).
 //   ahoraLocal(): string — "YYYY-MM-DDTHH:mm" en la hora local del navegador, sin segundos: el `min` de un
 //   `<input type="datetime-local">`.
 describe('ahoraLocal (RF-018)', () => {

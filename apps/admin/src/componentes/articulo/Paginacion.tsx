@@ -1,6 +1,7 @@
 // Paginación de la lista: enlaces que conservan los filtros. Muestra siempre la primera y la última página y
 // las vecinas de la actual; la actual lleva aria-current="page" y todos miden al menos 44 px (§VII.4).
 import type { FiltrosPanel } from '@blog/db';
+import { clasesBoton } from '@blog/ui/clases';
 import Link from 'next/link';
 import { aSearchParams } from '../../lib/filtros';
 import { cn } from '../../lib/cn';
@@ -20,8 +21,7 @@ export function Paginacion({ filtros, pagina, totalPaginas }: Props) {
     const parametros = aSearchParams({ ...filtros, pagina: n }).toString();
     return parametros ? `/articulos?${parametros}` : '/articulos';
   };
-  const clases =
-    'inline-flex min-h-(--tactil-min) min-w-(--tactil-min) items-center justify-center rounded-md border px-3';
+  const clases = clasesBoton('secundaria', { tamanio: 'compacto' });
 
   return (
     <nav aria-label="Paginación">
@@ -37,12 +37,7 @@ export function Paginacion({ filtros, pagina, totalPaginas }: Props) {
                 href={href(n)}
                 aria-label={`Página ${n}`}
                 aria-current={n === pagina ? 'page' : undefined}
-                className={cn(
-                  clases,
-                  n === pagina
-                    ? 'border-marca bg-marca-suave font-semibold text-marca'
-                    : 'border-borde hover:bg-superficie',
-                )}
+                className={cn(clases, n === pagina && 'border-marca bg-marca-suave font-semibold text-marca')}
               >
                 {n}
               </Link>

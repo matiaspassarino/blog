@@ -101,6 +101,8 @@ Hallazgos del relevamiento del código que motivan las decisiones:
 - **Por qué**: aclaración 4 y RF-019. Una sola renderización evita botones y diálogos duplicados en el DOM, falsos positivos en las pruebas y clones para jscpd.
 - **Alternativas descartadas**: dos barras con `md:hidden` / `hidden md:flex` (duplicaban botones y diálogos); `@radix-ui/react-dropdown-menu` (dependencia nueva y semántica `menu`, que exige navegación con flechas).
 
+- **Ajustes de la implementación (2026-10-22)**: el corte del menú es **42 rem** de barra (`@2xl`) y no 48: a 768 px y a 1024 px con la navegación lateral la barra mide cerca de 44 rem, y con 48 el menú aparecía donde la spec pide todas las acciones en línea (RF-019). Los botones de la barra siguen compactos hasta 48 rem (`@3xl`) para que "Cancelar programación" entre en una línea. `ConfirmarAccion` cierra al confirmar, como antes, y solo espera el resultado con `esperarResultado` (lo usa `DialogoProgramar`, que muestra el error junto al campo sin cerrarse): esperar siempre cambió el momento en que los diálogos existentes dejan inerte la página y rompía los E2E de eliminar.
+
 ## D11. Foco y anuncios al cambiar de estado
 
 - **Decisión**: los diálogos de la barra (programar y eliminar) son controlados y se montan fuera del panel de `MasAcciones`, así no se desmontan cuando el menú se cierra. Se usa `onCloseAutoFocus` con `preventDefault()` y foco explícito:
