@@ -4,15 +4,21 @@
 // librería vive en este módulo, que se carga bajo demanda (`CargadorDeEditorDocumento`). Cada transacción que
 // cambia el documento se convierte a la lista de bloques con `documentoABloques` y sube por `alCambiar`.
 import type { Contenido, ErrorBloque } from '@blog/bloques';
+import type { Editor } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { NodeSelection } from '@tiptap/pm/state';
+import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { anuncioConvertido } from '../anuncios';
 import { BarraHerramientas } from './BarraHerramientas';
 import { bloquesADocumento, documentoABloques } from './conversion';
+import type { CambiosDeBloque } from '../bloques/tipos';
+import { actualizarBloque, bloqueDeElemento, buscarElemento } from './comandos';
+import { claveErrores } from './claves';
 import { crearExtensiones, type DevolucionesDelEditor, type EstadoMenu } from './extensiones';
+import { erroresPorBloqueId } from './mapa-errores';
 import { filtrarItems } from './menu-insercion';
 import { MenuInsertar } from './MenuInsertar';
-import type { SeleccionDelDocumento } from './tipos';
+import type { ElementoActivo, SeleccionDelDocumento } from './tipos';
 
 export type PropsEditorDocumento = {
   /** Lo guardado o lo adoptado: se vuelve a crear el documento (y su historial) cuando cambia `reinicio`. */
@@ -20,33 +26,97 @@ export type PropsEditorDocumento = {
   reinicio: number;
   errores: ErrorBloque[];
   alCambiar: (contenido: Contenido) => void;
-  alSeleccionar: (seleccion: SeleccionDelDocumento) => void;
+  alSeleccionar: (seleccion: SeleccionDelDocumento, elemento: ElementoActivo | null) => void;
+  /** «Propiedades» (barra), `Enter` en el modo elementos o «Subir imagen»: abrir y enfocar el panel. */
+  alPropiedades: () => void;
+  /** Lo que el panel y el guardado le piden al lienzo. */
+  acciones: Ref<AccionesDelLienzo>;
   /** Anuncios para la región de estado persistente del editor. */
   anunciar: (mensaje: string) => void;
   /** Mientras se carga la versión vigente: el editor no admite cambios. */
   bloqueado: boolean;
 };
 
+export type AccionesDelLienzo = {
+  /** Mezcla campos en el elemento con ese `bloqueId` (se busca al aplicar, no por la selección). */
+  actualizarBloque: (bloqueId: string, cambios: CambiosDeBloque) => void;
+  /** Selecciona el elemento entero y lo deja a la vista. */
+  seleccionarBloque: (bloqueId: string) => void;
+  /** Devuelve el foco al lienzo conservando la selección. */
+  enfocar: () => void;
+};
+
 const ALTO_DEL_MENU_PX = 320;
+
+/** Mensajes de error de cada elemento, por `bloqueId`. */
+function mensajesPorBloque(editor: Editor, errores: ErrorBloque[]): Map<string, string[]> {
+  try {
+    const porId = erroresPorBloqueId(documentoABloques(editor.getJSON()), errores);
+    return new Map([...porId].map(([id, lista]) => [id, lista.map((error) => error.mensaje)]));
+  } catch {
+    return new Map(); // sin ids todavía: no hay nada que marcar
+  }
+}
+
+/**
+ * El elemento de primer nivel donde está el cursor, si tiene propiedades (título, cita, lista, código, elementos
+ * especiales), o el que está seleccionado entero. Un párrafo con el cursor adentro no cuenta: no tiene propiedades.
+ */
+function leerSeleccion(
+  editor: Editor,
+  origen: ElementoActivo['origen'],
+): [SeleccionDelDocumento, ElementoActivo | null] {
+  const { selection, doc } = editor.state;
+  const entero = selection instanceof NodeSelection && selection.$from.depth === 0;
+  if (
+    !entero &&
+    (selection.$from.depth === 0 ||
+      (!selection.$from.sameParent(selection.$to) && selection.$from.index(0) !== selection.$to.index(0)))
+  ) {
+    return [{ tipo: 'texto' }, null];
+  }
+  const nodo = entero ? selection.node : selection.$from.node(1);
+  if (!entero && nodo.type.name === 'paragraph') return [{ tipo: 'texto' }, null];
+  const bloqueId = String(nodo.attrs.bloqueId ?? '');
+  try {
+    const bloque = bloqueId ? bloqueDeElemento(nodo) : undefined;
+    if (!bloque) return [{ tipo: 'texto' }, null];
+    const posicion = selection.$from.index(0) + 1;
+    const indice = documentoABloques(doc.toJSON()).findIndex((otro) => otro.id === bloqueId);
+    return [
+      { tipo: 'elementos', desde: posicion - 1, hasta: posicion, bloques: [bloque] },
+      { bloqueId, posicion, indice, origen },
+    ];
+  } catch {
+    return [{ tipo: 'texto' }, null];
+  }
+}
 
 export default function EditorDocumento({
   contenido,
+  errores,
   alCambiar,
   alSeleccionar,
+  alPropiedades,
+  acciones,
   anunciar,
   bloqueado,
 }: PropsEditorDocumento) {
   const idMenu = useId();
   const [menu, setMenu] = useState<EstadoMenu | null>(null);
   const [activo, setActivo] = useState(0);
-  const ultimo = useRef({ menu, activo, alCambiar, alSeleccionar, anunciar });
+  const ultimo = useRef({ menu, activo, alCambiar, alSeleccionar, alPropiedades, anunciar });
+  const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
 
   useEffect(() => {
-    ultimo.current = { menu, activo, alCambiar, alSeleccionar, anunciar };
+    ultimo.current = { menu, activo, alCambiar, alSeleccionar, alPropiedades, anunciar };
   });
 
   // Las devoluciones de la librería son estables y leen siempre lo último desde `ultimo`.
   const [devoluciones] = useState<DevolucionesDelEditor>(() => ({
+    anunciar: (mensaje) => ultimo.current.anunciar(mensaje),
+    menuAbierto: () => ultimo.current.menu !== null,
+    alPropiedades: () => ultimo.current.alPropiedades(),
     alMenu: (estado) => {
       setMenu(estado);
       setActivo(0);
@@ -90,9 +160,60 @@ export default function EditorDocumento({
       } catch {
         // Un elemento sin identidad todavía: el plugin de ids lo completa en la siguiente transacción.
       }
+      // Si un elemento especial está seleccionado, el panel sigue mostrando sus datos al día.
+      publicarSeleccion(actual, 'puntero');
     },
-    onSelectionUpdate: () => ultimo.current.alSeleccionar({ tipo: 'texto' }),
+    onSelectionUpdate: ({ editor: actual }) => {
+      const pendiente = actual.storage.atributosDelDocumento.abrirPanel;
+      const origen = pendiente === 'foco' ? 'insertar' : pendiente === 'pestana' ? 'insertar-texto' : 'puntero';
+      const [nueva, elemento] = leerSeleccion(actual, origen);
+      // El pedido de «Insertar» se consume con la primera selección que ya es el elemento nuevo.
+      if (elemento && pendiente) actual.storage.atributosDelDocumento.abrirPanel = false;
+      setSeleccion(nueva);
+      ultimo.current.alSeleccionar(nueva, elemento);
+    },
   });
+
+  function publicarSeleccion(actual: Editor, origen: ElementoActivo['origen']) {
+    const [nueva, elemento] = leerSeleccion(actual, origen);
+    setSeleccion(nueva);
+    ultimo.current.alSeleccionar(nueva, elemento);
+  }
+
+  useImperativeHandle(
+    acciones,
+    () => ({
+      actualizarBloque: (bloqueId, cambios) => {
+        if (editor) actualizarBloque(editor, bloqueId, cambios);
+      },
+      seleccionarBloque: (bloqueId) => {
+        const elemento = editor && buscarElemento(editor, bloqueId);
+        if (!editor || !elemento) return;
+        editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, elemento.pos)));
+        (editor.view.nodeDOM(elemento.pos) as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+      },
+      enfocar: () => {
+        editor?.commands.focus();
+      },
+    }),
+    [editor],
+  );
+
+  // «Subir imagen» de la isla vacía y los atajos piden abrir el panel.
+  useEffect(() => {
+    const lienzo = editor?.view.dom;
+    if (!lienzo) return;
+    const abrir = () => ultimo.current.alPropiedades();
+    lienzo.addEventListener('abrir-propiedades', abrir);
+    return () => lienzo.removeEventListener('abrir-propiedades', abrir);
+  }, [editor]);
+
+  // Los errores de validación marcan los elementos por `bloqueId` (el índice del bloque no es la posición).
+  useEffect(() => {
+    if (!editor) return;
+    const mapa = mensajesPorBloque(editor, errores);
+    editor.view.dispatch(editor.state.tr.setMeta(claveErrores, mapa).setMeta('addToHistory', false));
+  }, [editor, errores]);
 
   useEffect(() => {
     editor?.setEditable(!bloqueado);
@@ -120,7 +241,12 @@ export default function EditorDocumento({
 
   return (
     <div className="flex flex-col gap-2">
-      <BarraHerramientas editor={editor} deshabilitada={bloqueado} seleccion={{ tipo: 'texto' }} />
+      <BarraHerramientas
+        editor={editor}
+        deshabilitada={bloqueado}
+        seleccion={seleccion}
+        alPropiedades={alPropiedades}
+      />
       <EditorContent editor={editor} className="mx-auto w-full max-w-lectura" />
       {menu?.rect && (
         <MenuInsertar

@@ -3,17 +3,19 @@
 import { CampoLargo, CampoTexto } from '../CampoBloque';
 import type { PropsEditorBloque } from './tipos';
 
-export function EditorCodigo({ bloque, indice, errores, cambiar }: PropsEditorBloque<'codigo'>) {
+export function EditorCodigo({ bloque, indice, errores, cambiar, soloPropiedades }: PropsEditorBloque<'codigo'>) {
   return (
     <>
-      <CampoLargo
-        indice={indice}
-        campo="codigo"
-        etiqueta="Código"
-        errores={errores}
-        valor={bloque.codigo}
-        alCambiar={(codigo) => cambiar({ codigo })}
-      />
+      {!soloPropiedades && (
+        <CampoLargo
+          indice={indice}
+          campo="codigo"
+          etiqueta="Código"
+          errores={errores}
+          valor={bloque.codigo}
+          alCambiar={(codigo) => cambiar({ codigo })}
+        />
+      )}
       <CampoTexto
         indice={indice}
         campo="lenguaje"

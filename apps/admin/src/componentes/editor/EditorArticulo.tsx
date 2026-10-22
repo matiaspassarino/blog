@@ -34,7 +34,14 @@ import { useHidratado } from '../../lib/hidratado';
 import { ContextoEditor } from './ContextoEditor';
 import { aDatosArticulo, validarEditor } from './datos';
 import { ImagenEditable } from './ImagenEditable';
+import { useAltoDe, useAnchoMinimo } from '../../lib/pantalla';
+import { cn } from '../../lib/cn';
 import { CargadorDeEditorDocumento } from './documento/CargadorDeEditorDocumento';
+import type { AccionesDelLienzo } from './documento/EditorDocumento';
+import { primerErrorDelDocumento } from './documento/mapa-errores';
+import { PropiedadesDelElemento } from './documento/PropiedadesDelElemento';
+import type { CambiosDeBloque } from './bloques/tipos';
+import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
 import { TituloSeccion } from '../estructura/TituloSeccion';
@@ -112,7 +119,52 @@ export function EditorArticulo({
   // El lienzo no se vuelve a dibujar en cada tecla: estas props tienen que ser estables.
   const erroresDeElementos = useMemo(() => errores.filter((error) => error.indice >= 0), [errores]);
   const alCambiarContenido = useCallback((valor: Contenido) => despachar({ tipo: 'contenido', valor }), []);
-  const alSeleccionar = useCallback(() => {}, []);
+  const acciones = useRef<AccionesDelLienzo>(null);
+  const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
+  const [elemento, setElemento] = useState<ElementoActivo | null>(null);
+  const [pestania, setPestania] = useState<'articulo' | 'elemento'>('articulo');
+  const [hojaAbierta, setHojaAbierta] = useState(false);
+  // Sube cada vez que hay que llevar el foco al primer campo del panel.
+  const [pedidoDeFoco, setPedidoDeFoco] = useState(0);
+  const anchoDeEscritorio = useAnchoMinimo(1280);
+  const altoDeLaBarra = useAltoDe('[role="group"][aria-label="Acciones del artículo"]');
+  const ultimoId = useRef<string | null>(null);
+  const alSeleccionar = useCallback((nueva: SeleccionDelDocumento, activo: ElementoActivo | null) => {
+    setSeleccion(nueva);
+    setElemento(activo);
+    const especial =
+      nueva.tipo === 'elementos' && ['imagen', 'galeria', 'cta', 'video'].includes(nueva.bloques[0]?.tipo ?? '');
+    // La pestaña cambia sola solo al seleccionar un elemento especial distinto del anterior (no al mover el cursor).
+    if (activo && especial && activo.bloqueId !== ultimoId.current) setPestania('elemento');
+    ultimoId.current = activo?.bloqueId ?? null;
+    if (!activo) setHojaAbierta(false);
+    if (activo?.origen === 'insertar-texto') setPestania('elemento');
+    if (activo?.origen === 'insertar') {
+      setHojaAbierta(true);
+      setPedidoDeFoco((n) => n + 1);
+    }
+  }, []);
+  const alCambiarElemento = useCallback(
+    (cambios: CambiosDeBloque) => {
+      if (elemento) acciones.current?.actualizarBloque(elemento.bloqueId, cambios);
+    },
+    [elemento],
+  );
+  const alPropiedades = useCallback(() => {
+    setPestania('elemento');
+    setHojaAbierta(true);
+    setPedidoDeFoco((n) => n + 1);
+  }, []);
+
+  // Foco al primer campo del panel (lateral u hoja) cuando se pide, y el elemento queda a la vista sobre la hoja.
+  useEffect(() => {
+    if (pedidoDeFoco === 0) return;
+    const campo = document.querySelector<HTMLElement>(
+      '[data-panel-propiedades] :is(input, select, textarea, button):not([tabindex="-1"]):not([data-cerrar-hoja])',
+    );
+    campo?.focus();
+    document.querySelector('.ProseMirror-selectednode')?.scrollIntoView({ block: 'nearest' });
+  }, [pedidoDeFoco]);
 
   const hidratado = useHidratado();
   const sucio = estaSucio(estado);
@@ -155,7 +207,13 @@ export function EditorArticulo({
   function mostrarErrores(lista: ErrorBloque[]) {
     setErrores(lista);
     setAnuncio(resumenDeErrores(lista));
-    setTimeout(() => enfocarPrimerCampo(lista), 0);
+    const primero = lista.some((error) => error.indice < 0) ? null : primerErrorDelDocumento(actual.contenido, lista);
+    if (!primero) return void setTimeout(() => enfocarPrimerCampo(lista), 0);
+    // Un error en un elemento: se selecciona, se abre su panel y el foco va al campo con el error.
+    acciones.current?.seleccionarBloque(primero.bloqueId);
+    setPestania('elemento');
+    setHojaAbierta(true);
+    setTimeout(() => enfocarPrimerCampo([primero.error]), 120);
   }
 
   async function guardar() {
@@ -240,6 +298,9 @@ export function EditorArticulo({
     if (!cargada) return;
     despachar({ tipo: 'adoptar_vigente', articulo: cargada });
     setReinicio((n) => n + 1);
+    setSeleccion({ tipo: 'texto' });
+    setElemento(null);
+    setHojaAbierta(false);
     setConflicto(false);
     setVerVigente(false);
     setErrores([]);
@@ -276,7 +337,7 @@ export function EditorArticulo({
         {verVigente && vigente && <ComparacionVersiones propia={actual} vigente={vigente} />}
 
         <fieldset disabled={reemplazando} className="contents">
-          <div className="grid gap-panel-seccion lg:grid-cols-[1fr_20rem]">
+          <div className="grid gap-panel-seccion xl:grid-cols-[1fr_var(--container-panel-propiedades)]">
             <div className="flex min-w-0 flex-col gap-panel-seccion">
               <CampoFormulario etiqueta="Título" id="campo-titulo" error={errorTitulo}>
                 {(a) => (
@@ -328,13 +389,15 @@ export function EditorArticulo({
                   errores={erroresDeElementos}
                   alCambiar={alCambiarContenido}
                   alSeleccionar={alSeleccionar}
+                  alPropiedades={alPropiedades}
+                  acciones={acciones}
                   anunciar={setAnuncio}
                   bloqueado={reemplazando}
                 />
               </section>
             </div>
 
-            <div className="flex flex-col gap-panel-seccion">
+            <div className="flex min-w-0 flex-col gap-panel-seccion xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:self-start xl:overflow-y-auto">
               {id && (
                 <InfoPublicacion
                   slug={estado.guardado.slug}
@@ -343,86 +406,172 @@ export function EditorArticulo({
                   publicadoEn={publicacion.publicado_en}
                 />
               )}
-              <section aria-labelledby="titulo-taxonomias" className="flex flex-col gap-4">
-                <TituloSeccion id="titulo-taxonomias">Taxonomías</TituloSeccion>
-                <CampoFormulario etiqueta="Categoría" id="campo-categoria">
-                  {(a) => (
-                    <Select
-                      {...a}
-                      value={actual.categoria_id ?? ''}
-                      onChange={(e) =>
-                        despachar({
-                          tipo: 'campo',
-                          campo: 'categoria_id',
-                          valor: e.target.value === '' ? null : e.target.value,
-                        })
-                      }
+              {anchoDeEscritorio && (
+                <div
+                  role="tablist"
+                  aria-label="Panel del artículo"
+                  className="flex gap-1 border-b border-separador"
+                  onKeyDown={(evento) => {
+                    if (evento.key !== 'ArrowRight' && evento.key !== 'ArrowLeft') return;
+                    evento.preventDefault();
+                    const siguiente = pestania === 'articulo' ? 'elemento' : 'articulo';
+                    setPestania(siguiente);
+                    document.getElementById(`pestana-${siguiente}`)?.focus();
+                  }}
+                >
+                  {(['articulo', 'elemento'] as const).map((clave) => (
+                    <button
+                      key={clave}
+                      id={`pestana-${clave}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={pestania === clave}
+                      aria-controls={`panel-${clave}`}
+                      tabIndex={pestania === clave ? 0 : -1}
+                      onClick={() => setPestania(clave)}
+                      className={cn(
+                        'min-h-(--tactil-min) border-b-2 px-4 font-titulos font-semibold',
+                        pestania === clave ? 'border-marca text-marca' : 'border-transparent text-texto-suave',
+                      )}
                     >
-                      <option value="">Sin categoría</option>
-                      {categorias.map((categoria) => (
-                        <option key={categoria.id} value={categoria.id}>
-                          {categoria.nombre}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </CampoFormulario>
-
-                <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
-                  <legend className="px-1 font-semibold">Etiquetas</legend>
-                  {etiquetas.length === 0 && <p className="text-sm text-texto-suave">Todavía no hay etiquetas.</p>}
-                  {etiquetas.map((etiqueta) => (
-                    <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
-                      <Checkbox
-                        checked={actual.etiquetas.includes(etiqueta.id)}
+                      {clave === 'articulo' ? 'Artículo' : 'Elemento'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div
+                id="panel-articulo"
+                role={anchoDeEscritorio ? 'tabpanel' : undefined}
+                aria-labelledby={anchoDeEscritorio ? 'pestana-articulo' : undefined}
+                hidden={anchoDeEscritorio && pestania !== 'articulo'}
+                className="flex flex-col gap-panel-seccion"
+              >
+                <section aria-labelledby="titulo-taxonomias" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-taxonomias">Taxonomías</TituloSeccion>
+                  <CampoFormulario etiqueta="Categoría" id="campo-categoria">
+                    {(a) => (
+                      <Select
+                        {...a}
+                        value={actual.categoria_id ?? ''}
                         onChange={(e) =>
                           despachar({
                             tipo: 'campo',
-                            campo: 'etiquetas',
-                            valor: e.target.checked
-                              ? [...actual.etiquetas, etiqueta.id]
-                              : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
+                            campo: 'categoria_id',
+                            valor: e.target.value === '' ? null : e.target.value,
                           })
                         }
-                      />
-                      <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
-                    </label>
-                  ))}
-                </fieldset>
-              </section>
+                      >
+                        <option value="">Sin categoría</option>
+                        {categorias.map((categoria) => (
+                          <option key={categoria.id} value={categoria.id}>
+                            {categoria.nombre}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </CampoFormulario>
 
-              <section aria-labelledby="titulo-buscadores" className="flex flex-col gap-4">
-                <TituloSeccion id="titulo-buscadores">Para buscadores</TituloSeccion>
-                <CampoFormulario
-                  etiqueta="Título SEO"
-                  id="campo-titulo-seo"
-                  ayuda="Si lo dejas vacío, se usa el título."
+                  <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
+                    <legend className="px-1 font-semibold">Etiquetas</legend>
+                    {etiquetas.length === 0 && <p className="text-sm text-texto-suave">Todavía no hay etiquetas.</p>}
+                    {etiquetas.map((etiqueta) => (
+                      <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
+                        <Checkbox
+                          checked={actual.etiquetas.includes(etiqueta.id)}
+                          onChange={(e) =>
+                            despachar({
+                              tipo: 'campo',
+                              campo: 'etiquetas',
+                              valor: e.target.checked
+                                ? [...actual.etiquetas, etiqueta.id]
+                                : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
+                            })
+                          }
+                        />
+                        <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </section>
+
+                <section aria-labelledby="titulo-buscadores" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-buscadores">Para buscadores</TituloSeccion>
+                  <CampoFormulario
+                    etiqueta="Título SEO"
+                    id="campo-titulo-seo"
+                    ayuda="Si lo dejas vacío, se usa el título."
+                  >
+                    {(a) => (
+                      <Input
+                        {...a}
+                        value={actual.titulo_seo ?? ''}
+                        onChange={(e) =>
+                          despachar({ tipo: 'campo', campo: 'titulo_seo', valor: vacioANulo(e.target.value) })
+                        }
+                      />
+                    )}
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Descripción SEO" id="campo-descripcion-seo">
+                    {(a) => (
+                      <Textarea
+                        {...a}
+                        value={actual.descripcion_seo ?? ''}
+                        onChange={(e) =>
+                          despachar({ tipo: 'campo', campo: 'descripcion_seo', valor: vacioANulo(e.target.value) })
+                        }
+                      />
+                    )}
+                  </CampoFormulario>
+                </section>
+              </div>
+              {anchoDeEscritorio && (
+                <div
+                  id="panel-elemento"
+                  role="tabpanel"
+                  aria-labelledby="pestana-elemento"
+                  hidden={pestania !== 'elemento'}
+                  data-panel-propiedades
                 >
-                  {(a) => (
-                    <Input
-                      {...a}
-                      value={actual.titulo_seo ?? ''}
-                      onChange={(e) =>
-                        despachar({ tipo: 'campo', campo: 'titulo_seo', valor: vacioANulo(e.target.value) })
-                      }
-                    />
-                  )}
-                </CampoFormulario>
-                <CampoFormulario etiqueta="Descripción SEO" id="campo-descripcion-seo">
-                  {(a) => (
-                    <Textarea
-                      {...a}
-                      value={actual.descripcion_seo ?? ''}
-                      onChange={(e) =>
-                        despachar({ tipo: 'campo', campo: 'descripcion_seo', valor: vacioANulo(e.target.value) })
-                      }
-                    />
-                  )}
-                </CampoFormulario>
-              </section>
+                  <PropiedadesDelElemento
+                    variante="lateral"
+                    seleccion={seleccion}
+                    posicion={elemento?.posicion ?? 0}
+                    indice={elemento?.indice ?? -1}
+                    errores={errores.filter((error) => error.indice === elemento?.indice)}
+                    alCambiar={alCambiarElemento}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </fieldset>
+
+        {!anchoDeEscritorio && hojaAbierta && elemento && seleccion.tipo === 'elementos' && (
+          <div
+            data-panel-propiedades
+            style={{ bottom: altoDeLaBarra }}
+            className="sticky z-20 -mx-4 bg-fondo px-4 pt-2 pb-3 md:-mx-8 md:px-8"
+            onKeyDown={(evento) => {
+              if (evento.key !== 'Escape') return;
+              evento.preventDefault();
+              setHojaAbierta(false);
+              acciones.current?.enfocar();
+            }}
+          >
+            <PropiedadesDelElemento
+              variante="hoja"
+              seleccion={seleccion}
+              posicion={elemento.posicion}
+              indice={elemento.indice}
+              errores={errores.filter((error) => error.indice === elemento.indice)}
+              alCambiar={alCambiarElemento}
+              alCerrar={() => {
+                setHojaAbierta(false);
+                acciones.current?.enfocar();
+              }}
+            />
+          </div>
+        )}
 
         <BarraEditor
           id={id}

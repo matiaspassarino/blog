@@ -15,22 +15,33 @@ export type ItemDeInsercion = {
 const conMayuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
 const nombreDe = (tipo: TipoBloque, sufijo = '') => `${conMayuscula(nombreDeTipo(tipo))}${sufijo}`;
 
+const MAXIMO_DE_ELEMENTOS = 200;
+
 /**
- * Inserta un nodo: reemplaza la línea si está vacía o lo pone después del elemento actual. Deja el cursor dentro
- * del nodo nuevo si tiene texto.
+ * Inserta un nodo: reemplaza la línea si está vacía o lo pone después del elemento actual, y deja el foco donde
+ * corresponde (contracts/atajos.md): dentro del elemento de texto, en el párrafo siguiente al separador o, con un
+ * elemento especial, seleccionado y con el panel abierto.
  */
 function insertarElemento(editor: Editor, nodo: JSONContent) {
   const { $from } = editor.state.selection;
   const actual = $from.node(1);
   const inicio = $from.before(1);
   const vacia = actual.type.name === 'paragraph' && actual.content.size === 0;
+  if (!vacia && editor.state.doc.childCount >= MAXIMO_DE_ELEMENTOS) {
+    editor.storage.atributosDelDocumento.anunciar(`Se alcanzó el máximo de ${MAXIMO_DE_ELEMENTOS} elementos`);
+    return;
+  }
   const desde = vacia ? inicio : inicio + actual.nodeSize;
-  editor
-    .chain()
-    .focus()
-    .insertContentAt({ from: desde, to: vacia ? inicio + actual.nodeSize : desde }, nodo)
-    .run();
-  if (nodo.type !== 'horizontalRule' && !nodo.type?.endsWith('Bloque')) editor.commands.setTextSelection(desde + 1);
+  const especial = nodo.type?.endsWith('Bloque') ?? false;
+  if (especial) editor.storage.atributosDelDocumento.abrirPanel = 'foco';
+  else if (nodo.type === 'codeBlock') editor.storage.atributosDelDocumento.abrirPanel = 'pestana';
+  // Un elemento especial no lleva el foco al lienzo: el foco es del primer campo de su panel.
+  const cadena = especial ? editor.chain() : editor.chain().focus();
+  cadena.insertContentAt({ from: desde, to: vacia ? inicio + actual.nodeSize : desde }, nodo).run();
+  if (especial) editor.commands.setNodeSelection(desde);
+  else if (nodo.type === 'horizontalRule')
+    editor.commands.setTextSelection(Math.min(desde + 1, editor.state.doc.content.size - 1));
+  else editor.commands.setTextSelection(desde + 1);
 }
 
 const lista = (type: 'bulletList' | 'orderedList'): JSONContent => ({

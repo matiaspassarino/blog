@@ -14,6 +14,13 @@
   color: var(--color-texto-suave);
 }
 
+/* Con la hoja de propiedades abierta, el elemento seleccionado queda a la vista por encima de ella. */
+.lienzo-documento .ProseMirror-selectednode {
+  scroll-margin-top: 6rem;
+  /* La hoja (como mucho 45 dvh) se apila sobre la barra fija del artículo (hasta 8 rem). */
+  scroll-margin-bottom: calc(var(--alto-hoja-propiedades) + 8rem);
+}
+
 body {
   background: var(--color-fondo);
   color: var(--color-texto);

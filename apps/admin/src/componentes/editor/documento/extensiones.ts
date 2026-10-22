@@ -11,7 +11,7 @@ import {
   type AnyExtension,
   type Editor,
 } from '@tiptap/core';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, PluginKey, Selection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   CLASES_CITA,
@@ -32,7 +32,14 @@ import Suggestion from '@tiptap/suggestion';
 import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
-import { NodoBloque } from './NodoBloque';
+import { claveErrores } from './claves';
+import { NodoBloque } from './nodos/NodoBloque';
+
+declare module '@tiptap/core' {
+  interface Storage {
+    atributosDelDocumento: { abrirPanel: false | 'foco' | 'pestana'; anunciar: (mensaje: string) => void };
+  }
+}
 
 const TIPOS_CON_ID = [
   'paragraph',
@@ -52,20 +59,29 @@ const TIPOS_CON_ID = [
 export const esEnlacePermitido = (url: string) => /^https:\/\/[^\s/]+\.\S+$/.test(url) || /^\/(?!\/)\S*$/.test(url);
 
 /** Atributos propios: la identidad de cada elemento y los campos que el panel edita (no viajan por el portapapeles). */
-const AtributosDelDocumento = Extension.create({
-  name: 'atributosDelDocumento',
-  addGlobalAttributes() {
-    return [
-      { types: TIPOS_CON_ID, attributes: { bloqueId: { default: '', keepOnSplit: false, rendered: false } } },
-      { types: ['paragraph'], attributes: { continuacion: { default: '', keepOnSplit: false, rendered: false } } },
-      {
-        types: ['blockquote'],
-        attributes: { autor: { default: '', rendered: false }, fuente: { default: '', rendered: false } },
-      },
-      { types: ['codeBlock'], attributes: { lenguaje: { default: '', rendered: false } } },
-    ];
-  },
-});
+const atributosDelDocumento = (devoluciones: DevolucionesDelEditor) =>
+  Extension.create({
+    name: 'atributosDelDocumento',
+    addStorage() {
+      return {
+        /** Lo pone «Insertar» al crear un elemento especial: la próxima selección abre el panel y le da el foco. */
+        abrirPanel: false,
+        /** Anuncios para la región de estado (los pone el componente). */
+        anunciar: devoluciones.anunciar,
+      };
+    },
+    addGlobalAttributes() {
+      return [
+        { types: TIPOS_CON_ID, attributes: { bloqueId: { default: '', keepOnSplit: false, rendered: false } } },
+        { types: ['paragraph'], attributes: { continuacion: { default: '', keepOnSplit: false, rendered: false } } },
+        {
+          types: ['blockquote'],
+          attributes: { autor: { default: '', rendered: false }, fuente: { default: '', rendered: false } },
+        },
+        { types: ['codeBlock'], attributes: { lenguaje: { default: '', rendered: false } } },
+      ];
+    },
+  });
 
 /** Código en línea que admite negrita, cursiva y enlace adentro, como el sitio (la marca de la librería las excluye). */
 const CodigoEnLinea = Mark.create({
@@ -253,6 +269,92 @@ const AsignarIds = Extension.create({
   },
 });
 
+/** Errores de validación por `bloqueId`: marcan el elemento en el lienzo, con texto, no solo con color. */
+
+const MarcasDeError = Extension.create({
+  name: 'marcasDeError',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: claveErrores,
+        state: {
+          init: () => new Map<string, string[]>(),
+          apply: (tr, anterior) => tr.getMeta(claveErrores) ?? anterior,
+        },
+        props: {
+          decorations(estado) {
+            const errores = claveErrores.getState(estado);
+            if (!errores || errores.size === 0) return DecorationSet.empty;
+            const decoraciones: Decoration[] = [];
+            estado.doc.forEach((nodo, desplazamiento) => {
+              const mensajes = errores.get(String(nodo.attrs.bloqueId));
+              if (!mensajes) return;
+              decoraciones.push(
+                Decoration.node(
+                  desplazamiento,
+                  desplazamiento + nodo.nodeSize,
+                  { class: 'rounded-md outline-2 outline-offset-4 outline-error', 'data-con-error': 'si' },
+                  { errores: mensajes },
+                ),
+              );
+            });
+            return DecorationSet.create(estado.doc, decoraciones);
+          },
+        },
+      }),
+    ];
+  },
+});
+
+/** Modo elementos: `Esc` selecciona el elemento entero (sin escribir en él), `Enter` abre sus propiedades. */
+const claveModo = new PluginKey<boolean>('modoElementos');
+
+function modoElementos(devoluciones: DevolucionesDelEditor) {
+  return Extension.create({
+    name: 'modoElementos',
+    priority: 900,
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: claveModo,
+          state: {
+            init: () => false,
+            apply: (tr, anterior) => tr.getMeta(claveModo) ?? (tr.selectionSet || tr.docChanged ? false : anterior),
+          },
+        }),
+      ];
+    },
+    addKeyboardShortcuts() {
+      return {
+        Escape: ({ editor }) => {
+          if (devoluciones.menuAbierto()) return false;
+          const { doc, selection, tr } = editor.state;
+          if (claveModo.getState(editor.state)) {
+            // Volver al texto: el cursor queda dentro del elemento (o en el siguiente texto, si es un elemento especial).
+            const inicio = selection.from;
+            const nodo = selection instanceof NodeSelection ? selection.node : null;
+            const destino = nodo?.isAtom
+              ? Selection.near(doc.resolve(inicio + nodo.nodeSize), 1)
+              : Selection.near(doc.resolve(inicio + 1));
+            editor.view.dispatch(tr.setSelection(destino).setMeta(claveModo, false));
+            return true;
+          }
+          const { $from } = selection;
+          if ($from.depth === 0 && !(selection instanceof NodeSelection)) return false;
+          const pos = selection instanceof NodeSelection ? selection.from : $from.before(1);
+          editor.view.dispatch(tr.setSelection(NodeSelection.create(doc, pos)).setMeta(claveModo, true));
+          return true;
+        },
+        Enter: ({ editor }) => {
+          if (!claveModo.getState(editor.state)) return false;
+          devoluciones.alPropiedades();
+          return true;
+        },
+      };
+    },
+  });
+}
+
 function nodoEspecial(name: string) {
   return Node.create({
     name,
@@ -279,6 +381,12 @@ export type EstadoMenu = {
 };
 
 export type DevolucionesDelEditor = {
+  /** Anuncios para la región de estado persistente. */
+  anunciar: (mensaje: string) => void;
+  /** Si el menú «/» está abierto: `Esc` lo cierra antes de entrar al modo elementos. */
+  menuAbierto: () => boolean;
+  /** `Enter` en el modo elementos: abrir las propiedades del elemento. */
+  alPropiedades: () => void;
   /** Abre, actualiza (con el estado nuevo) o cierra (con `null`) el menú «/». */
   alMenu: (estado: EstadoMenu | null) => void;
   /** Teclas con el menú «/» abierto: devuelve `true` si las atendió. */
@@ -372,7 +480,7 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
     Cita,
     ItemDeLista,
     CodigoEnLinea,
-    AtributosDelDocumento,
+    atributosDelDocumento(devoluciones),
     Tipografia,
     ReglasDeTexto,
     AsignarIds,
@@ -385,6 +493,8 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
         node.type.name === 'paragraph' && editor.state.doc.childCount > 0 ? textoDeLineaVacia() : '',
       showOnlyCurrent: true,
     }),
+    MarcasDeError,
+    modoElementos(devoluciones),
     menuBarra(devoluciones),
     anunciarAtajos(devoluciones),
   ];

@@ -27,7 +27,13 @@ import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { MenuInsertar } from './MenuInsertar';
 import type { SeleccionDelDocumento } from './tipos';
 
-type Props = { editor: Editor | null; deshabilitada: boolean; seleccion: SeleccionDelDocumento };
+type Props = {
+  editor: Editor | null;
+  deshabilitada: boolean;
+  seleccion: SeleccionDelDocumento;
+  /** Abre el panel de propiedades del elemento seleccionado. */
+  alPropiedades?: () => void;
+};
 
 type Estilo = { nombre: string; activo: (editor: Editor) => boolean; aplicar: (editor: Editor) => void };
 
@@ -149,7 +155,7 @@ type ControlProps = {
   onPointerDown: (evento: React.PointerEvent) => void;
 };
 
-export function BarraHerramientas({ editor, deshabilitada, seleccion }: Props) {
+export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropiedades }: Props) {
   const barra = useRef<HTMLDivElement>(null);
   const idInsertar = useId();
   const idEnlace = useId();
@@ -252,8 +258,9 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion }: Props) {
     </Button>
   );
 
-  const enModoElementos = seleccion.tipo === 'elementos';
   const cantidad = seleccion.tipo === 'elementos' ? seleccion.hasta - seleccion.desde : 0;
+  // Con un solo elemento seleccionado no hace falta el conteo: se anuncia y el panel lo muestra.
+  const enModoElementos = cantidad > 1;
   const deshacerYRehacer: ReactNode[] = [
     boton('deshacer', 'Deshacer', 'deshacer', (e) => e.chain().focus().undo().run(), {}, !estado.puedeDeshacer),
     boton('rehacer', 'Rehacer', 'rehacer', (e) => e.chain().focus().redo().run(), {}, !estado.puedeRehacer),
@@ -351,6 +358,16 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion }: Props) {
             />
           )}
         </div>
+        {seleccion.tipo === 'elementos' &&
+          seleccion.bloques.length === 1 &&
+          seleccion.bloques[0]?.tipo !== 'parrafo' &&
+          seleccion.bloques[0]?.tipo !== 'separador' &&
+          alPropiedades && (
+            <Button variante="terciaria" tamanio="compacto" onClick={alPropiedades} {...ctl('propiedades')}>
+              <Icono nombre="propiedades" />
+              Propiedades
+            </Button>
+          )}
         {/* Las acciones sobre los elementos (mover, duplicar, quitar) llegan con la Historia 3. */}
         <Button
           variante="terciaria"

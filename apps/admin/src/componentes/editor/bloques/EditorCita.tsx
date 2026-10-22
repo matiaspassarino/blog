@@ -1,20 +1,21 @@
 'use client';
 
 import { CampoTexto } from '../CampoBloque';
-import { TextoConMarcas } from '../TextoConMarcas';
 import type { PropsEditorBloque } from './tipos';
 
-export function EditorCita({ bloque, indice, errores, cambiar }: PropsEditorBloque<'cita'>) {
+export function EditorCita({ bloque, indice, errores, cambiar, soloPropiedades }: PropsEditorBloque<'cita'>) {
   return (
     <>
-      <TextoConMarcas
-        indice={indice}
-        campo="texto"
-        etiqueta="Texto"
-        valor={bloque.texto}
-        alCambiar={(texto) => cambiar({ texto })}
-        errores={errores}
-      />
+      {!soloPropiedades && (
+        <CampoTexto
+          indice={indice}
+          campo="texto"
+          etiqueta="Texto"
+          errores={errores}
+          valor={bloque.texto}
+          alCambiar={(texto) => cambiar({ texto })}
+        />
+      )}
       <CampoTexto
         indice={indice}
         campo="autor"

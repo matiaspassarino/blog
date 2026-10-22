@@ -215,7 +215,12 @@ describe('acción "contenido" del reductor (spec 005)', () => {
     const estado = reductor(inicial, accionContenido([]));
 
     expect(estado.guardado).toEqual(inicial.guardado);
-    expect(estado.datos).toMatchObject({ titulo: 'Título original', slug: 'titulo-original', version: 3, etiquetas: ['e1'] });
+    expect(estado.datos).toMatchObject({
+      titulo: 'Título original',
+      slug: 'titulo-original',
+      version: 3,
+      etiquetas: ['e1'],
+    });
     expect(estado.slugManual).toBe(inicial.slugManual);
   });
 

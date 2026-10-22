@@ -7,7 +7,6 @@ import { EditorCta } from './EditorCta';
 import { EditorGaleria } from './EditorGaleria';
 import { EditorImagen } from './EditorImagen';
 import { EditorLista } from './EditorLista';
-import { EditorParrafo } from './EditorParrafo';
 import { EditorSeparador } from './EditorSeparador';
 import { EditorTitulo } from './EditorTitulo';
 import type { CambiosDeBloque } from './tipos';
@@ -18,15 +17,17 @@ type Props = {
   indice: number;
   errores: ErrorBloque[];
   cambiar: (cambios: CambiosDeBloque) => void;
+  /** En el panel de propiedades los elementos de texto no repiten su texto (se escribe en el lienzo). */
+  soloPropiedades?: boolean;
 };
 
 /** Elige el editor según el tipo; cada uno conoce solo los campos de su tipo. */
-export function EditorDeBloque({ bloque, indice, errores, cambiar }: Props) {
+export function EditorDeBloque({ bloque, indice, errores, cambiar, soloPropiedades }: Props) {
   // Cada editor recibe `cambiar` acotado a su tipo: el cast es seguro porque el bloque ya es de ese tipo.
-  const comun = { indice, errores, cambiar: cambiar as never };
+  const comun = { indice, errores, cambiar: cambiar as never, soloPropiedades };
   switch (bloque.tipo) {
     case 'parrafo':
-      return <EditorParrafo bloque={bloque} {...comun} />;
+      return null; // el texto se escribe en el lienzo y no tiene más propiedades
     case 'titulo':
       return <EditorTitulo bloque={bloque} {...comun} />;
     case 'imagen':

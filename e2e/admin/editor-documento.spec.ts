@@ -732,7 +732,7 @@ test.describe('Elementos especiales y panel', () => {
     expect(
       await lienzo(page)
         .locator('pre')
-        .evaluate((el) => el.contains(document.activeElement)),
+        .evaluate((el) => el.contains(getSelection()?.anchorNode ?? null)),
     ).toBe(true);
     await page.keyboard.type('const x = 1;');
     await expect(lienzo(page).locator('pre')).toHaveText('const x = 1;');
@@ -926,15 +926,20 @@ test.describe('Elementos especiales y panel: hoja por debajo de 1280 px (H2-E6)'
         await expect(hoja).toHaveAccessibleName('Propiedades del elemento 3, imagen');
         await expect(hoja.getByRole('button', { name: 'Cerrar', exact: true })).toBeVisible();
 
-        // No tapa el elemento seleccionado ni la barra de acciones del artículo.
-        const cajaHoja = (await hoja.boundingBox())!;
-        const cajaIsla = (await isla(page, 'Imagen, 3 de 8').boundingBox())!;
-        expect(cajaIsla.y + cajaIsla.height).toBeLessThanOrEqual(cajaHoja.y + 1);
+        // No tapa el elemento seleccionado ni la barra de acciones del artículo (la hoja se acomoda al abrirse). Un
+        // elemento más alto que el espacio libre sobre la hoja (la imagen mide ~440 px y la hoja ocupa 45 dvh) queda con
+        // su borde superior a la vista: el resto se desplaza.
         const barra = page.getByRole('group', { name: 'Acciones del artículo' });
-        if (await barra.isVisible()) {
-          const cajaBarra = (await barra.boundingBox())!;
-          expect(cajaHoja.y + cajaHoja.height).toBeLessThanOrEqual(cajaBarra.y + 1);
-        }
+        await expect
+          .poll(async () => {
+            const cajaHoja = (await hoja.boundingBox())!;
+            const cajaIsla = (await isla(page, 'Imagen, 3 de 8').boundingBox())!;
+            const cajaBarra = (await barra.isVisible()) ? (await barra.boundingBox())! : null;
+            const libre = cajaHoja.y - cajaIsla.y;
+            const aLaVista = cajaIsla.y >= 0 && (libre >= cajaIsla.height - 1 || libre >= 120);
+            return aLaVista && (cajaBarra === null || cajaHoja.y + cajaHoja.height <= cajaBarra.y + 1);
+          })
+          .toBe(true);
 
         await hoja.getByRole('button', { name: 'Cerrar', exact: true }).click();
         await expect(panelDePropiedades(page)).toHaveCount(0);

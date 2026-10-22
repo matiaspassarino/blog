@@ -5,7 +5,7 @@ import type { PropsEditorBloque } from './tipos';
 
 const NIVELES = [2, 3, 4].map((nivel) => ({ valor: String(nivel), texto: `Nivel ${nivel}` }));
 
-export function EditorTitulo({ bloque, indice, errores, cambiar }: PropsEditorBloque<'titulo'>) {
+export function EditorTitulo({ bloque, indice, errores, cambiar, soloPropiedades }: PropsEditorBloque<'titulo'>) {
   return (
     <>
       <CampoSelect
@@ -17,14 +17,16 @@ export function EditorTitulo({ bloque, indice, errores, cambiar }: PropsEditorBl
         valor={String(bloque.nivel)}
         alCambiar={(nivel) => cambiar({ nivel: Number(nivel) as 2 | 3 | 4 })}
       />
-      <CampoTexto
-        indice={indice}
-        campo="texto"
-        etiqueta="Texto"
-        errores={errores}
-        valor={bloque.texto}
-        alCambiar={(texto) => cambiar({ texto })}
-      />
+      {!soloPropiedades && (
+        <CampoTexto
+          indice={indice}
+          campo="texto"
+          etiqueta="Texto"
+          errores={errores}
+          valor={bloque.texto}
+          alCambiar={(texto) => cambiar({ texto })}
+        />
+      )}
     </>
   );
 }

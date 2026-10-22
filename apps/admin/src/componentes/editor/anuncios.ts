@@ -45,9 +45,11 @@ const articuloIndefinido = (tipo: TipoBloque) => (TIPOS_FEMENINOS.includes(tipo)
 export const anuncioInsertado = (tipo: TipoBloque, posicion: number, total: number) =>
   `Se insertó ${articuloIndefinido(tipo)} ${nombreDeTipo(tipo)} en la posición ${posicion} de ${total}`;
 
-export const anuncioMovido = (posicion: number, total: number) => `Elemento movido a la posición ${posicion} de ${total}`;
+export const anuncioMovido = (posicion: number, total: number) =>
+  `Elemento movido a la posición ${posicion} de ${total}`;
 
-export const anuncioDuplicado = (posicion: number, total: number) => `Elemento duplicado, posición ${posicion} de ${total}`;
+export const anuncioDuplicado = (posicion: number, total: number) =>
+  `Elemento duplicado, posición ${posicion} de ${total}`;
 
 export const anuncioQuitado = (cantidad: number) =>
   `${cantidad === 1 ? 'Elemento quitado' : `${cantidad} elementos quitados`}. Pulsa Ctrl+Z para deshacer`;

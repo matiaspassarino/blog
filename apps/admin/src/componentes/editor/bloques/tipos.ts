@@ -13,4 +13,6 @@ export type PropsEditorBloque<T extends TipoBloque> = {
   errores: ErrorBloque[];
   /** Mezcla estos campos en el bloque (o los que devuelva la función); el id y el tipo no cambian. */
   cambiar: (cambios: Partial<BloqueDe<T>> | ((bloque: BloqueDe<T>) => Partial<BloqueDe<T>>)) => void;
+  /** En el panel de propiedades: el texto se escribe en el lienzo y acá solo quedan los demás campos. */
+  soloPropiedades?: boolean;
 };
