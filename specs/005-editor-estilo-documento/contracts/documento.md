@@ -1,67 +1,91 @@
-# Contrato: correspondencia entre el documento y los bloques
+# Contrato: el documento guardado (lista permitida)
 
-**Spec**: RF-004, RF-009, RF-012, RF-015 | **Pruebas**: `documento/conversion.test.ts`, `packages/bloques/src/en-linea.test.ts`, `packages/bloques/src/parrafos.test.ts`
+**Spec**: [../spec.md](../spec.md) (RF-009, RF-022, RF-024, RF-025, RF-028) | **Decisiones**: [../research.md](../research.md) D22 a D27 | **Constitución**: §VI (2.0.0)
 
-Las dos funciones puras que conectan el editor con el contenido guardado. No importan React ni la librería: trabajan con JSON.
+`articulos.contenido` guarda un documento JSON con la forma del de Tiptap/ProseMirror. Este contrato es la **lista permitida**: lo que no figura acá se rechaza. La define una sola vez `esquemaDocumento` (Zod) en `packages/bloques/src/esquema.ts`; las extensiones del editor, el renderer del sitio, la extracción de texto para la búsqueda y la de imágenes en uso se derivan de ella (§VI.3 y §VI.5).
 
-## `analizarEnLinea` y `serializarEnLinea` (`@blog/bloques`) — nuevo
+## Forma general
 
-```ts
-type NodoEnLinea =
-  | { tipo: 'texto'; texto: string }
-  | { tipo: 'negrita' | 'cursiva'; hijos: NodoEnLinea[] }
-  | { tipo: 'codigo'; texto: string }
-  | { tipo: 'enlace'; href: string; hijos: NodoEnLinea[] };
-
-analizarEnLinea(texto: string): NodoEnLinea[]
-serializarEnLinea(nodos: NodoEnLinea[]): string
+```text
+Documento  = { type: "doc", content: Elemento[] }            0 a 200 elementos
+Elemento   = { type, attrs: { id: uuid, ...propios }, content? }
+Texto      = { type: "text", text: string (≥ 1 carácter), marks?: Marca[] }
+Marca      = { type, attrs? }
 ```
 
-- `analizarEnLinea` aplica las reglas de hoy de `TextoEnLinea`: `**negrita**`, `_cursiva_` (no abre dentro de una palabra), `` `código` `` y `[texto](url)` (la URL balancea paréntesis); el interior de negrita y cursiva no empieza ni termina con espacio; una marca sin cerrar queda como texto.
-- `serializarEnLinea(analizarEnLinea(x)) === x` para todo `x` (la salida del analizador siempre se serializa de vuelta).
-- `normalizarMarcas(nodos)` deja el árbol en una forma que el sitio sabe leer: mueve los espacios de los bordes fuera del marcador (`**palabra **` → `**palabra** `), parte las marcas que se cruzan en tramos bien anidados y degrada a texto plano lo que la gramática no puede expresar (cursiva a mitad de palabra, código que contiene una comilla invertida, etiqueta de enlace con `](`). Para todo árbol `n`: `analizarEnLinea(serializarEnLinea(n))` es igual a `normalizarMarcas(n)`.
-- Texto plano que al serializarse se volvería a leer como marca: se inserta U+200B después del primer carácter de la marca (research D3). Solo afecta a texto que **no** viene del analizador.
-- `TextoEnLinea` y `textoPlano` usan este árbol; la salida HTML del sitio no cambia.
+- **Nombres**: los nodos y marcas que trae la librería conservan su nombre (`paragraph`, `heading`, `bold`…), que §XII admite como términos del framework; los nodos propios tienen nombre en español (`imagen`, `galeria`, `cta`, `video`). Los atributos propios van en español (`autor`, `fuente`, `lenguaje`, `descripcion`); los de la librería, con su nombre (`level`, `textAlign`, `colspan`, `rowspan`, `href`).
+- **Forma canónica** (D24): sin atributos `null` ni con su valor por defecto, sin `marks: []`, sin `content: []` salvo en el documento vacío, sin nodos de texto vacíos, sin dos textos contiguos con las mismas marcas y con las marcas en el orden de la tabla de marcas. `normalizarDocumento` la produce y es idempotente; el servidor guarda lo que el editor envía ya normalizado y lo valida estricto (objetos `strict`: una clave de más es un error).
+- **Sin párrafos vacíos en el primer nivel**: un `paragraph` sin texto de primer nivel no se guarda (como hoy, un párrafo vacío no era un bloque). Dentro de una celda sí puede haber un párrafo vacío (una celda vacía es un `paragraph` sin `content`).
 
-## `partirParrafos` y `unirParrafos` (`@blog/bloques`) — nuevos
+## Elementos (primer nivel)
 
-```ts
-partirParrafos(texto: string): { texto: string; separador: string }[]   // el separador es la secuencia exacta de saltos de línea que sigue al tramo anterior ("" en el primero)
-unirParrafos(tramos: { texto: string; separador: string }[]): string
+| `type` | `attrs` propios | `content` | Límites y reglas |
+|---|---|---|---|
+| `paragraph` | `textAlign?` | Inline | 1 a 5000 caracteres de texto (sin contar marcas); `hardBreak` permitido |
+| `heading` | `level` (2, 3 o 4), `textAlign?` | Inline sin `hardBreak` | 1 a 150 caracteres |
+| `bulletList`, `orderedList` | — | 1 a 50 `listItem`, cada uno con **un** `paragraph` (sin `textAlign`) | 1 a 500 caracteres por ítem; sin anidar |
+| `blockquote` | `autor?` (1 a 120), `fuente?` (URL https) | **un** `paragraph` (sin `textAlign`) | 1 a 1000 caracteres |
+| `codeBlock` | `lenguaje?` (`^[a-z0-9+#-]{1,20}$`) | 0 o 1 `text` **sin marcas** | 0 a 20 000 caracteres |
+| `horizontalRule` | — | — | — |
+| `table` | `descripcion?` (1 a 150) | 1 a 50 `tableRow` | Ver "Tablas" |
+| `imagen` | `imagen` (`esquemaImagen`), `leyenda?` (0 a 300) | — | Como el bloque `imagen` de hoy |
+| `galeria` | `imagenes` (2 a 24 de `esquemaImagen`), `columnas` (2, 3 o 4) | — | Como el bloque `galeria` de hoy |
+| `cta` | `titulo`, `texto?`, `etiquetaBoton`, `url`, `variante?` | — | Como el bloque `cta` de hoy |
+| `video` | `proveedor`, `idVideo`, `titulo` | — | Como el bloque `video` de hoy |
+
+Todos los elementos llevan `attrs.id` (uuid), único en el documento. Los esquemas de los campos de `imagen`, `galeria`, `cta`, `video`, de la cita (`autor`, `fuente`), del nivel de título y del lenguaje de código **son los mismos de hoy** (se reutilizan, no se copian): sus mensajes de error no cambian.
+
+`textAlign` admite `"center"`, `"right"` o `"justify"`; la izquierda es la ausencia del atributo (nunca se guarda `"left"`).
+
+## Inline
+
+`Inline` = secuencia de `Texto` y `{ type: "hardBreak" }` (solo en `paragraph` y en los párrafos de las celdas).
+
+| Marca | `attrs` | Reglas |
+|---|---|---|
+| `link` | `href` | `hrefSeguro` de hoy (ruta interna, `http(s)://` o `mailto:`); sin `target`, `rel` ni `class` guardados |
+| `bold`, `italic`, `underline`, `strike` | — | Se combinan entre sí y con `link` y `highlight` |
+| `highlight` | — | Un solo color, el del sitio (sin `color`) |
+| `code` | — | **Excluye** cualquier otra marca en el mismo texto |
+| `superscript`, `subscript` | — | Se excluyen entre sí |
+
+Orden canónico de las marcas en `marks`: `link`, `bold`, `italic`, `underline`, `strike`, `highlight`, `code`, `superscript`, `subscript`.
+
+## Tablas
+
+```text
+table      = { type: "table", attrs: { id, descripcion? }, content: tableRow[] }
+tableRow   = { type: "tableRow", content: (tableHeader | tableCell)[] }
+celda      = { type: "tableHeader" | "tableCell", attrs?: { colspan?, rowspan? }, content: paragraph[] }
 ```
 
-- `unirParrafos(partirParrafos(x)) === x` para todo `x`, incluidos `A\n\n\nB`, `A\n\n` y tramos de solo espacios. `Parrafo.tsx` los usa (y descarta al pintar los tramos en blanco, como hoy).
+- **Cuadrícula regular**: sumando `colspan` y `rowspan`, todas las filas cubren el mismo número de columnas (1 a 10) y ninguna celda se superpone ni queda un hueco. `colspan` y `rowspan` ≥ 2 cuando están (1 es la ausencia).
+- **Fila de encabezado**: es la primera fila cuando **todas** sus celdas son `tableHeader`. `tableHeader` solo puede estar en la primera fila (no hay columna de encabezado). Una celda combinada no puede abarcar la fila de encabezado y el cuerpo (`rowspan` de un `tableHeader` = 1).
+- **Celdas**: 1 o más `paragraph` sin `textAlign`; hasta 1000 caracteres en total por celda (todos sus párrafos); una celda puede estar vacía (`paragraph` sin `content`). Sin listas, imágenes ni otros elementos.
+- **Publicar**: una tabla sin texto en ninguna celda es un error al publicar ("La tabla no tiene contenido"); un borrador la admite.
+- No se guardan anchos de columna (`colwidth`): el sitio reparte el ancho.
 
-## `bloquesADocumento(contenido): JSONContent`
+## Errores
 
-Devuelve `{ type: 'doc', content: [...] }`. Siempre hay al menos un párrafo (un contenido vacío da un párrafo vacío).
+`validarDocumento(doc)` devuelve `ErrorElemento[]` = `{ indice, id, campo, mensaje }`: `indice` es la posición del elemento en `content` (desde 0; −1 para la imagen destacada, como hoy), `id` su `attrs.id` y `campo` un nombre estable (`texto`, `imagen.alt`, `celda.2.3`, `descripcion`…) que `nombreDeCampo` traduce a palabras de la persona ("Celda de la fila 2, columna 3"). El editor marca el elemento por `id`.
 
-| Bloque | Resultado |
+## Base de datos (forma mínima, §VI.4)
+
+`privado.contenido_valido(contenido)` comprueba solo la forma: objeto con `type = 'doc'`, `content` arreglo de hasta 200 objetos con `type` dentro de `privado.tipos_elemento()` y `attrs.id` de tipo texto. El detalle lo valida el servidor con `esquemaDocumento` antes de guardar. Ver [../data-model.md](../data-model.md).
+
+## Correspondencia con el formato anterior (solo para la conversión)
+
+La conversión (D25) usa `bloquesADocumento` y `documentoABloques`, que ya existen en `apps/admin/src/componentes/editor/documento/conversion.ts` con sus pruebas de ida y vuelta, adaptados a esta forma:
+
+| Bloque anterior | Elemento |
 |---|---|
-| `parrafo` con `texto` | `paragraph` por cada tramo de `partirParrafos`; el primero con `bloqueId = id`, los siguientes con `bloqueId = id` y `continuacion = <separador exacto>`; los saltos simples pasan a `hardBreak`; el texto de cada tramo pasa por `analizarEnLinea` → `text` con marcas `bold`, `italic`, `code`, `link`; un tramo vacío es un `paragraph` sin hijos (ProseMirror no admite `text` vacío) y uno de solo espacios conserva ese texto |
-| `titulo` | `heading` con `level` y el texto sin marcas |
-| `cita` | `blockquote` con `autor`, `fuente` y un `paragraph` con el texto en línea |
-| `lista` | `bulletList` u `orderedList`; cada ítem es un `listItem` con un `paragraph` en línea |
-| `codigo` | `codeBlock` con `lenguaje` y el texto sin marcas |
+| `parrafo` (un tramo por cada línea en blanco; salto simple = `hardBreak`) | uno o más `paragraph`; el primero conserva el `id` del bloque y los siguientes reciben uno derivado (`uuid v5` del id y el número de tramo, así la conversión es repetible) |
+| `titulo` | `heading` con `level` |
+| `cita` | `blockquote` con `autor` y `fuente` |
+| `lista` | `bulletList` u `orderedList` |
+| `codigo` | `codeBlock` con `lenguaje` |
 | `separador` | `horizontalRule` |
-| `imagen`, `galeria`, `cta`, `video` | nodo del mismo nombre (`imagenBloque`, …) con `bloque` completo |
+| `imagen`, `galeria`, `cta`, `video` | el nodo del mismo nombre con los campos del bloque como `attrs` |
+| `**x**`, `_x_`, `` `x` ``, `[x](u)` | marcas `bold`, `italic`, `code`, `link` (con `analizarEnLinea`, el analizador del sitio de hoy) |
 
-Todos los de primer nivel llevan `bloqueId = bloque.id`.
-
-## `documentoABloques(doc): Contenido`
-
-Inversa de la anterior, nodo por nodo:
-
-- `paragraph`: el texto en línea se normaliza (`normalizarMarcas`) y se serializa con `serializarEnLinea`; los `paragraph` con `continuacion` se unen al bloque anterior con `unirParrafos` y su separador exacto; `hardBreak` → `"\n"`. Un `paragraph` con `continuacion` **vacío** se conserva (aporta el separador). Un párrafo vacío de primer nivel **no genera bloque**, salvo que sea el único del documento (documento vacío → contenido `[]`).
-- `heading`, `blockquote`, listas, `codeBlock`, `horizontalRule` y los nodos especiales: se arman con los campos del esquema (`nivel`, `autor`, `fuente`, `ordenada`, `items`, `codigo`, `lenguaje`, `bloque`).
-- `bloqueId` vacío: no ocurre en el flujo normal, porque el plugin `asignarIds` asigna un uuid una sola vez y deduplica los repetidos; `documentoABloques` es **pura** y falla si encuentra un id vacío (no genera ids, para que sean estables entre transacciones). Los ids existentes se conservan.
-- Campos opcionales vacíos (`autor`, `fuente`, `lenguaje`, `leyenda`) se omiten, como hoy (no se guarda `""`).
-- No valida: la validación es la de `validarEditor`/`esquemaContenido` al guardar.
-
-## Reglas de ida y vuelta
-
-1. Para todo contenido válido `c`: `documentoABloques(bloquesADocumento(c))` es igual a `c` (mismo orden, ids y campos).
-2. Abrir un artículo y no tocarlo no ensucia: el contenido convertido es igual al guardado.
-3. Un párrafo nuevo (Enter) es un bloque nuevo con `id` nuevo (no hereda `bloqueId` ni `continuacion`); dos párrafos pegados son dos bloques; los ids no viajan por el portapapeles, así copiar y pegar nunca duplica ids.
-4. Un ítem de lista o una cita con `\n` guardado se conserva (se muestra como salto de línea en el editor); el editor no ofrece crear saltos simples en ítems ni en citas.
-5. Para todo árbol de marcas `n`, lo que el editor muestra es lo que el sitio mostrará: el editor aplica `normalizarMarcas` al documento (en una transacción sin historial) antes de que el texto llegue a guardarse.
+**Verificación de ida y vuelta**: para cada artículo, `documentoABloques(bloquesADocumento(c))` es igual a `c` (salvo que los tramos de un párrafo vuelven a unirse con su separador exacto) y el texto visible, las anclas de los títulos, las imágenes y los enlaces que muestra el renderer nuevo son los que mostraba el anterior (prueba de caracterización, D26).

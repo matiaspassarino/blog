@@ -2,6 +2,8 @@
 
 **Spec**: RF-001 a RF-008, RF-017, RF-019, RF-020 | **Decisiones**: [research.md](../research.md) | **Modelo**: [data-model.md](../data-model.md) | **Atajos y roles**: [atajos.md](atajos.md)
 
+> **Ampliación (2026-10-22)**: el documento es lo que se guarda. Donde este contrato dice `Contenido`, `Bloque` o `ErrorBloque`, léase `Documento`, `Elemento` y `ErrorElemento` ([documento.md](documento.md)); donde dice `bloqueId`, `id`. Los componentes nuevos de la ampliación están al final.
+
 Interfaces que el plan crea o modifica: qué recibe cada pieza y qué garantiza. El código queda para la implementación. Todo vive en `apps/admin/src/componentes/editor/documento/`, salvo lo que se indica.
 
 ## Disposición de la pantalla del editor
@@ -19,10 +21,10 @@ Interfaces que el plan crea o modifica: qué recibe cada pieza y qué garantiza.
 
 ```ts
 type Props = {
-  contenido: Contenido;                          // lo guardado o lo adoptado; reinicia el documento y el historial al cambiar `reinicio`
+  contenido: Documento;                          // lo guardado o lo adoptado; reinicia el documento y el historial al cambiar `reinicio`
   reinicio: number;                              // sube con `guardado` inicial y `adoptar_vigente`
-  errores: ErrorBloque[];                        // por índice de bloque (agruparPorBloque)
-  alCambiar: (contenido: Contenido) => void;     // documentoABloques en cada transacción que cambia el documento
+  errores: ErrorElemento[];                      // por id de elemento
+  alCambiar: (contenido: Documento) => void;     // normalizarDocumento(editor.getJSON()) en cada transacción que cambia el documento
   alSeleccionar: (seleccion: SeleccionDelDocumento) => void;
   bloqueado: boolean;                            // mientras se carga la versión vigente: editor no editable y aria-readonly
 };
@@ -124,8 +126,8 @@ type Props = {
 
 ## `limites.ts` y `mapa-errores.ts` — nuevos (puros)
 
-- `limites.ts`: cuenta de caracteres de un bloque sobre el texto **serializado** (sin U+200B), avisos al cruzar el 90 % y el 100 %, y el máximo de 200 elementos.
-- `mapa-errores.ts`: traduce `ErrorBloque.indice` a `bloqueId` con la lista convertida y ordena los errores por posición en el documento.
+- `limites.ts`: cuenta de caracteres del **texto** de un elemento o de una celda (sin marcas), avisos al cruzar el 90 % y el 100 %, el máximo de 200 elementos y los de la tabla (10 columnas, 50 filas, 1000 caracteres por celda).
+- `mapa-errores.ts`: agrupa los `ErrorElemento` por `id` y los ordena por posición en el documento.
 
 ## `EditorArticulo` y `reductor` — modificados
 
@@ -138,3 +140,34 @@ type Props = {
 
 - `EditorTitulo`, `EditorCita`, `EditorLista`, `EditorCodigo`, `EditorParrafo`: prop `soloPropiedades` que oculta el campo de texto (se edita en el lienzo) y deja nivel, autor, fuente, tipo de lista y lenguaje.
 - Los demás no cambian.
+
+## Ampliación: componentes nuevos y modificados (2026-10-22)
+
+### `packages/bloques`
+
+| Pieza | Qué es |
+|---|---|
+| `esquema.ts` | `esquemaDocumento` (estricto), `Documento`, `Elemento`, `ElementoDe<T>`, `DatosDe<T>`; reutiliza `esquemaImagen` y los esquemas de campos de hoy |
+| `validar.ts` | `validarDocumento(doc, { publicar }): ErrorElemento[]` (con `publicar`, también "La tabla no tiene contenido" y el requisito de contenido) |
+| `normalizar.ts` | `normalizarDocumento(json): Documento` (forma canónica, idempotente) |
+| `elementos.ts` | `TIPOS_ELEMENTO`, `crearElemento(tipo)`, `textoDeElemento(elemento)`, `datosDeElemento` y `elementoDesdeDatos` (adaptador para los editores de campos), `recorrer(doc, visitante)` |
+| `tablas.ts` | `cuadricula(tabla)` (posiciones reales con `colspan` y `rowspan`), `esRectangulo(celdas)`, `limitesDeTabla`; los usan el esquema, el editor y el renderer |
+| `imagenes-en-uso.ts` | `rutasDeImagenes(doc)` y `rutasQuitadas` recorren el documento |
+| `render/Documento.tsx` | Reemplaza a `Bloques`: `<Documento contenido componentes />` con la misma prop `componentes` (la imagen de la web y de la vista previa) |
+| `render/EnLinea.tsx` | Reemplaza a `TextoEnLinea`: pinta `Inline` con las nueve marcas y `hardBreak` |
+| `render/Tabla.tsx` | Región con desplazamiento, `caption`, `th scope="col"`, `colspan` y `rowspan` (research D27) |
+| `render/clases.ts` | Suma las clases de `u`, `mark`, `s`, `sup`, `sub`, de alineación y de tabla, que usan el sitio y el lienzo |
+| `conversion-anterior/` y `scripts/convertir-contenido.ts` | Solo hasta el corte (D25): `bloquesADocumento`, `documentoABloques`, `analizarEnLinea`, `partirParrafos` y el esquema de bloques congelado |
+
+### `apps/admin`
+
+| Pieza | Cambio |
+|---|---|
+| `extensiones.ts` | Nodos `imagen`, `galeria`, `cta` y `video` con `attrs` planos; `id` en lugar de `bloqueId`; sin `continuacion`; `underline`, `strike`, `link`, `Highlight`, `Subscript`, `Superscript`, `TextAlign` y la tabla con la configuración de research D23; atajos por defecto desactivados según D28 |
+| `extensiones.test.ts` (nuevo) | Contrato: el esquema de ProseMirror coincide **exactamente** con la lista permitida |
+| `BarraHerramientas` | Subrayado, menú «Alineación» (muestra la vigente como texto; solo con el cursor en un párrafo o título), «Más formato» (tachado, resaltado, código, superíndice, subíndice) con estado activo y `aria-disabled` con la razón |
+| `BarraTabla.tsx` (nuevo) | Barra contextual de la tabla (D29): segunda fila de la barra con el cursor en una celda; acciones con nombre y anuncio; por debajo de 768 px solo «Quitar tabla» y el texto de RF-029 |
+| `documento/tablas.ts` (nuevo) | Comandos con las reglas propias: insertar y quitar filas y columnas con límites, combinar (rectángulo, sin mezclar encabezado y cuerpo), separar, fila de encabezado y quitar tabla por `proteger` |
+| `PropiedadesDelElemento` | Alineación de párrafo y título; tabla: descripción, fila de encabezado y las mismas acciones de la barra contextual |
+| `menu-insercion.ts`, `MenuInsertar` | Ítem «Tabla» (3 × 3 con encabezado) |
+| `pegado.ts` | Tablas pegadas dentro o fuera de los límites (D28) |

@@ -4,6 +4,8 @@
 
 Decisiones de la Fase 0 del plan, ya corregidas con las revisiones de `consistencia-codigo` y `revisor-ux-ui` (2026-10-22). No hay marcadores sin resolver: lo que depende del navegador y de la librería queda como criterio de salida de la prueba de concepto (D17), con umbrales escritos antes de medir.
 
+> **Ampliación del 2026-10-22 (constitución 2.0.0).** El documento del editor pasa a ser lo que se guarda. Las decisiones **D22 a D30** (al final) son las de la ampliación y **prevalecen** sobre las anteriores. Quedan **reemplazadas**: D2 (correspondencia uno a uno con bloques, ahora D22), D3 (gramática en línea y U+200B: el sitio deja de leer marcadores, D22 y D26), D4 (continuaciones: los tramos se vuelven párrafos al convertir, D25), D6 en la parte de convertir en cada transacción (ahora se normaliza, D24), D12 en la parte de las cuatro marcas (D28) y D13 en la parte de contar el texto serializado (ahora se cuenta el texto, D24). D18 se completó en T078 y se amplía en D30. El resto sigue vigente.
+
 ## D1. Librería de edición: Tiptap
 
 - **Decisión**: Tiptap 3, versión exacta **3.31.4** (publicada el 2026-09-30, hace 22 días) para todos los paquetes `@tiptap/*`, fijada en `apps/admin/package.json` sin rango. La 3.32.0 (2026-10-13) tiene 9 días: se prefiere la 3.31.4 por prudencia y porque es la que se prueba; actualizar es tema de otra spec. (La protección `minimumReleaseAge` de pnpm no está escrita en el repo, solo en la guía del proyecto; no se agregan exclusiones.) El usuario la eligió el 2026-10-22 y aceptó el riesgo técnico.
@@ -21,7 +23,7 @@ Decisiones de la Fase 0 del plan, ya corregidas con las revisiones de `consisten
 - **Pares del asa**: `@tiptap/extension-drag-handle` declara como peers obligatorios `@tiptap/y-tiptap` y `@tiptap/extension-collaboration` (y, por ellos, `yjs`, `y-protocols`, `lib0` y paquetes `prosemirror-*`): unos cinco paquetes más en el lockfile y código de colaboración que el editor no usa. **No se escriben en `package.json` hasta que la Fase 0 decida** (D10): la prueba se hace con `pnpm add` en una rama descartable y el `package.json` definitivo lleva solo lo que sobrevive.
 - **Por qué Tiptap**: *headless* (dibuja nuestra interfaz con nuestros tokens), MIT para editor, asa y rangos (solo se paga colaboración, IA e historial en su nube, fuera de alcance), nodos con vista React para los elementos especiales y un motor (ProseMirror) con historial único, reglas de entrada, pegado y esquema restringido.
 - **Alternativas descartadas**: **Lexical** (más a mano: arrastre, rangos y barra; queda como camino alternativo de la Fase 0); **Plate/Slate** (ata la interfaz a otra capa y Slate es más inestable entre versiones); **editor propio con `contenteditable`** (costo de accesibilidad, IME, selección y deshacer).
-- **Constitución**: tras el merge se enmienda la tabla de §II con la fila "Editor de texto: Tiptap 3.31" (versión de PARCHE o MENOR según la gobernanza).
+- **Constitución**: la enmienda 2.0.0 (2026-10-22) ya suma la fila "Editor de texto: Tiptap 3.31" a §II. Las extensiones nuevas de la ampliación están en D23.
 
 ## D2. Modelo del documento: un nodo por bloque
 
@@ -193,3 +195,94 @@ Ver D10 y [contracts/atajos.md](contracts/atajos.md). En resumen: un único cami
 ## D21. Identidad de los elementos
 
 - **Decisión**: cada elemento de primer nivel lleva `bloqueId`. Un *plugin* `asignarIds` (`appendTransaction`) asigna un uuid **una sola vez** a los que lo tienen vacío y **deduplica** los repetidos (conserva el primero); `bloqueId` y `continuacion` no se copian al portapapeles (D12) ni al dividir con Enter (D4). Así los ids son estables entre transacciones y entre despachos al reductor, y los errores, las propiedades y las subidas apuntan siempre por `bloqueId` (D6). No se usa `@tiptap/extension-unique-id` (sumaría `uuid`).
+
+---
+
+# Ampliación (2026-10-22): el documento es el contenido
+
+## D22. Se guarda el documento del editor
+
+- **Decisión**: `articulos.contenido` guarda el documento JSON del editor en su **forma canónica** ([contracts/documento.md](contracts/documento.md)), validado por `esquemaDocumento` (Zod) en `packages/bloques/src/esquema.ts`, que **reemplaza** a `esquemaBloque` y `esquemaContenido`. El sitio lo dibuja con un renderer propio (`render/Documento.tsx`) que recorre nodos y marcas sin Tiptap (la librería no sale de `apps/admin`, RF-021) y sin HTML crudo.
+- **Nombres**: los nodos y marcas de la librería conservan sus nombres en inglés (`paragraph`, `bold`…): renombrarlos obliga a extender cada extensión y rompe los comandos, atajos y reglas que los referencian por nombre; §XII admite los términos técnicos del framework. Los nodos propios pasan de `imagenBloque` a `imagen`, etc.; el atributo de identidad pasa de `bloqueId` a `id`.
+- **Elementos especiales**: los campos van como `attrs` planos del nodo (`{ type: 'imagen', attrs: { id, imagen, leyenda } }`), no como un objeto `bloque` anidado. Un adaptador puro (`datosDeElemento` y `elementoDesdeDatos`) entrega a los editores de campos de hoy (`EditorImagen`, `EditorGaleria`, `EditorCta`, `EditorVideo`) la misma forma que reciben hoy, así no se reescriben.
+- **Por qué**: decisión del usuario (aclaración del 2026-10-22) para usar más funciones de la librería; la correspondencia con bloques obligaba a una gramática con marcadores (D3) que no puede expresar subrayado, alineación ni tablas sin otra capa.
+- **Alternativas descartadas**: ampliar los bloques (la recomendación inicial; el usuario eligió el documento); guardar HTML (prohibido por §VI.1); renombrar todos los nodos al español (costo y fragilidad, sin beneficio para quien escribe).
+
+## D23. Extensiones nuevas
+
+| Paquete (3.31.4, MIT; solo peers `@tiptap/core` y `@tiptap/pm`, sin dependencias de runtime) | Para qué |
+|---|---|
+| `@tiptap/extension-table` (`Table`, `TableRow`, `TableHeader`, `TableCell`; usa `prosemirror-tables` de `@tiptap/pm/tables`) | tablas, selección de celdas, combinar y separar |
+| `@tiptap/extension-text-align` | `textAlign` en `paragraph` y `heading` |
+| `@tiptap/extension-highlight` | resaltado (`multicolor: false`) |
+| `@tiptap/extension-subscript`, `@tiptap/extension-superscript` | subíndice y superíndice (excluyentes entre sí) |
+
+- `underline`, `strike` y `link` ya vienen en `starter-kit` (hoy desactivados): se **activan**. El editor pasa de seis a once paquetes `@tiptap/*`, todos en la versión exacta 3.31.4 (publicada hace más de tres semanas: cumple `minimumReleaseAge` sin exclusiones). Las nuevas necesitan la aprobación de `consistencia-codigo` (§II).
+- **Configuración explícita**: `Table` con `resizable: false` (no se guardan anchos), `allowTableNodeSelection: true` y celdas con `content: 'paragraph+'`; `TableHeader` solo en la primera fila (comando propio «Fila de encabezado»); `TextAlign` con `types: ['paragraph', 'heading']` y la izquierda sin guardar (D24); `Highlight` sin color; `Link` con `openOnClick: false`, `autolink` y la validación de `hrefSeguro`.
+- **Peso**: se mide al implementar contra el tope de 250 KB gzip (T081); las tablas son lo más pesado (estimado de 25 a 35 KB gzip). Si se pasa, la extensión de tablas se carga solo al abrir un artículo con tablas o al insertar la primera.
+- **Prueba de contrato**: `extensiones.test.ts` arma el esquema de ProseMirror con `getSchema(extensiones)` y comprueba que sus nodos, marcas y atributos son **exactamente** los de la lista permitida (§VI.3: el editor no ofrece nada que el esquema rechace ni al revés).
+
+## D24. Forma canónica y normalización
+
+- **Decisión**: `normalizarDocumento(json)` (pura, en `packages/bloques`) quita los atributos `null` o con su valor por defecto (`textAlign: 'left'`, `colspan: 1`, `colwidth`), los `marks: []`, los textos vacíos y los párrafos vacíos de primer nivel (incluido el que agrega `TrailingNode`), une textos contiguos con las mismas marcas y ordena las marcas. El editor despacha `contenido` con `normalizarDocumento(editor.getJSON())` en cada transacción que cambia el documento; la Server Action normaliza y valida antes de escribir.
+- **Abrir y guardar sin tocar** (RF-012): cargar un documento canónico en el editor y normalizar su `getJSON()` devuelve el mismo documento, así el estado no queda sucio y la versión no sube. Se prueba con propiedades sobre el corpus y documentos generados al azar.
+- **Límites de caracteres**: se cuenta el **texto** (los caracteres de los nodos `text`, sin marcas): desaparece el problema de contar marcadores (D13). Los avisos al 90 % y al 100 % siguen.
+- **Rendimiento**: `getJSON` y `normalizarDocumento` con 200 elementos son más baratos que la conversión a bloques de antes; se mide igual (T081) y, si hace falta, se difiere con un tiempo de espera corto y se fuerza antes de guardar.
+
+## D25. Conversión de los artículos existentes
+
+- **Decisión**: un script de un solo uso (`packages/bloques/scripts/convertir-contenido.ts`) que reutiliza `bloquesADocumento` y `documentoABloques` (hoy en `apps/admin/src/componentes/editor/documento/conversion.ts`, con su ida y vuelta probada) y `analizarEnLinea`, movidos a `packages/bloques/src/conversion-anterior/` junto con una copia congelada del esquema de bloques. Lee un JSON exportado y escribe un SQL de una transacción ([data-model.md](data-model.md#conversión-de-los-artículos-existentes-rf-023-rf-030)). No se conecta a ninguna base ni necesita claves. Se corre con `pnpm --filter @blog/bloques convertir-contenido -- --entrada … --salida …`: Node 24 ejecuta TypeScript, pero exige extensión en los `import` y el paquete no la usa, así que el script se arranca con un cargador propio de unas diez líneas (`scripts/cargador.mjs`, con `module.register`) que resuelve los imports sin extensión; no se suma `tsx` ni otra dependencia.
+- **Párrafos con líneas en blanco**: se convierten en varios `paragraph` (es lo que el sitio mostraba: un `<p>` por tramo). El primero conserva el id del bloque y los demás reciben un uuid v5 derivado del id y del número de tramo (repetible). El salto simple es un `hardBreak`.
+- **Todo o nada**: si un artículo no pasa la verificación (D26), no se genera nada y se informa cuál y por qué (aclaración del 2026-10-22: sin copia del contenido anterior). El `update` lleva `where version = …` y el SQL comprueba la cantidad de filas y que no quede ningún arreglo.
+- **Sin avisos ni cambios de versión** (RF-023): el SQL desactiva `a30`, `a90` y los `z90_notificar_*` durante el `update` (la regla de las cargas masivas de `CLAUDE.md`) y deja activo `a50_calcular_busqueda`.
+- **Por qué no en la migración**: la conversión necesita el analizador en línea del sitio; reescribirlo en PL/pgSQL sería una segunda gramática y un riesgo de pérdida. La migración solo cambia la forma que acepta la base; la conversión se aplica con el SQL generado.
+- **Alternativas descartadas**: conversor en PL/pgSQL (duplica la gramática); script con conexión directa a la base (sumaría `pg` y manejaría la cadena de conexión de la nube); que el sitio y el panel lean los dos formatos (descartado por el usuario: corte coordinado, RF-030).
+
+## D26. Prueba de caracterización del sitio
+
+- **Decisión**: **antes** de cambiar el renderer, una prueba captura, para el corpus de `packages/bloques/src/pruebas/corpus-contenido.ts` y los artículos del seed, lo que el renderer de bloques produce: texto visible por elemento, ids de los títulos (anclas), `src`, `alt` y leyendas de las imágenes, `href` y texto de los enlaces y el texto de la búsqueda. Se guarda como *fixture* (`pruebas/salida-anterior.json`). El script de conversión y las pruebas del renderer nuevo comparan contra esa *fixture* (CE-002, RF-023).
+- El HTML exacto puede cambiar (por ejemplo, un párrafo con tramos ahora son varios `paragraph` con ids propios); lo que no puede cambiar es lo que ve y busca quien lee.
+
+## D27. Renderer del sitio y estilos
+
+- **Decisión**: `packages/bloques/src/render/Documento.tsx` (reemplaza a `Bloques.tsx`) recorre el documento y reutiliza los componentes de hoy para los elementos especiales (`Galeria`, `Cta`, `Video`, `ImagenBloque`, `Codigo`) con los `attrs` adaptados (D22), y `Titulo`, `Cita` y `Lista` con su contenido en línea. Un componente `EnLinea` (reemplaza a `TextoEnLinea`) pinta las marcas: `strong`, `em`, `u`, `s`, `mark`, `code`, `sup`, `sub` y `a` (con `hrefSeguro` y `atributosEnlace` de hoy). Las anclas de los títulos se calculan como hoy, con el texto del título.
+- **Tablas**: `<div role="region" aria-labelledby tabindex="0">` con desplazamiento horizontal propio (`overflow-x-auto`) y foco visible, `<table>` con `<caption>` (la descripción; si falta, `aria-label` "Tabla N"), `<th scope="col">` en la fila de encabezado (con `colspan` sigue asociando por columna) y `colspan`/`rowspan` en las celdas. Sin JavaScript.
+- **Alineación**: utilidades `text-center`, `text-right` y `text-justify` (sin valores sueltos).
+- **Subrayado frente a enlace** (aclaración del 2026-10-22): `<u>` con el color del texto, línea fina y separación corta, sin efecto al pasar el puntero; el enlace conserva `CLASE_ENLACE` (`decoration-marca`, `underline-offset-4`, `hover:decoration-2`). Un enlace subrayado se ve solo como enlace.
+- **Tokens nuevos** (`packages/ui/src/tokens.css`, con contraste AA comprobado en `clases.test.ts`): `--color-resaltado` y `--color-resaltado-texto` (fondo y texto de `mark`), `--color-borde-tabla` y `--color-fondo-encabezado-tabla`. El lienzo usa las mismas clases (exportadas desde `render/clases.ts`, como hoy).
+- **SEO**: la estructura de encabezados no cambia (los títulos siguen empezando en `h2`); las tablas son HTML semántico indexable; sin JS nuevo en el sitio (CE-009).
+
+## D28. Formato en el editor: barra, atajos y pegado
+
+- **Barra**: estilo de párrafo, negrita, cursiva, subrayado, enlace, alineación (un menú con las cuatro opciones que muestra la vigente como texto), listas, «Insertar», «Acciones», «Propiedades», deshacer y rehacer; en **«Más formato»**: tachado, resaltado, código en línea, superíndice y subíndice. Lo que no entra pasa a «Más», salvo «Insertar».
+- **Atajos** (se agregan a [contracts/atajos.md](contracts/atajos.md)): `Mod+U` subrayado, `Mod+.` superíndice y `Mod+,` subíndice. **Sin atajo propio**: tachado (`Mod+Shift+S` choca con la captura de pantalla de Firefox), resaltado (`Mod+Shift+H` abre el historial de Firefox) y alineación (`Mod+Shift+R` recarga, `Mod+Shift+J` abre la consola y `Ctrl+Alt` es AltGr en el teclado español). Se desactivan los atajos que esas extensiones traen por defecto. Todo se alcanza con la barra, que se recorre con el teclado (`role="toolbar"` con flechas).
+- **Código en línea**: con `code` activo, los demás formatos quedan `aria-disabled` con la razón ("El código no admite otros formatos"); `superscript` y `subscript` se excluyen (`excludes` en el esquema).
+- **Pegado** (reemplaza a D12 en lo que dice de las cuatro marcas): el esquema descarta lo que no admite (colores, tipografías, tamaños; el color del resaltado) y conserva las marcas y la alineación permitidas. Una tabla pegada que cabe en los límites se pega como tabla (sus combinaciones se conservan si forman rectángulos y respetan el encabezado; si no, se separan y se avisa); si no cabe, se pega como párrafos con un aviso. Los ids no viajan por el portapapeles (D21).
+
+## D29. Tablas en el editor
+
+- **Inserción**: «Insertar» y `/` ofrecen «Tabla» (3 × 3 con encabezado). Cuenta como un elemento (máximo 200).
+- **Barra contextual de la tabla**: aparece con el cursor en una celda, como una fila de la barra de herramientas (no flotante, para no tapar contenido ni depender del puntero): insertar fila arriba y abajo, insertar columna a la izquierda y a la derecha, quitar fila, quitar columna, combinar celdas, separar celdas, fila de encabezado y quitar tabla. Las mismas acciones están en el panel de propiedades de la tabla, con la descripción. Cada acción tiene nombre accesible y anuncio ("Fila agregada, 4 filas").
+- **Por debajo de 768 px** (RF-029): la barra contextual muestra solo «Quitar tabla» y el texto "Para cambiar filas, columnas o combinar celdas, usá una pantalla más ancha"; Tab en la última celda no agrega fila. Se decide con una *container query* sobre el ancho del editor y con `matchMedia` para el teclado.
+- **Teclado**: Tab y Shift+Tab entre celdas; Tab en la última celda agrega una fila (desde 768 px); **Esc** pasa al modo elementos con la tabla seleccionada, desde donde Tab sale del lienzo (sin trampa de teclado, WCAG 2.1.2); Shift+flechas amplía una selección de celdas (`CellSelection` de `prosemirror-tables`) para combinar con teclado.
+- **Reglas propias** (plugin `reglasDeTabla`, con pruebas en `tablas.test.ts`): rechaza combinar el encabezado con el cuerpo, combinar más allá de los límites o agregar filas o columnas por encima del máximo (con aviso); al quitar la última fila o columna, quita la tabla con la misma ruta de `proteger` (confirmación y Deshacer).
+- **Lectores de pantalla**: en el lienzo la tabla es una `table` real (ProseMirror la dibuja así), con nombre por la descripción; la región de estado anuncia la celda al entrar ("Fila 2, columna 3, Precio").
+
+## D30. Qué pasa con lo ya implementado (Historias 1 a 3)
+
+| Pieza | Destino |
+|---|---|
+| `documento/conversion.ts` y su prueba | Se mueven a `packages/bloques/src/conversion-anterior/` para el script (D25); se eliminan después del corte |
+| `en-linea.ts`, `parrafos.ts`, `render/TextoEnLinea.tsx`, `render/Parrafo.tsx`, `render/Bloques.tsx`, `utilidades.ts` (`textoPlano`) | La gramática y los tramos pasan a `conversion-anterior/`; el renderer de bloques se reemplaza por `Documento.tsx` y `EnLinea`; `textoPlano` por `textoDeElemento` (texto visible de un elemento, para `ComparacionVersiones` y el resumen de errores) |
+| `esquema.ts` (`esquemaBloque`, `esquemaContenido`, `Contenido`), `validar.ts`, `tipos-bloque.ts`, `crearBloque` | Se reescriben sobre el documento (`esquemaDocumento`, `validarDocumento`, `TIPOS_ELEMENTO`, `crearElemento`); los esquemas de campos se reutilizan |
+| `imagenes-en-uso.ts` (`rutasDeImagenes`, `rutasQuitadas`) | Recorren el documento |
+| `extensiones.ts` | Sin `continuacion` ni normalización de marcas; nodos renombrados; `id`; marcas nuevas, alineación y tabla (D23) |
+| `comandos.ts`, `proteger.ts`, `ids.ts`, `acciones-elemento.ts`, `AsaDeElemento`, `MenuAcciones` | `bloqueId` → `id`; la tabla es un elemento más (mover, duplicar, quitar; convertir no la ofrece) |
+| `mapa-errores.ts`, `limites.ts`, `anuncios.ts` | Errores por ruta del documento y por `id`; conteo del texto; mensajes de tablas y formatos |
+| `BarraHerramientas`, `MenuInsertar`, `menu-insercion.ts`, `PropiedadesDelElemento` | Formatos nuevos, «Más formato», alineación, «Tabla» y la barra contextual |
+| `reductor.ts`, `datos.ts` (`validarEditor`), `EditorArticulo`, `ComparacionVersiones`, `acciones/articulos.ts`, vista previa | `Contenido` → `Documento` |
+| `packages/db` (`tipos-publicos.ts`, `mapeo.ts`, `pruebas/datos.ts`, `pruebas/imagenes.ts`) | `Contenido` → `Documento` |
+| `apps/web/src/pages/blog/[slug].astro` | `Bloques` → `Documento` |
+| E2E (`editor-documento.spec.ts` y los de las specs 003 y 004) | Las consultas a la base comparan el documento en lugar de los bloques |
+
+Lo que **no** cambia: el modo elementos, el asa propia, el menú «/», el panel y la hoja, el historial único, la barra fija de la 004 y los editores de campos.

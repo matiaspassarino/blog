@@ -1,48 +1,45 @@
 # Plan de implementación: Editor de notas estilo documento
 
-**Rama**: `005-editor-estilo-documento` | **Fecha**: 2026-10-22 | **Spec**: [spec.md](spec.md)
+**Rama**: `005-editor-estilo-documento` | **Fecha**: 2026-10-22 (ampliado el mismo día con la constitución 2.0.0) | **Spec**: [spec.md](spec.md)
 
 **Entrada**: Especificación en `/specs/005-editor-estilo-documento/spec.md`
 
-**Revisión del plan**: `consistencia-codigo` y `revisor-ux-ui` emitieron CAMBIOS REQUERIDOS (7 y 9 bloqueantes) el 2026-10-22. Este plan ya los incorpora: ver "Revisión del plan" al final.
+**Estado**: las Historias 1 a 3 están implementadas (T001–T069) sobre el formato de bloques y el editor anterior ya se retiró (T078). Este plan **amplía** el anterior: el documento pasa a ser lo que se guarda, con más formato, alineación, tablas, la conversión de lo existente y el corte en la nube. La revisión del plan anterior (`consistencia-codigo` y `revisor-ux-ui`, 2026-10-22) sigue incorporada; la de la ampliación está en "Revisión del plan".
 
 ## Resumen
 
-El cuerpo del artículo deja de ser una lista de tarjetas y pasa a ser un **documento de texto enriquecido** hecho con **Tiptap** (sobre ProseMirror): lienzo con la tipografía del sitio, barra de herramientas arriba, menú «/» y «Insertar», asa por elemento (arrastrar y menú), modo de selección de varios elementos y **panel de propiedades** (pestaña a la derecha desde 1280 px, hoja inferior por debajo). El contenido guardado **no cambia**: el documento se convierte, con funciones puras, a la misma lista de bloques de `packages/bloques` (y de vuelta) sin pérdida (CE-002).
+El cuerpo del artículo se escribe en un **documento de texto enriquecido** hecho con **Tiptap** (sobre ProseMirror): lienzo con la tipografía del sitio, barra de herramientas, menú «/» e «Insertar», asa propia, modo elementos y **panel de propiedades**. Con la ampliación:
 
-Tres decisiones sostienen el plan:
-
-1. **Una sola gramática de marcas en línea.** Hoy el sitio interpreta `**negrita**`, `_cursiva_`, `` `código` `` y `[texto](url)` dentro de un componente React. El análisis pasa a un árbol puro en `packages/bloques` (`analizarEnLinea`, `serializarEnLinea`, `normalizarMarcas`); el sitio, el editor y `textoPlano` usan el mismo analizador. El editor se **autocorrige a lo que el sitio puede mostrar**, así lo que se ve es lo que se guarda.
-2. **El documento es la fuente de verdad mientras se edita; el reductor guarda el resultado.** Tiptap conserva el documento (y su historial único); cada cambio se convierte a bloques y llega al reductor como un solo campo `contenido`. Dirty, validación, guardado, conflicto y limpieza de imágenes siguen como hoy. `guardado` no toca el documento; solo la carga inicial y `adoptar_vigente` lo recrean.
-3. **Los elementos especiales son nodos atómicos con el bloque entero como atributo**, vistos con el renderer del sitio y editados en el panel con los editores de campos que ya existen. Identidad por `bloqueId` (los errores, las propiedades y las subidas apuntan por id, no por posición).
-
-Antes de construir, una **Fase 0** (prueba de concepto con umbrales escritos antes de medir) valida lo que depende del navegador y de la librería: peso, arrastre con el dedo, lectores de pantalla, teclados móviles, atajos, escritura con 200 elementos y descubribilidad. Su decisión se registra en [research.md](research.md#d17-fase-0-prueba-de-concepto-umbrales-y-regla-de-decisión) y puede cambiar la lista de dependencias (asa propia) o llevar a comparar con Lexical.
+1. **Lo guardado es el documento** ([contracts/documento.md](contracts/documento.md)): JSON en forma canónica, validado contra una **lista permitida** (`esquemaDocumento`, Zod, en `packages/bloques`). El servidor y la base lo validan; el sitio lo dibuja con un renderer propio, sin Tiptap y sin HTML crudo (§VI).
+2. **Más formato y tablas**: subrayado, tachado, resaltado, superíndice y subíndice; alineación de párrafos y títulos; tablas con celdas de varios párrafos y celdas combinadas (cinco extensiones oficiales más, D23).
+3. **Conversión sin pérdida, de todo o nada**: un script de un solo uso reutiliza el conversor que ya existe (`bloquesADocumento`, con su ida y vuelta probada) y genera un SQL de una transacción que no cambia versiones ni avisa al sitio (D25). Una prueba de caracterización asegura que el sitio muestra y busca lo mismo que antes (D26).
+4. **Corte coordinado en la nube** (RF-030): migración, conversión y merge en el mismo momento; hasta entonces todo se valida en local.
 
 ## Contexto técnico
 
-**Apps / paquetes afectados**: `apps/admin` (editor), `packages/bloques` (análisis en línea, partir y unir párrafos, clases de bloque exportadas; se retiran operaciones y marcas sin uso), `packages/ui` (estado activo de la terciaria y tres tokens). `apps/web` cambia **solo por el refactor de `TextoEnLinea` y `Parrafo`** (misma salida; riesgo R1). `packages/db` y `supabase/` no cambian.
+**Apps / paquetes afectados**: `packages/bloques` (esquema, validación, normalización, renderer y conversión), `apps/admin` (editor, Server Actions, vista previa), `apps/web` (página de artículo: `Bloques` → `Documento`), `packages/db` (tipo `Contenido` → `Documento`), `packages/ui` (tokens del resaltado y de las tablas), `supabase/` (una migración, el seed y pgTAP).
 
-**Dependencias nuevas** (runtime de `apps/admin`, MIT, versión exacta **3.31.4** del 2026-09-30; justificación y estado de cada una en [research.md D1](research.md#d1-librería-de-edición-tiptap)):
+**Dependencias de runtime** (solo en `apps/admin`, MIT, versión exacta **3.31.4**; detalle en [research.md D1 y D23](research.md#d23-extensiones-nuevas)):
 
 | Paquete | Para qué | Estado |
 |---|---|---|
-| `@tiptap/core`, `@tiptap/pm`, `@tiptap/react` | motor, ProseMirror y enlace con React | pedida su aprobación |
-| `@tiptap/starter-kit` | extensiones base (con medición; si pesa, extensiones individuales) | pedida su aprobación |
-| `@tiptap/extensions` | `Placeholder`, `TrailingNode`, `CharacterCount` e historial | pedida su aprobación |
-| `@tiptap/suggestion` | menú «/» | pedida su aprobación |
-| ~~`@tiptap/extension-drag-handle*`, `@tiptap/extension-node-range`~~ | asa y arrastre | **descartadas por la Fase 0** (traen `yjs` al cliente, +50 KB gzip): el asa es propia y no suma dependencias |
+| `@tiptap/core`, `@tiptap/pm`, `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extensions`, `@tiptap/suggestion` | motor, extensiones base (con `underline`, `strike` y `link` ahora activos), historial, menú «/» | aprobados (2026-10-22), ya instalados (T040) |
+| `@tiptap/extension-table` | tablas, selección de celdas, combinar y separar | **nueva**, pedida su aprobación |
+| `@tiptap/extension-text-align` | alineación de párrafos y títulos | **nueva**, pedida su aprobación |
+| `@tiptap/extension-highlight` | resaltado de un solo color | **nueva**, pedida su aprobación |
+| `@tiptap/extension-subscript`, `@tiptap/extension-superscript` | subíndice y superíndice | **nuevas**, pedida su aprobación |
 
-`@floating-ui/dom` **no se importa** (es *peer* de `suggestion`; el menú se posiciona con el `clientRect` y `visualViewport`). La Fase 0 se hizo con `pnpm add` en una rama descartable (`005-spike-tiptap`): el `package.json` definitivo lleva **seis paquetes** (core, pm, react, starter-kit, extensions y suggestion). Tras el merge se enmienda la tabla de §II de la constitución con la fila "Editor de texto: Tiptap 3.31".
+Las cinco nuevas no tienen dependencias de runtime (solo los *peers* `@tiptap/core` y `@tiptap/pm` en la misma versión) y su versión cumple `minimumReleaseAge`. `apps/web` **no** suma dependencias.
 
-**Almacenamiento**: N/A (sin cambios en tablas ni en buckets; las imágenes siguen el flujo de hoy).
+**Almacenamiento**: `articulos.contenido` cambia de formato (migración `20261023120000_contenido_documento.sql`, ver [data-model.md](data-model.md)). Sin tablas, columnas, buckets ni políticas nuevas.
 
-**Rutas públicas afectadas**: ninguna cambia de estrategia ni de salida (R1 lo verifica).
+**Rutas públicas afectadas**: `/blog/[slug]` (renderer nuevo; misma estrategia de caché e invalidación). La búsqueda incluye las celdas de las tablas.
 
-**Rutas admin afectadas**: `/articulos/nuevo` y `/articulos/[id]` (el editor). La vista previa usa `Bloques` y no cambia.
+**Rutas admin afectadas**: `/articulos/nuevo`, `/articulos/[id]` y `/articulos/[id]/vista-previa`.
 
-**Revalidación**: sin cambios.
+**Revalidación**: sin cambios. La conversión **no** avisa al sitio (D25); el corte se apoya en que las páginas cacheadas siguen sirviéndose (RF-030).
 
-**Metas de rendimiento**: menú «/» y «Insertar» en menos de 200 ms con 50 elementos (CE-006); latencia de escritura < 100 ms con 200 elementos; el editor se carga con importación dinámica solo en las dos rutas del editor; tope de peso **≤ 250 KB gzip** adicionales y sin `yjs` en el cliente (Fase 0); Lighthouse Accesibilidad ≥ 95 en 360, 768, 1024 y 1440 px (CE-004).
+**Metas de rendimiento**: menú «/» e «Insertar» en menos de 200 ms con 50 elementos (CE-006); latencia de escritura < 100 ms con 200 elementos; peso adicional del editor ≤ 250 KB gzip incluidas las tablas y sin `yjs` en el cliente; Lighthouse Accesibilidad ≥ 95 en el editor (CE-004); en el sitio, las metas de §IV.8 con un artículo con tablas y los formatos nuevos (CE-009).
 
 ## Verificación constitucional
 
@@ -50,92 +47,90 @@ Antes de construir, una **Fase 0** (prueba de concepto con umbrales escritos ant
 
 | Principio | Cumple | Nota |
 |---|---|---|
-| II. Stack cerrado (sin deps no aprobadas) | [x] | Los paquetes de la tabla están justificados en D1; `consistencia-codigo` aprobó el núcleo y condicionó el asa a la Fase 0. El usuario autorizó la librería el 2026-10-22. Versión exacta; solo en `apps/admin`. Enmienda de la tabla de §II después del merge |
-| III. Límites de arquitectura (sin imports entre apps, datos vía packages/db) | [x] | El editor importa de `@blog/bloques`; la gramática en línea y la partición de párrafos viven en el paquete que usan el sitio y el panel. Sin acceso a datos nuevo |
-| IV. SEO primero (pre-render, JS mínimo, metadatos) | [x] | El panel sigue con `noindex` y carga diferida. El sitio no suma JS; el refactor se verifica con salida idéntica (R1) |
-| V. Datos (migraciones, RLS + pgTAP, nomenclatura en español) | [x] | Sin cambios de base |
-| VI. Bloques (esquema único en packages/bloques) | [x] | El esquema Zod no cambia y sigue validando en el servidor y en el navegador. La gramática en línea pasa de estar en el renderer a una sola definición en el paquete |
-| VII. Design system (solo tokens, WCAG AA) | [x] | Tres tokens nuevos en `packages/ui` (`--container-panel-propiedades`, `--carril-asa`, `--alto-hoja-propiedades`) y el estado activo de la terciaria con borde; el lienzo reutiliza las clases del renderer (exportadas, no copiadas) |
-| VIII. No duplicación (sección Reutilización completa) | [x] | Ver abajo: una sola vista de elemento especial, un solo panel con variantes, una sola regla de tramos de párrafo, una sola gramática y los anuncios en `anuncios.ts` |
-| IX. Testing (cada criterio de aceptación → test) | [x] | Ver "Plan de pruebas" con cada RF y CE |
+| II. Stack cerrado (sin deps no aprobadas) | [x] | Tiptap figura en §II desde la 2.0.0. Las cinco extensiones nuevas están justificadas en D23 y **se piden a `consistencia-codigo`**; si no las aprueba, la ampliación queda bloqueada en esa parte |
+| III. Límites de arquitectura (sin imports entre apps, datos vía packages/db) | [x] | Esquema, validación, normalización, renderer y conversión en `packages/bloques`; Tiptap solo en `apps/admin`; el script de conversión no accede a datos (lee y escribe archivos) |
+| IV. SEO primero (pre-render, JS mínimo, metadatos) | [x] | El sitio sigue pre-renderizado y sin JS nuevo; tablas semánticas; encabezados desde `h2`; CE-009 mide que no empeore |
+| V. Datos (migraciones, RLS + pgTAP, nomenclatura en español) | [x] | Una migración con `search_path = ''`, nombres calificados y privilegios explícitos; pgTAP por función y por el cambio del check; las cargas desactivan `a30` y `a90` (y `z90`). **Pendiente de la revisión de `arquitecto-db`** |
+| VI. Documento (esquema único en packages/bloques) | [x] | `esquemaDocumento` es la lista permitida; extensiones, renderer, búsqueda e imágenes en uso se derivan de él y una prueba de contrato lo garantiza (D23); conversión con ida y vuelta y pgTAP (§VI.6) |
+| VII. Design system (solo tokens, WCAG AA) | [x] | Cuatro tokens nuevos (resaltado y tabla) con contraste medido; subrayado distinto del enlace; tablas accesibles con desplazamiento propio |
+| VIII. No duplicación (sección Reutilización completa) | [x] | Un solo esquema, un renderer, el conversor existente reutilizado para la conversión, los editores de campos reutilizados con un adaptador; `cuadricula` compartida por esquema, editor y renderer |
+| IX. Testing (cada criterio de aceptación → test) | [x] | Ver "Plan de pruebas" (RF-001 a RF-030 y CE-001 a CE-010) |
 
-**Re-verificación después del diseño (Fase 1)**: cumple. El diseño retira todo el código del editor anterior (D18) y no deja código muerto para knip.
+**Re-verificación después del diseño (Fase 1)**: cumple, con dos condiciones que se resuelven en la revisión: la aprobación de las cinco extensiones (§II) y el visto bueno de `arquitecto-db` al [data-model.md](data-model.md) (§X).
 
 ## Reutilización *(obligatorio — constitucion.md §VIII)*
 
 | Necesidad | Existente a reutilizar | Nuevo a crear | Justificación si es nuevo |
 |---|---|---|---|
-| Gramática de marcas en línea | `packages/bloques/src/render/TextoEnLinea.tsx` (analizador mezclado con React) y la expresión regular de `textoPlano` en `utilidades.ts` | `packages/bloques/src/en-linea.ts` (`analizarEnLinea`, `serializarEnLinea`, `normalizarMarcas`, `NodoEnLinea`); `TextoEnLinea` y `textoPlano` pasan a usarlo | Una sola gramática para el sitio, el editor y los extractos (§VI.3). Con pruebas de caracterización de la salida actual antes de moverla (R1) |
-| Partir un párrafo en tramos | La regla de `Parrafo.tsx` (`/\n{2,}/`, salto simple, descartar tramos en blanco) | `partirParrafos` y `unirParrafos` en `packages/bloques` (con el separador exacto) | La usan el sitio y la conversión; evita una segunda regla (§VIII.3) |
-| Clases de tipografía de los bloques | Cadenas sueltas en `Parrafo.tsx`, `Titulo.tsx`, `Cita.tsx`, `Lista.tsx`, `Codigo.tsx` | `packages/bloques/src/render/clases.ts` (constantes exportadas desde `render/index.ts`) | El lienzo se ve igual que el sitio sin copiar clases |
-| Vista de cada elemento especial en el lienzo | `Bloques` (renderer) y `ImagenAdmin` de la vista previa | **Un** `documento/nodos/NodoBloque.tsx` con una fábrica por tipo (imagen, galería, llamada a la acción, video) | No se escribe cuatro veces la misma vista (jscpd) |
-| Campos de cada tipo de bloque | `componentes/editor/bloques/Editor{Imagen,Galeria,Cta,Video,Cita,Codigo,Titulo,Lista}.tsx`, `EditorDeBloque.tsx`, `CampoBloque.tsx` | Prop `soloPropiedades` en los editores de texto y **un** `PropiedadesDelElemento.tsx` con variante lateral u hoja | Composición con props, no copias (§VIII.2) |
-| Subida y confirmación de imágenes | `SelectorImagen.tsx`, `ImagenEditable.tsx`, `ContextoEditor.tsx` (`subiendo`, `imagenGuardada`, `anunciar`) | Se renombra `useEditor` de `ContextoEditor` a `useContextoEditor` (choca con el de Tiptap) | Sin cambios de comportamiento (RF-013) |
-| Cambios de un bloque sumables (dos subidas simultáneas) | `CambiosDeBloque` de `reductor.ts` | Se mueve a `bloques/tipos.ts` y el comando `actualizarBloque(bloqueId, cambios)` lo usa | El reductor deja de saber de bloques sueltos |
-| Mensajes y nombres accesibles | `anuncios.ts` (`nombreDeTipo`, `resumenDeErrores`…) | Se **extiende** con los mensajes de [contracts/atajos.md](contracts/atajos.md) y se reemplazan `etiquetaDeBloque`, `nombreDeBoton`, `anuncioDeMovimiento` y `anuncioDeQuitado`; la palabra "bloque" pasa a "elemento" (CE-007) | Un solo módulo puro con sus pruebas |
-| Lista y filtro del menú «/» | `nombreDeTipo` de `anuncios.ts` | `documento/menu-insercion.ts` (los nombres salen de `nombreDeTipo`; solo se agrega la descripción y el grupo) | Sin tabla de nombres paralela |
-| Menú que abre, cierra con Esc, clic afuera y al navegar | `lib/desplegable.ts` (`useDesplegable`, spec 004) | `lib/menu-teclado.ts` (`useMenuTeclado`: flechas, `Inicio`, `Fin`, letra, `Tab`, `Esc`) | `useDesplegable` solo abre y cierra y cierra al mover el foco; los menús del asa, del estilo y de «Insertar» necesitan navegación por teclado |
-| Barra que se reacomoda en pantallas angostas | `MasAcciones.tsx` y el patrón de *container query* de `BarraEditor` (spec 004) | `MasAcciones` se **modifica**: dirección de apertura y corte por props | Hoy abre hacia arriba y con corte fijo; la barra de herramientas va pegada arriba |
-| Botones y niveles | `ui/button.tsx`, `clasesBoton` (spec 004) | El estado activo de la terciaria suma borde de marca (`packages/ui`) | WCAG 1.4.1 y 1.4.11: no solo tinte |
-| Avisos, títulos, estados vacíos, hoja de barra | `AvisoEstado`, `TituloSeccion`, `EstadoVacio`, `BarraAcciones`, `BarraEditor` (spec 004) | — | Sin cambios |
-| Estado del artículo, validación y errores por bloque | `reductor.ts`, `datos.ts` (`validarEditor`), `lib/errores-campo.ts` | Acción `contenido` del reductor; los errores se llevan a los nodos por `bloqueId` | El reductor deja de saber de bloques sueltos |
-| Comandos sobre uno o varios elementos | `operaciones.ts` de `packages/bloques` (opera sobre listas, no sobre el documento vivo) | `documento/comandos.ts` y `documento/proteger.ts` (mover, duplicar, quitar, convertir sobre el rango; una sola ruta de borrado) | El documento vivo no puede pasar por listas sin perder cursor e historial; `operaciones.ts` queda sin uso y se **elimina** con sus pruebas (§VIII.4) |
-| Ids estables | — | `documento/ids.ts` (plugin `asignarIds`) | Asigna una vez y deduplica; sin sumar `unique-id` y `uuid` |
-| Formato de la selección | `BarraMarcas.tsx`, `TextoConMarcas.tsx`, `aplicarMarca` | Marcas y atajos de la librería | Quedan sin uso: se **eliminan** (también `ListaBloques.tsx` y `EditorParrafo.tsx`) |
-| Íconos | `componentes/Icono.tsx` | Íconos nuevos: negrita, cursiva, código, enlace, listas, deshacer, rehacer, asa, insertar, acciones, propiedades | Los que faltan |
-| Ayudas de E2E | `e2e/admin/ayudas/editor.ts` | Ayudas nuevas sobre el lienzo y el panel en el mismo archivo | Se adaptan los specs que usan el editor viejo |
+| Lista permitida del contenido | `esquema.ts` (`esquemaImagen`, esquemas de campos de imagen, galería, llamada a la acción, video, cita, nivel, lenguaje) | `esquemaDocumento` en el mismo archivo, que reemplaza a `esquemaBloque`/`esquemaContenido` | §VI.2: un solo esquema; los campos y sus mensajes no cambian |
+| Validación y errores | `validar.ts` (`validarContenido`, `ErrorBloque`), `lib/errores-campo.ts`, `resumenDeErrores` y `nombreDeCampo` de `anuncios.ts` | `validarDocumento` y `ErrorElemento` con `id` | Mismo flujo de hoy, por elemento |
+| Forma canónica | — | `normalizar.ts` (`normalizarDocumento`) | Abrir y guardar sin tocar no cambia nada (RF-012) |
+| Conversión de lo existente | `documento/conversion.ts` (`bloquesADocumento`, `documentoABloques`, con su ida y vuelta probada), `en-linea.ts`, `parrafos.ts` | `conversion-anterior/` (movidos, no copiados) y `scripts/convertir-contenido.ts` | Reutiliza la gramática del sitio; se elimina tras el corte (D25) |
+| Renderer del sitio | `render/Bloques.tsx`, `Galeria`, `Cta`, `Video`, `ImagenBloque`, `Codigo`, `Titulo`, `Cita`, `Lista`, `enlaces.ts`, `clases.ts`, `anclaDe` | `render/Documento.tsx`, `EnLinea.tsx`, `Tabla.tsx`; `Bloques`, `TextoEnLinea` y `Parrafo` se eliminan | Los componentes de elementos especiales y de texto se reutilizan con los `attrs` adaptados |
+| Cuadrícula de tablas | — | `packages/bloques/src/tablas.ts` (`cuadricula`, `esRectangulo`, límites) | La usan el esquema (regularidad), el editor (combinar) y el renderer: una sola regla |
+| Editores de campos | `bloques/Editor{Imagen,Galeria,Cta,Video,Cita,Codigo,Titulo,Lista}.tsx`, `EditorDeBloque`, `CampoBloque` | Adaptador `datosDeElemento`/`elementoDesdeDatos` | No se reescriben: reciben la forma de hoy |
+| Texto visible de un elemento | `textoPlano` de `utilidades.ts` (sobre bloques) | `textoDeElemento` en `elementos.ts` | `ComparacionVersiones`, el resumen de errores y la caracterización lo usan |
+| Imágenes en uso | `imagenes-en-uso.ts` (`rutasDeImagenes`, `rutasQuitadas`) y `public.rutas_en_uso` | Se adapta el recorrido en TS; la función SQL no cambia (busca en el texto del JSON) | — |
+| Búsqueda | `privado.bloques_a_texto`, `privado.calcular_busqueda`, `documento_busqueda` | `privado.documento_a_texto` (reemplaza a `bloques_a_texto`) | Misma configuración, pesos y truncado |
+| Extensiones del editor | `extensiones.ts`, `ids.ts`, `proteger.ts`, `comandos.ts`, `acciones-elemento.ts`, `AsaDeElemento`, `MenuAcciones`, `menu-insercion.ts`, `MenuInsertar`, `BarraHerramientas`, `PropiedadesDelElemento`, `pegado.ts`, `limites.ts`, `mapa-errores.ts` (spec 005, H1–H3) | `documento/tablas.ts`, `BarraTabla.tsx` y `extensiones.test.ts` | Lo de las H1–H3 se adapta (D30); solo se crea lo propio de las tablas y la prueba de contrato |
+| Menús con teclado, «Más», barra fija, avisos | `useMenuTeclado`, `MasAcciones`, `BarraEditor`, `AvisoEstado`, `ConfirmarAccion` (specs 004 y 005) | — | «Más formato» y el menú «Alineación» usan `useMenuTeclado` |
+| Anuncios | `anuncios.ts` | Mensajes de tablas y formatos ([atajos.md](contracts/atajos.md)) | Un solo módulo puro |
+| Íconos | `componentes/Icono.tsx` | subrayado, tachado, resaltado, superíndice, subíndice, cuatro alineaciones, tabla, filas, columnas, combinar y separar | Los que faltan |
+| Seed y pgTAP | `seed.sql` (funciones `pg_temp.*`) y `supabase/tests/*` | `pg_temp.texto`, `pg_temp.tabla`; `contenido_documento.test.sql` y `conversion.test.sql` | Se adaptan las funciones de hoy |
 
 ## Impacto en base de datos
 
-No aplica ([data-model.md](data-model.md#base-de-datos)). No se consulta a `arquitecto-db`.
+Ver [data-model.md](data-model.md). En resumen: `privado.contenido_valido` acepta solo el documento; `privado.tipos_elemento` y `privado.documento_tiene_contenido` nuevas; el check `articulos_requisitos_publicacion` y `a40_validar_estado` usan el requisito nuevo; `privado.documento_a_texto` reemplaza a `bloques_a_texto` en la búsqueda; el default de `contenido` pasa al documento vacío. La conversión no está en la migración: la aplica el SQL que genera el script (D25). **Se consulta a `arquitecto-db`** antes de cerrar el modelo (§X).
 
 ## Impacto en UI y tokens
 
-- **Componentes nuevos/modificados**: [contracts/componentes.md](contracts/componentes.md); correspondencia del documento con los bloques en [contracts/documento.md](contracts/documento.md); atajos, roles, foco y anuncios en [contracts/atajos.md](contracts/atajos.md).
-- **Tokens nuevos** (`packages/ui/src/tokens.css`): `--container-panel-propiedades`, `--carril-asa` (= `--tactil-min`) y `--alto-hoja-propiedades` (45 dvh). **Cambio de clases**: la terciaria con `aria-pressed` suma `aria-pressed:border-marca`.
-- **Disposición**: una columna por debajo de 1280 px; desde 1280 px, lienzo y columna lateral con **Publicación** fija y las pestañas «Artículo» y «Elemento» (a 1024 px con la navegación lateral quedarían unos 340 px para el lienzo).
-- **Estados**: vacío (*placeholder* con contraste), carga (esqueleto) y error de carga con «Reintentar», error de validación (texto en el elemento), no editable (`setEditable(false)`), subida en curso, sin resultados del menú «/», modo elementos, arrastrando con texto de destino y límite de 200 elementos.
-- **Accesibilidad**: lienzo con el `contenteditable` nativo y rol fijo; barra `role="toolbar"`; menú «/» con `aria-activedescendant` y «Insertar» con foco en el listbox; islas de los elementos especiales con nombre; asa solo para ratón y toque y botón «Acciones» para teclado y lectores; anuncios con *debounce*; foco definido por acción; `forced-colors`, zoom de 400 % y `prefers-reduced-motion`.
+- **Componentes**: [contracts/componentes.md](contracts/componentes.md) (incluida la sección de la ampliación); atajos, roles, foco y anuncios en [contracts/atajos.md](contracts/atajos.md).
+- **Tokens nuevos** (`packages/ui/src/tokens.css`): `--color-resaltado`, `--color-resaltado-texto`, `--color-borde-tabla` y `--color-fondo-encabezado-tabla` (contraste AA medido en `clases.test.ts`). Los tres de la etapa anterior (`--container-panel-propiedades`, `--carril-asa`, `--alto-hoja-propiedades`) siguen.
+- **Barra**: subrayado visible; «Alineación» como menú que muestra la vigente; «Más formato» con tachado, resaltado, código, superíndice y subíndice; barra contextual de la tabla como segunda fila (D28 y D29).
+- **Estados**: formato no disponible con código activo (`aria-disabled` y razón); tabla en el máximo (aviso); estructura de tabla no disponible por debajo de 768 px (texto visible, RF-029); pegado de una tabla que no cabe (aviso); error "La tabla no tiene contenido" al publicar.
+- **Sitio**: `mark` con los tokens del resaltado; `u` distinto del enlace (aclaración del 2026-10-22); tabla dentro de una región con desplazamiento propio, alcanzable con el teclado y con nombre; alineación con utilidades de Tailwind.
+- **Accesibilidad**: tablas con `caption` o nombre, `th scope="col"` y celdas combinadas asociadas; sin trampa de teclado en las tablas (`Esc`); anuncios de las acciones de tabla; contraste del resaltado y del subrayado en claro, en oscuro y en `forced-colors`.
 
 ## Plan de pruebas
 
-Primero se escriben las pruebas de la lógica pura (rojo), como en la 004. La interacción se prueba con Playwright; no se agrega jsdom ni Testing Library (research D16).
+Primero se escriben las pruebas de la lógica pura (rojo), como en la 004. La interacción se prueba con Playwright; no se agregan jsdom ni Testing Library (D16).
 
 | Criterio (spec) | Tipo | Archivo de test |
 |---|---|---|
-| RF-009, RF-012, CE-002: análisis y serialización en línea inversos, normalización y salida idéntica del sitio | Vitest | `packages/bloques/src/en-linea.test.ts` (propiedades sobre corpus y al azar) y `render/texto-en-linea.test.tsx` (salida idéntica) |
-| RF-012, CE-002 (H5 esc. 1 y 2): ida y vuelta de los diez tipos, de párrafos con líneas en blanco y de textos con marcas propias | Vitest | `documento/conversion.test.ts` con el corpus de `packages/bloques/src/pruebas/corpus-contenido.ts` |
-| CE-002 con artículos reales: abrir y guardar sin tocar no sube la versión | Playwright | `e2e/admin/editor-documento.spec.ts` |
-| RF-002, RF-010 (H1 esc. 1 a 3, H4 esc. 1 y 2): Enter, Retroceso y atajos tipo Markdown | Vitest (`detectarAtajo`, reglas de partir) y Playwright (las reglas de entrada, con teclado) | `documento/atajos.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| RF-005 (H1 esc. 5): menú «/», filtro sin tildes, «Sin resultados», no se abre en medio de un texto | Vitest y Playwright | `documento/menu-insercion.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| RF-003 (H1 esc. 3 y 4), RF-014: barra (estado activo, reacomodo, un solo tope de tabulación, campo de enlace) | Vitest (render estático) y Playwright | `documento/BarraHerramientas.test.tsx`, `e2e/admin/editor-documento.spec.ts` |
-| RF-004, RF-020 (H2): insertar los diez tipos, panel y hoja, errores por elemento y foco por tipo | Playwright | `e2e/admin/editor-documento.spec.ts`, `e2e/admin/articulo-editor.spec.ts` |
-| H2 esc. 7: nombre "Imagen, 3 de 8" y alcance del panel con teclado | Playwright (árbol de accesibilidad) | `e2e/admin/accesibilidad.spec.ts` |
-| RF-006, RF-007, RF-019 (H3): mover, duplicar, quitar y convertir uno o varios elementos, modo elementos y selección de texto frente a elementos | Vitest (comandos sobre el rango y los ids) y Playwright (teclado, menú y arrastre) | `documento/comandos.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| H3 esc. 4: el desplazamiento táctil no arrastra | Playwright (emulación táctil) y Fase 0 en dispositivo real | `e2e/admin/editor-documento.spec.ts` |
-| RF-008: foco y anuncios tras cada acción | Vitest (`anuncios.ts`) y Playwright | `anuncios.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| RF-011 (H4 esc. 3): un solo historial; `guardado` no lo reinicia; `adoptar_vigente` sí | Playwright | `e2e/admin/editor-documento.spec.ts`, `e2e/admin/articulo-conflicto.spec.ts` |
-| RF-015 (H4 esc. 4 y 5): pegado, marcas permitidas y sobrante por límite | Vitest (partir texto) y Playwright | `documento/pegado.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| RF-016, D20: aviso de conversión con pérdida (lista, cita con autor, marcas a título o código) | Vitest y Playwright | `documento/comandos.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| RF-013, RF-018 (H5): validación, errores por elemento, cambios sin guardar, conflicto, subidas, publicación | Playwright | los specs existentes, adaptados |
-| Ids estables y sin duplicados al copiar, pegar y arrastrar (R10) | Vitest (plugin) y Playwright | `documento/ids.test.ts`, `e2e/admin/editor-documento.spec.ts` |
-| Casos borde: siempre queda un párrafo, dos elementos especiales seguidos, «/» en medio del texto, quitar o mover con subida en curso | Playwright | `e2e/admin/editor-documento.spec.ts` |
-| CE-003: los diez tipos y el reordenamiento solo con teclado | Playwright (sin ratón) | `e2e/admin/editor-documento.spec.ts` |
-| CE-004: accesibilidad y 360 a 1440 px | Playwright (axe) + Lighthouse | `e2e/admin/accesibilidad.spec.ts`; Lighthouse según [quickstart.md](quickstart.md) |
-| CE-005: flujos de punta a punta de la 003 y la 004 | Playwright | todos los `e2e/admin/*.spec.ts` |
-| CE-006, RF-017: menús en menos de 200 ms con 50 elementos y comportamiento en el máximo de 200 | Playwright | `e2e/admin/editor-documento.spec.ts` |
-| CE-001, CE-007: tiempo y comprensión con personas | Manual | [quickstart.md](quickstart.md#prueba-con-personas) |
+| RF-022: la lista permitida acepta lo válido y rechaza nodos, marcas, atributos y claves de más, HTML y el formato anterior; mensajes por campo | Vitest | `packages/bloques/src/esquema.test.ts`, `validar.test.ts` |
+| RF-012 (H5 esc. 4): forma canónica idempotente y estable al pasar por el editor | Vitest (propiedades) y Playwright (abrir y guardar sin tocar no sube la versión) | `normalizar.test.ts`, `e2e/admin/editor-documento.spec.ts` |
+| §VI.3: el esquema del editor coincide exactamente con la lista permitida | Vitest | `apps/admin/.../documento/extensiones.test.ts` |
+| RF-023, CE-002 (H5 esc. 1 a 3): conversión sin pérdida, repetible, de todo o nada | Vitest | `conversion-anterior/*.test.ts`, `scripts/convertir-contenido.test.ts` (sobre el corpus, el seed anterior y casos que deben fallar) |
+| RF-023, CE-002 (H5 esc. 2): el sitio muestra y busca lo mismo que antes (caracterización) | Vitest | `render/caracterizacion.test.tsx` contra `pruebas/salida-anterior.json` (se genera **antes** de cambiar el renderer) |
+| RF-023: la conversión no cambia versión ni fecha, no encola avisos y se revierte entera si falla | pgTAP | `supabase/tests/conversion.test.sql` |
+| RF-022, base: forma mínima, requisito de publicación, búsqueda con tablas, privilegios | pgTAP | `contenido_documento.test.sql`, `busqueda.test.sql`, `articulos_publicacion.test.sql`, `privilegios.test.sql` y los adaptados |
+| RF-009 (H6 esc. 1 a 3): nueve formatos, combinaciones, exclusiones y `aria-disabled` con código | Vitest (esquema y normalización) y Playwright (barra, atajos `Mod+U`, `Mod+.`, `Mod+,`) | `esquema.test.ts`, `e2e/admin/editor-documento.spec.ts` |
+| RF-024 (H6 esc. 4): alineación de párrafos y títulos, no ofrecida en el resto | Playwright | `e2e/admin/editor-documento.spec.ts` |
+| RF-026, CE-008 (H6 esc. 5): el sitio muestra formatos, alineación y tablas; subrayado distinto del enlace; nada de HTML | Vitest (render estático) y Playwright (sitio) | `render/documento.test.tsx`, `render/seguridad.test.tsx`, `e2e/web/articulo.spec.ts` |
+| RF-015, D28 (H4 esc. 4 a 6, H6 esc. 6): pegado con formatos, sin colores, tablas dentro y fuera de los límites | Vitest (partir texto, tablas) y Playwright | `documento/pegado.test.ts`, `e2e/admin/editor-documento.spec.ts` |
+| RF-025, RF-028 (H7 esc. 1 a 8): insertar, Tab, varios párrafos por celda, filas, columnas, combinar, separar, límites y casos borde de celdas combinadas | Vitest (`cuadricula`, reglas) y Playwright | `packages/bloques/src/tablas.test.ts`, `documento/tablas.test.ts`, `e2e/admin/editor-tablas.spec.ts` (nuevo) |
+| RF-029: por debajo de 768 px solo se escribe en las celdas | Playwright (360 px) | `e2e/admin/editor-tablas.spec.ts` |
+| H7 esc. 9 y 10, RF-026: tabla en el sitio sin desbordar a 360 px, región con nombre y teclado, encabezados asociados | Playwright (sitio) y axe | `e2e/web/articulo.spec.ts`, `e2e/web/accesibilidad.spec.ts` |
+| RF-027 (H7 esc. 11): la búsqueda encuentra palabras de una celda y de la descripción | pgTAP y Vitest de integración (`buscar_articulos`; el sitio aún no tiene página de búsqueda) | `busqueda.test.sql`, `packages/db/src/consultas/busqueda.test.ts` |
+| CE-009: Lighthouse del sitio con el artículo del seed que tiene tablas y formatos | Lighthouse | según [quickstart.md](quickstart.md) |
+| RF-030, CE-010: corte en la nube | Manual, con la lista de [quickstart.md](quickstart.md#corte-en-la-nube) | `validacion.md` |
+| RF-001 a RF-008, RF-010, RF-011, RF-013, RF-014, RF-016 a RF-020, CE-001, CE-003 a CE-007 | Las del plan anterior (siguen vigentes, ahora con `Documento`) | `documento/*.test.ts`, `anuncios.test.ts`, `e2e/admin/editor-documento.spec.ts`, `accesibilidad.spec.ts` y los E2E de 003 y 004 |
 
-**Pruebas existentes a adaptar** (hoy dependen de «Agregar bloque», «Subir bloque N», `data-bloque` y los grupos por bloque):
+**Pruebas existentes a adaptar**: las Vitest de `packages/bloques` (esquema, validar, render, imágenes en uso), de `packages/db` (`pruebas/datos.ts`, consultas) y de `apps/admin` (`documento/*`, `reductor`, `datos`), los pgTAP que arman `contenido`, `e2e/admin/ayudas/articulos.ts` (las consultas a la base comparan el documento) y los E2E de las specs 003 y 004 (T057 a T059).
 
-| Archivo | Qué cambia |
-|---|---|
-| `e2e/admin/ayudas/editor.ts` | `agregarBloque` pasa a insertar desde «Insertar» o «/»; `grupoDeBloque` ubica el elemento en el lienzo; `completarBloque` completa los campos en el panel |
-| `e2e/admin/articulo-editor.spec.ts` | Los 10 tipos, errores por elemento, extremos de mover (con teclado) y cambios sin guardar |
-| `e2e/admin/casos-borde.spec.ts` | Subida fallida, slug repetido y publicado sin bloques sobre el lienzo y el panel |
-| `e2e/admin/articulo-conflicto.spec.ts` | La comparación y «Reemplazar con la vigente» reinician el documento y el historial |
-| `e2e/admin/accesibilidad.spec.ts` | axe sobre el editor nuevo, con el menú «/» y el panel abiertos |
-| `e2e/admin/jerarquia.spec.ts` y `contracts/matriz-acciones.md` de la 004 | Las filas «Editor — barra de marcas» y «Editor — bloques (provisorio)» se reemplazan por la barra de herramientas, «Acciones» y el asa |
+## Corte coordinado en la nube (RF-030)
+
+Se hace al cerrar la spec, con `/validar` aprobado y el CI en verde. Orden (detalle en [quickstart.md](quickstart.md#corte-en-la-nube)):
+
+1. Avisar del corte a quienes usan el panel de producción.
+2. Exportar los artículos de la nube a JSON y correr el script: si un artículo no pasa la verificación, se corrige y se vuelve a empezar (no se toca nada).
+3. Aplicar la migración en la nube (SQL Editor o MCP; antes, alinear el historial de migraciones si se va a usar `supabase db push`).
+4. Aplicar el SQL de la conversión (una transacción).
+5. Pushear el último commit, que elimina el script y `conversion-anterior/` (ya no hacen falta).
+6. Mergear el PR: Vercel despliega el sitio y el panel nuevos.
+7. Comprobar CE-010 (los artículos publicados se ven igual) y los advisors.
+
+Entre los pasos 3 y 6, el panel viejo no puede guardar contenido (lo rechaza la base, sin guardar nada inválido) y el sitio sirve las páginas en caché.
 
 ## Estructura del proyecto
 
@@ -144,87 +139,76 @@ Primero se escriben las pruebas de la lógica pura (rojo), como en la 004. La in
 ```text
 specs/005-editor-estilo-documento/
 ├── plan.md
-├── research.md
+├── research.md      # D1–D21 (etapa anterior) y D22–D30 (ampliación)
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
+│   ├── documento.md     # lista permitida
 │   ├── componentes.md
-│   ├── documento.md
 │   └── atajos.md
 ├── checklists/requirements.md
-├── tasks.md         # /speckit-tasks
+├── tasks.md         # /speckit-tasks (se regenera para la ampliación)
 └── validacion.md    # /validar
 ```
 
-### Código fuente (afectado por esta feature)
+### Código fuente (afectado por la ampliación)
 
 ```text
-packages/bloques/src/
-├── en-linea.ts (+ test)          # nuevo: analizarEnLinea, serializarEnLinea, normalizarMarcas
-├── parrafos.ts (+ test)          # nuevo: partirParrafos, unirParrafos
-├── pruebas/corpus-contenido.ts   # nuevo: corpus de CE-002
-├── render/clases.ts              # nuevo: clases de tipografía de los bloques
-├── render/TextoEnLinea.tsx, Parrafo.tsx, utilidades.ts (textoPlano)   # usan lo nuevo
-├── operaciones.ts, marcas.ts (+ tests)   # se eliminan
-└── index.ts                      # exports nuevos y se quitan los de lo eliminado
-packages/ui/src/                  # clases.ts (terciaria con aria-pressed) y tokens.css (3 tokens)
+packages/bloques/
+├── src/esquema.ts, validar.ts, normalizar.ts, elementos.ts, tablas.ts (+ tests)
+├── src/imagenes-en-uso.ts (+ test)
+├── src/render/Documento.tsx, EnLinea.tsx, Tabla.tsx, clases.ts (+ tests, caracterizacion.test.tsx)
+├── src/pruebas/corpus-contenido.ts, salida-anterior.json
+├── src/conversion-anterior/   # solo hasta el corte: bloques-a-documento, documento-a-bloques, en-linea, parrafos, esquema-bloques
+├── scripts/convertir-contenido.ts (+ test)   # solo hasta el corte
+└── (se eliminan render/Bloques.tsx, TextoEnLinea.tsx, Parrafo.tsx, utilidades.textoPlano, tipos-bloque.ts)
+packages/db/src/                 # Contenido → Documento (tipos-publicos, mapeo, pruebas)
+packages/ui/src/tokens.css       # 4 tokens
 apps/admin/src/
-├── lib/menu-teclado.ts           # nuevo: useMenuTeclado
-├── componentes/estructura/MasAcciones.tsx   # modificado: dirección y corte por props
+├── acciones/articulos.ts        # normalizar y validarDocumento antes de escribir
+├── app/(panel)/articulos/[id]/vista-previa/page.tsx   # Documento
 └── componentes/editor/
-    ├── EditorArticulo.tsx        # sección "Contenido" = EditorDocumento + panel; columna lateral con pestañas
-    ├── reductor.ts, anuncios.ts, ContextoEditor.tsx   # acción `contenido`; mensajes nuevos; useContextoEditor
-    ├── documento/                # nuevo
-    │   ├── EditorDocumento.tsx  BarraHerramientas.tsx  MenuInsertar.tsx  MenuAcciones.tsx  AsaDeElemento.tsx  AyudaAtajos.tsx
-    │   ├── PropiedadesDelElemento.tsx
-    │   ├── extensiones.ts  conversion.ts  comandos.ts  proteger.ts  ids.ts  atajos.ts  pegado.ts  limites.ts  mapa-errores.ts  menu-insercion.ts
-    │   └── nodos/NodoBloque.tsx
-    ├── bloques/                  # editores de campos: prop `soloPropiedades`; tipos.ts gana CambiosDeBloque
-    └── (se eliminan ListaBloques, BarraMarcas, TextoConMarcas, EditorParrafo y lo que quede sin uso)
-e2e/admin/
-├── editor-documento.spec.ts      # nuevo
-└── ayudas/editor.ts              # adaptado
+    ├── EditorArticulo.tsx, reductor.ts, datos.ts, ComparacionVersiones.tsx, anuncios.ts
+    └── documento/ extensiones.ts (+ extensiones.test.ts), tablas.ts, BarraTabla.tsx, BarraHerramientas.tsx,
+        PropiedadesDelElemento.tsx, menu-insercion.ts, pegado.ts, limites.ts, mapa-errores.ts, comandos.ts, proteger.ts, ids.ts
+apps/web/src/pages/blog/[slug].astro   # Documento
+supabase/
+├── migrations/20261023120000_contenido_documento.sql
+├── seed.sql
+└── tests/contenido_documento.test.sql, conversion.test.sql (+ adaptados)
+e2e/admin/editor-tablas.spec.ts (nuevo), editor-documento.spec.ts, ayudas/*; e2e/web/articulo.spec.ts
 ```
 
-**Decisión de estructura**: todo lo que depende de Tiptap vive en `apps/admin/src/componentes/editor/documento/` (la dependencia no sale de `apps/admin`). Las funciones puras (conversión, comandos sobre el rango, ids, atajos, pegado, filtro del menú) no importan React y se prueban con Vitest en entorno `node`. La gramática en línea y la partición de párrafos, que usan el sitio y el editor, viven en `packages/bloques`.
+**Decisión de estructura**: Tiptap no sale de `apps/admin/src/componentes/editor/documento/`. Lo que comparten el panel, el sitio, el servidor y la conversión (esquema, normalización, cuadrícula de tablas, texto visible, imágenes en uso y renderer) vive en `packages/bloques`, en funciones puras probadas en entorno `node`.
 
-## Revisión del plan (2026-10-22)
+## Revisión del plan
 
-| Origen | Hallazgo | Resolución |
-|---|---|---|
-| Consistencia B1 | `@floating-ui/dom` es *peer*, no dependencia; peers obligatorios del asa; `extension-placeholder` es un envoltorio; antigüedad no comprobable; peso sin umbral | `@floating-ui/dom` no se importa; peers listados y asa condicionada; se usa `@tiptap/extensions`; antigüedad reformulada; umbral de 250 KB gzip y medición de `starter-kit` (D1, D17) |
-| Consistencia B2 | La ida y vuelta no vale para todo contenido válido (3+ saltos, tramos en blanco, marcas que el sitio no lee) | Separador exacto por tramo, `normalizarMarcas` y autocorrección del editor, pruebas de propiedades (D3, D4) |
-| Consistencia B3 | `guardado` reinicia o no el documento (contradicción) | `guardado` no toca el documento; solo la carga y `adoptar_vigente` (D6, D11) |
-| Consistencia B4 | Ids inestables, duplicados por el portapapeles, errores por posición, `updateAttributes` por selección | `asignarIds`, ids fuera del portapapeles, errores y cambios por `bloqueId`, forma funcional de los cambios (D6, D12, D21) |
-| Consistencia B5 | Duplicación: cuatro vistas, panel y hoja, regla de tramos, tabla de nombres, anuncios | `NodoBloque` único, `PropiedadesDelElemento` con variante, `partirParrafos` en el paquete, nombres desde `nombreDeTipo`, `anuncios.ts` extendido |
-| Consistencia B6 | Retiro de código muerto incompleto | D18 completo |
-| Consistencia B7 | Criterios sin prueba (CE-003, CE-005, RF-008, RF-016, RF-017, H2 esc. 7, H3 esc. 4, casos borde) y reglas de entrada sin DOM | Filas nuevas en "Plan de pruebas"; reglas de entrada en Playwright y la parte pura en `atajos.ts` |
-| Consistencia menores | `MasAcciones`, `useEditor`, U+200B, `textoPlano`, RF-016 con marcas, configuración explícita de extensiones, íconos, `next/dynamic`, enmienda de §II, tarea de la Fase 0, «bloque» en los mensajes | Incorporados en D1, D3, D8, D15, D18, D20 y en la tabla de Reutilización |
-| UX B1 y B2 | Lienzo de 340 px a 1024 px; hoja y barras fijas, apilado, foco y apertura | Segunda columna desde 1280 px; Publicación fuera de las pestañas; reglas de la hoja (D9) |
-| UX B3 y B4 | `role="textbox"` aplana lo de adentro; el rol del lienzo no debe cambiar | Rol nativo y fijo, `aria-activedescendant`, dos modelos de foco, plan B (D7, D14) |
-| UX B5 | Atajos con conflictos del navegador, del sistema y del teclado español | Esquema nuevo sin `Alt+Shift` ni `Mod+Shift`, con camino visible para cada acción y tabla de colisiones en la Fase 0 ([atajos.md](contracts/atajos.md)) |
-| UX B6 y B7 | Texto frente a elementos; vías que saltean los comandos | Modo elementos; plugin `proteger` (D10, D19) |
-| UX B8 | Asa a 360 px y alcance con teclado | Asa flotante única; botón «Acciones» de la barra (D10) |
-| UX B9 | Estado activo de la terciaria solo con tinte | Borde de marca en `packages/ui` (D8) |
-| UX menores y sugerencias | Anuncios, foco por tipo, campo de enlace, «Más», error de carga, no editable, subida, arrastre, *placeholder*, menú en móvil, criterios de la Fase 0 | Incorporados en [atajos.md](contracts/atajos.md), [componentes.md](contracts/componentes.md) y D14 y D17 |
+### Etapa anterior (2026-10-22)
+
+`consistencia-codigo` (7 bloqueantes) y `revisor-ux-ui` (9 bloqueantes) emitieron CAMBIOS REQUERIDOS; todos se incorporaron (dependencias y peso, ida y vuelta, `guardado`, ids estables, duplicación, retiro del editor anterior, criterios sin prueba, disposición desde 1280 px, roles del lienzo, atajos sin colisiones, modo elementos, asa y estado activo). El detalle está en el historial del repositorio (commit `9ab2da2`) y en research D1 a D21.
+
+### Ampliación (2026-10-22)
+
+Pendiente: `arquitecto-db` (data-model), `consistencia-codigo` (dependencias nuevas, reutilización y conversión) y `revisor-ux-ui` (barra, tablas, sitio y tokens). Sus hallazgos se resuelven en este plan antes de `/speckit-tasks`.
 
 ## Riesgos
 
 | Id | Riesgo | Mitigación |
 |---|---|---|
-| R1 | El refactor de `TextoEnLinea`, `Parrafo` y `textoPlano` cambia la salida del sitio o los extractos | Pruebas de caracterización de la salida actual sobre un corpus **antes** de mover el analizador; `texto-en-linea.test.tsx`, `seguridad.test.tsx` y los E2E del sitio pasan sin cambios |
-| R2 | Texto plano que el sitio leería como formato (la gramática no tiene escape) | Reglas de entrada, normalización y autocorrección del editor y U+200B como último recurso (D3) |
-| R3 | El asa de la librería arrastra `yjs` al cliente | **Resuelto** en la Fase 0 (2026-10-22): asa propia, sin la extensión (D10) |
-| R4 | El arrastre con el dedo no funciona con el asa de la librería | Fase 0 en dispositivos reales; eventos de puntero; si no, volver a consultar |
-| R5 | Accesibilidad de un editor de texto enriquecido con lector de pantalla | Fase 0 con guion y varios lectores; roles de [atajos.md](contracts/atajos.md); axe y Lighthouse en CI; un fallo crítico dispara Lexical |
-| R6 | Peso del editor en el panel | Importación dinámica, medición y tope de 250 KB gzip (D17) |
-| R7 | Párrafos con líneas en blanco | Separador exacto por tramo y pruebas de propiedades (D4) |
-| R8 | Límites medidos sobre el texto serializado | Contador sobre el texto serializado y aviso al cruzar el 90 % y el 100 % (D13) |
-| R9 | Latencia al escribir con 200 elementos por convertir y despachar en cada tecla | Medición en la Fase 0 y conversión diferida si hace falta (D6) |
-| R10 | Ids duplicados por copiar, pegar o arrastrar | `asignarIds` deduplica y los ids no viajan por el portapapeles (D21) |
-| R11 | Teclados móviles y composición (IME) rompen las reglas de entrada | Fase 0 con Gboard, iOS y dictado; reglas con `beforeinput` si hace falta |
-| R12 | La autocorrección de marcas mueve el cursor o confunde | Se aplica sin historial y se prueba con teclado; si molesta, se avisa en lugar de corregir |
+| R1 | El renderer nuevo muestra distinto lo que ya estaba publicado | Caracterización **antes** de cambiar el renderer (D26) y comparación en el script; E2E del sitio |
+| R4 | El arrastre con el dedo no funciona | Asa propia con eventos de puntero; el menú «Acciones» y el modo elementos como camino principal en táctil (sin cambios) |
+| R5 | Accesibilidad con lectores de pantalla reales, ahora también en tablas | axe y Lighthouse en CI, árbol de accesibilidad en Playwright y pasada con NVDA en T081 si es posible |
+| R6 | Peso del editor con las tablas | Medición contra el tope de 250 KB gzip; carga diferida de la extensión de tablas si hace falta (D23) |
+| R9 | Latencia al normalizar en cada transacción con 200 elementos | Medición (T081) y normalización diferida si hace falta (D24) |
+| R10 | Ids duplicados | `asignarIds` y unicidad en el esquema (sin cambios) |
+| R11 | Teclados móviles y composición | Sin cambios: pruebas de escritorio y riesgo asumido |
+| R13 | La conversión pierde algo en un caso no cubierto | Verificación de ida y vuelta y caracterización sobre **todos** los artículos reales antes de aplicar; todo o nada |
+| R14 | Alguien guarda en producción durante el corte | Aviso previo; la base rechaza el formato anterior; `where version = …` en la conversión |
+| R15 | `prosemirror-tables` permite estructuras que la lista permitida rechaza (encabezado combinado con el cuerpo, anchos) | Plugin `reglasDeTabla`, `resizable: false`, normalización y prueba de contrato (D23, D29) |
+| R16 | El historial de migraciones de la nube está desalineado | Aplicar con el SQL Editor o el MCP como hasta ahora, o alinear con `supabase migration repair` antes de un `db push` (CLAUDE.md) |
 
 ## Seguimiento de complejidad
 
-No hay excepciones a la constitución. La dependencia nueva está justificada en D1: el núcleo aprobado por `consistencia-codigo` y el asa condicionada a la Fase 0.
+| Excepción | Por qué | Alternativa más simple descartada |
+|---|---|---|
+| Código de un solo uso (`conversion-anterior/` y el script) que lee el formato anterior | La conversión necesita el analizador en línea del sitio; se elimina en el último commit antes del merge (RF-030) | Conversor en PL/pgSQL: duplicaría la gramática (§VIII.3) y arriesgaría pérdidas |

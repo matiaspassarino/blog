@@ -20,7 +20,11 @@ En modo elementos: `Shift+↑` y `Shift+↓` amplían la selección a elementos 
 
 | Acción | Atajo | Camino visible |
 |---|---|---|
-| Negrita, cursiva, código en línea | `Mod+B`, `Mod+I`, `Mod+E` | botones de la barra |
+| Negrita, cursiva, subrayado | `Mod+B`, `Mod+I`, `Mod+U` | botones de la barra |
+| Código en línea | `Mod+E` | «Más formato» |
+| Superíndice, subíndice | `Mod+.`, `Mod+,` | «Más formato» |
+| Tachado, resaltado | **sin atajo** (los habituales chocan con Firefox: captura de pantalla e historial) | «Más formato» |
+| Alineación (izquierda, centro, derecha, justificado) | **sin atajo** (`Mod+Shift+R` recarga, `Mod+Shift+J` abre la consola y `Ctrl+Alt` es AltGr en el teclado español) | menú «Alineación» de la barra |
 | Enlace | `Mod+K` | botón «Enlace»: abre un campo de URL (solo `https://` y rutas internas) |
 | Deshacer, rehacer | `Mod+Z`, `Mod+Shift+Z` (y `Mod+Y` en Windows) | botones de la barra |
 | Insertar un elemento | `/` en una línea vacía | botón «Insertar» de la barra (siempre visible, nunca dentro de «Más») y botón de cada línea vacía |
@@ -32,6 +36,12 @@ En modo elementos: `Shift+↑` y `Shift+↓` amplían la selección a elementos 
 | Volver al texto | `Esc` | — |
 | Abrir el menú de acciones | botón «Acciones» de la barra | (el asa flotante es solo para ratón y toque) |
 | Ayuda de atajos | botón «Atajos» del menú de acciones | diálogo con foco gestionado |
+| Celda siguiente o anterior (tabla) | `Tab`, `Shift+Tab`; `Tab` en la última celda agrega una fila (desde 768 px) | — |
+| Salir de una tabla | `Esc` (pasa al modo elementos con la tabla seleccionada; desde ahí `Tab` sale del lienzo) | — |
+| Seleccionar varias celdas (tabla) | `Shift+←/→/↑/↓` | arrastrar con el ratón |
+| Combinar, separar, filas y columnas | sin atajo | barra contextual de la tabla y panel (desde 768 px) |
+
+Se desactivan los atajos que traen por defecto `Strike`, `Highlight` y `TextAlign` (research D28).
 
 **Orden de `Esc`**: cierra primero el menú abierto, después el campo de enlace, después la selección múltiple y, por último, la hoja de propiedades. `Esc` nunca saca el foco del lienzo.
 
@@ -46,7 +56,7 @@ En modo elementos: `Shift+↑` y `Shift+↓` amplían la selección a elementos 
 | `---` | Separador |
 | tres comillas invertidas | Bloque de código |
 
-Deshacer inmediato deja el texto escrito. En línea: `**x**`, `_x_`, `` `x` `` y `[x](url)` se convierten en la marca real al cerrarlas. Las reglas se prueban con teclado español y latinoamericano, con la autocorrección de Gboard y de iOS y con dictado (Fase 0).
+Deshacer inmediato deja el texto escrito. En línea: `**x**`, `_x_`, `` `x` `` y `[x](url)` se convierten en la marca real al cerrarlas (no hay reglas de escritura para subrayado, tachado, resaltado, superíndice ni subíndice: se aplican con la barra o el atajo). Las reglas se prueban con teclado español y latinoamericano, con la autocorrección de Gboard y de iOS y con dictado (Fase 0).
 
 ## Una sola ruta para quitar y mover
 
@@ -73,6 +83,9 @@ El lienzo usa el `contenteditable` nativo de ProseMirror con `aria-label`, `aria
 | Botón «Acciones» de la barra | `aria-haspopup="menu"` y `aria-expanded`; menú con flechas, `Inicio`, `Fin`, escritura por letra y `Esc` |
 | Panel de propiedades | `aside`, nombre "Propiedades del elemento 3, imagen"; pestañas con `role="tablist"`, `tab` y `tabpanel` y flechas |
 | Hoja de propiedades (pantallas angostas) | `aside` no modal, botón «Cerrar»; **no roba el foco** al abrirse (salvo con `Enter` en modo elementos o «Propiedades»); se anuncia "Se abrió el panel de propiedades de la imagen 3" |
+| Barra contextual de la tabla | segunda fila de la barra (`role="toolbar"`, nombre "Tabla"), con el mismo modelo de foco; por debajo de 768 px muestra solo «Quitar tabla» y el texto que explica por qué |
+| Tabla en el lienzo | `table` real con nombre por su descripción ("Precios") o "Tabla 2 de 8"; las celdas de la primera fila son `th` cuando es encabezado |
+| Formatos no disponibles | con código en línea activo, los demás formatos llevan `aria-disabled` y la razón "El código no admite otros formatos" |
 | Selección múltiple | texto fijo "3 elementos seleccionados" junto a la barra y una marca **no cromática** en cada elemento (borde de 2 px a la izquierda y ícono de verificación; contraste ≥ 3:1 y visible en `forced-colors`) |
 
 ## Foco al terminar una acción
@@ -88,6 +101,10 @@ El lienzo usa el `contenteditable` nativo de ProseMirror con `aria-label`, `aria
 | Duplicar | la copia |
 | Quitar | el elemento contiguo; si era el último, el párrafo final |
 | Convertir | dentro del elemento convertido |
+| Insertar tabla | la primera celda |
+| Insertar o quitar fila o columna | una celda de la fila o columna contigua |
+| Combinar celdas | la celda combinada |
+| Separar celdas | la primera de las celdas separadas |
 | Cerrar la hoja o el panel con `Esc` | el elemento seleccionado |
 
 ## Anuncios (región de estado persistente, `aria-live="polite"`)
@@ -103,6 +120,8 @@ Se evita la superposición con el nombre del elemento que el lector anuncia al r
 | Convertir | "Se convirtió en título 2" |
 | Modo elementos | "3 elementos seleccionados" (al entrar, al salir y al terminar de ampliar) |
 | Pegado con sobrante | "Se crearon 2 párrafos nuevos por el límite de caracteres" |
-| Límite de caracteres | "Quedan 500 caracteres (se cuentan las marcas de formato)" al cruzar el 90 % y "Se alcanzó el máximo de caracteres del párrafo" al 100 %; no se anuncia en cada tecla |
+| Tablas | "Fila agregada, 4 filas", "Columna quitada, 2 columnas", "Celdas combinadas", "Celdas separadas", "La primera fila es encabezado", "Se alcanzó el máximo de 10 columnas"; al entrar a una celda: "Fila 2, columna 3, Precio" (con *debounce*) |
+| Tabla pegada | "Se pegó una tabla de 4 filas y 3 columnas" o, si supera los límites, "La tabla supera el máximo de filas o columnas: se pegó como texto" |
+| Límite de caracteres | "Quedan 500 caracteres" al cruzar el 90 % y "Se alcanzó el máximo de caracteres del párrafo" al 100 %; no se anuncia en cada tecla |
 | Deshacer, rehacer | "Se deshizo: mover elemento" / "Se rehízo: mover elemento" |
 | Subida en curso | "Subiendo imagen… No se puede mover ni quitar hasta que termine" |
