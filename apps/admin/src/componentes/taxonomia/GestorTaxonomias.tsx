@@ -75,6 +75,7 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
                       titulo={`¿Eliminar ${taxonomia.nombre}?`}
                       descripcion={descripcionDeBaja(tipo, taxonomia.conteo)}
                       etiquetaConfirmar="Eliminar"
+                      variante="peligro"
                       onConfirmar={() => eliminar(taxonomia)}
                     >
                       <Button variante="peligro">{`Eliminar ${taxonomia.nombre}`}</Button>

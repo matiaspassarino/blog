@@ -16,12 +16,11 @@ import {
   previsualizarSlugAccion,
 } from '../../acciones/articulos';
 import { agruparPorBloque, idDeCampo, mensajeDeCampo } from '../../lib/errores-campo';
-import { AccionesEstado } from '../articulo/AccionesEstado';
+import { BarraEditor } from '../articulo/BarraEditor';
+import { InfoPublicacion } from '../articulo/InfoPublicacion';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { EnlaceConAviso } from '../salida/EnlaceConAviso';
 import { useSalida } from '../salida/ProveedorSalida';
-import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { Select } from '../ui/select';
@@ -249,11 +248,6 @@ export function EditorArticulo({
           <h1 ref={titulo} tabIndex={-1} className="font-titulos text-titulo-2 font-semibold">
             {nuevo ? 'Nuevo artículo' : 'Editar artículo'}
           </h1>
-          {id && (
-            <Button asChild variante="secundaria">
-              <EnlaceConAviso href={`/articulos/${id}/vista-previa`}>Vista previa</EnlaceConAviso>
-            </Button>
-          )}
         </div>
 
         {aviso && (
@@ -337,19 +331,11 @@ export function EditorArticulo({
 
             <div className="flex flex-col gap-6">
               {id && (
-                <AccionesEstado
-                  id={id}
+                <InfoPublicacion
                   slug={estado.guardado.slug}
-                  version={estado.guardado.version}
                   estado={publicacion.estado}
                   programadoPara={publicacion.programado_para}
                   publicadoEn={publicacion.publicado_en}
-                  rol={rol}
-                  hayCambiosSinGuardar={sucio}
-                  alCambiarEstado={(articulo) => {
-                    despachar({ tipo: 'guardado', articulo: aDatosArticulo(articulo, actual.etiquetas) });
-                    setPublicacion(publicacionDe(articulo));
-                  }}
                 />
               )}
               <CampoFormulario etiqueta="Categoría" id="campo-categoria">
@@ -430,25 +416,23 @@ export function EditorArticulo({
           </div>
         </fieldset>
 
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-4 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8">
-          <Button
-            aria-disabled={guardando || subidas > 0 || reemplazando || undefined}
-            aria-busy={guardando || undefined}
-            onClick={guardar}
-          >
-            Guardar
-          </Button>
-          <p aria-live="polite" className="font-semibold text-advertencia">
-            {sucio ? 'Cambios sin guardar' : ''}
-          </p>
-          <p role="status" className="font-semibold text-exito">
-            {guardadoOk && !sucio
-              ? slugAjustado
-                ? `Guardado. La dirección quedó como ${slugAjustado}`
-                : 'Guardado'
-              : ''}
-          </p>
-        </div>
+        <BarraEditor
+          id={id}
+          version={estado.guardado.version}
+          estado={publicacion.estado}
+          rol={rol}
+          hayCambiosSinGuardar={sucio}
+          guardando={guardando}
+          bloqueado={subidas > 0 || reemplazando}
+          subiendoImagen={subidas > 0}
+          guardadoOk={guardadoOk}
+          slugAjustado={slugAjustado}
+          alGuardar={guardar}
+          alCambiarEstado={(articulo) => {
+            despachar({ tipo: 'guardado', articulo: aDatosArticulo(articulo, actual.etiquetas) });
+            setPublicacion(publicacionDe(articulo));
+          }}
+        />
         {/* Región persistente de anuncios (movimientos de bloques, subidas, errores): no se recrea. */}
         <p role="status" className="sr-only">
           {anuncio}

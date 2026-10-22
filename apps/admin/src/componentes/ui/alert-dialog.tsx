@@ -58,7 +58,7 @@ export function AlertDialogCancel({ className, ...props }: ComponentProps<typeof
 }
 
 export function AlertDialogAction({
-  variante = 'primaria',
+  variante,
   className,
   ...props
 }: ComponentProps<typeof AlertDialogPrimitive.Action> & { variante?: 'primaria' | 'peligro' }) {

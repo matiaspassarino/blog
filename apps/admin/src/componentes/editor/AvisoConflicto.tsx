@@ -32,6 +32,7 @@ export function AvisoConflicto({ alVerVigente, alReemplazar }: Props) {
           titulo="¿Reemplazar con la versión vigente?"
           descripcion="Se descartarán tus cambios sin guardar en este artículo."
           etiquetaConfirmar="Reemplazar"
+          variante="peligro"
           onConfirmar={alReemplazar}
         >
           <Button variante="peligro">Reemplazar con la vigente</Button>

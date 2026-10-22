@@ -102,6 +102,7 @@ export function ImagenEditable({
           titulo="¿Quitar esta imagen?"
           descripcion="La imagen ya está guardada. Si la quitas y guardas, se borra del almacenamiento salvo que otro contenido la use."
           etiquetaConfirmar="Quitar imagen"
+          variante="peligro"
           onConfirmar={quitar}
         >
           {botonQuitar}

@@ -104,6 +104,7 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                     titulo={`¿Desactivar a ${fila.nombre}?`}
                     descripcion="Ya no podrá ingresar al panel ni usar sus acciones. Sus artículos no se borran y puedes reactivar la cuenta cuando quieras."
                     etiquetaConfirmar="Desactivar"
+                    variante="peligro"
                     onConfirmar={() =>
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: false }), 'Miembro desactivado')
                     }
