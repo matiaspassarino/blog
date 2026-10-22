@@ -77,7 +77,7 @@ La persona inserta una imagen, una galería, una llamada a la acción, un video,
 
 ### Historia 3 - Mover, duplicar, quitar y seleccionar varios elementos (Prioridad: P2)
 
-Cada párrafo, título, lista, cita o elemento especial tiene a su lado un asa discreta (visible al pasar el puntero, al recibir el foco y siempre en pantallas táctiles) que se arrastra para moverlo y abre un menú con subir, bajar, duplicar, convertir y quitar. Las mismas acciones tienen atajos de teclado, y se pueden seleccionar varios elementos a la vez.
+Para el ratón y el toque, el elemento activo (párrafo, título, lista, cita o elemento especial) muestra un asa discreta que se arrastra para moverlo y abre un menú con subir, bajar, duplicar, convertir y quitar; para el teclado y los lectores de pantalla, el mismo menú se abre con el botón «Acciones» de la barra. Las mismas acciones tienen atajos de teclado en un modo elementos, y se pueden seleccionar varios elementos a la vez.
 
 **Por qué esta prioridad**: mantiene todo lo que el editor de hoy permite (RF-005 de la spec 003: reordenar, duplicar y quitar) sin las filas de botones. Es necesaria, pero las historias 1 y 2 ya dan un editor usable.
 
@@ -174,7 +174,7 @@ Los artículos que ya existen se abren en el nuevo editor sin cambios, se guarda
 - **RF-018**: Los permisos, la barra fija de acciones del artículo, el recuadro «Publicación», las secciones (imagen destacada, taxonomías, para buscadores) y los textos de la spec 004 NO DEBEN cambiar, salvo los textos propios del editor.
 - **RF-019**: El editor DEBE tener un **modo elementos** (con Esc, Shift y clic sobre el asa o «Seleccionar» del menú de acciones) que permita seleccionar varios elementos consecutivos con Shift y las flechas y aplicarles mover, duplicar y quitar como una sola acción que Deshacer revierte de una vez; convertir de tipo NO DEBE ofrecerse con varios elementos seleccionados. Un rango de texto que cruza párrafos NO DEBE habilitar esas acciones. Toda vía que quite o mueva elementos (menú, atajo, Supr, cortar, escribir sobre la selección, arrastrar) DEBE pasar por las mismas reglas: bloquear con una subida en curso y confirmar una imagen ya guardada.
 - **RF-020**: El editor DEBE ofrecer un **panel de propiedades** del elemento seleccionado, con los campos que el esquema admite para ese tipo (nivel de título, lista ordenada, autor y fuente de la cita, texto alternativo y leyenda de la imagen, columnas de la galería, campos de la llamada a la acción, URL del video, lenguaje del código). En pantallas de 1280 px o más DEBE ser una pestaña de la columna lateral junto al lienzo (con «Publicación» siempre visible); en pantallas menores, una hoja que se abre con «Propiedades» o con Enter y se cierra con «Cerrar» o Esc sin tapar el elemento seleccionado ni quitar el foco del lienzo. NO DEBE ofrecer propiedades que el esquema no guarda.
-- **RF-021**: La librería de edición DEBE ser Tiptap (decisión del usuario). Su uso DEBE quedar justificado en el plan (constitución §II), limitado a `apps/admin` y con versiones fijas y compatibles con la protección de antigüedad de paquetes del proyecto. El editor NO DEBE superar de 250 KB gzip adicionales sobre la ruta actual del editor (tope de la prueba de concepto).
+- **RF-021**: La librería de edición DEBE ser Tiptap (decisión del usuario). Su uso DEBE quedar justificado en el plan (constitución §II), limitado a `apps/admin` y con versiones fijas y compatibles con la protección de antigüedad de paquetes del proyecto.
 
 ### Requisitos de permisos *(obligatorio si hay datos o acciones restringidas)*
 
@@ -204,6 +204,7 @@ Sin cambios: la feature solo cambia la forma de editar el cuerpo del artículo. 
 
 - El contenido y su validación no cambian: es la misma lista de bloques de la spec 001 con las reglas de `packages/bloques`; no hay migraciones ni cambios de base de datos.
 - El editor sigue en `apps/admin` y reutiliza los componentes de la spec 004 (barra fija, niveles de botón, encabezado, títulos de sección, avisos); no cambia el sitio público ni su aspecto.
+- El peso adicional del editor sobre la ruta actual del editor no debe superar los 250 KB gzip (tope que fija el plan y mide la prueba de concepto).
 - El usuario decidió usar Tiptap y aceptar el riesgo técnico (2026-10-22). El plan hace una prueba corta antes de cerrar la elección (ida y vuelta sin pérdida, accesibilidad, peso y rendimiento) y justifica la dependencia contra la constitución (stack cerrado, §II).
 - La captura de referencia (lienzo, barra superior y panel de propiedades a la derecha) sirve de guía de disposición; las propiedades se limitan a lo que el esquema guarda.
 - La imagen destacada, el extracto, las etiquetas, la categoría y los campos para buscadores siguen en sus secciones de hoy. El panel de propiedades del elemento comparte la zona lateral con ellas (por ejemplo, en pestañas «Artículo» y «Elemento»); la disposición exacta la define el plan.

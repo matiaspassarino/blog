@@ -117,6 +117,16 @@ type Props = {
 - `clasesBoton`: la terciaria con `aria-pressed` suma un borde de marca (`aria-pressed:border-marca`) además del fondo `marca-suave`, para que el estado activo no dependa solo del tinte (WCAG 1.4.1 y 1.4.11; contraste del borde ≥ 3:1). `clases.test.ts` mide el contraste del borde y el texto. También mejora el conmutador «Mostrar contraseña» de la spec 004.
 - Tokens nuevos: `--container-panel-propiedades` (ancho de la columna lateral), `--carril-asa` (igual a `--tactil-min`) y `--alto-hoja-propiedades` (45 dvh), definidos en `tokens.css`, sin valores sueltos.
 
+## `MenuAcciones` y `AyudaAtajos` — nuevos
+
+- `MenuAcciones`: el menú del botón «Acciones» de la barra y del asa (Subir, Bajar, Duplicar, Convertir en…, Quitar, Seleccionar, Propiedades y Atajos), con `useMenuTeclado`; las acciones no disponibles (extremos, varios elementos, subida en curso) llevan `aria-disabled` y la razón.
+- `AyudaAtajos`: diálogo «Atajos de teclado» con foco inicial en su título y devolución del foco a «Acciones»; la lista sale de [atajos.md](atajos.md).
+
+## `limites.ts` y `mapa-errores.ts` — nuevos (puros)
+
+- `limites.ts`: cuenta de caracteres de un bloque sobre el texto **serializado** (sin U+200B), avisos al cruzar el 90 % y el 100 %, y el máximo de 200 elementos.
+- `mapa-errores.ts`: traduce `ErrorBloque.indice` a `bloqueId` con la lista convertida y ordena los errores por posición en el documento.
+
 ## `EditorArticulo` y `reductor` — modificados
 
 - La sección «Contenido» pasa a `EditorDocumento` + panel; la columna lateral gana las pestañas descritas arriba (con **Publicación** fuera de ellas).

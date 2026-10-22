@@ -175,9 +175,9 @@ apps/admin/src/
     ├── EditorArticulo.tsx        # sección "Contenido" = EditorDocumento + panel; columna lateral con pestañas
     ├── reductor.ts, anuncios.ts, ContextoEditor.tsx   # acción `contenido`; mensajes nuevos; useContextoEditor
     ├── documento/                # nuevo
-    │   ├── EditorDocumento.tsx  BarraHerramientas.tsx  MenuInsertar.tsx  AsaDeElemento.tsx
+    │   ├── EditorDocumento.tsx  BarraHerramientas.tsx  MenuInsertar.tsx  MenuAcciones.tsx  AsaDeElemento.tsx  AyudaAtajos.tsx
     │   ├── PropiedadesDelElemento.tsx
-    │   ├── extensiones.ts  conversion.ts  comandos.ts  proteger.ts  ids.ts  atajos.ts  pegado.ts  menu-insercion.ts
+    │   ├── extensiones.ts  conversion.ts  comandos.ts  proteger.ts  ids.ts  atajos.ts  pegado.ts  limites.ts  mapa-errores.ts  menu-insercion.ts
     │   └── nodos/NodoBloque.tsx
     ├── bloques/                  # editores de campos: prop `soloPropiedades`; tipos.ts gana CambiosDeBloque
     └── (se eliminan ListaBloques, BarraMarcas, TextoConMarcas, EditorParrafo y lo que quede sin uso)

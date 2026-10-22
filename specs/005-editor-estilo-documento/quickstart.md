@@ -41,13 +41,13 @@ En una PC con 8 GB de RAM conviene usar el *build* del admin (`pnpm --filter adm
 ### B. Elementos especiales y panel (Historia 2)
 1. «Insertar» (y `/`) ofrece imagen, galería, llamada a la acción, video, código y separador.
 2. Insertar una imagen, subir un archivo y completar el texto alternativo **en el panel**; el lienzo muestra la imagen como en el sitio.
-3. Con 1024 px o más el panel es la pestaña «Elemento»; en 768 y 360 px es una hoja inferior que se cierra con «Cerrar» y Esc y no tapa el elemento.
+3. Con 1280 px o más el panel es la pestaña «Elemento» (con «Publicación» siempre visible); por debajo de 1280 px (por ejemplo 1024, 768 y 360 px) es una hoja inferior que se abre con «Propiedades» o con `Enter` en modo elementos, se cierra con «Cerrar» y `Esc` y no tapa el elemento.
 4. Dejar la imagen sin texto alternativo y guardar: el elemento muestra el error con texto, se selecciona y el panel enfoca el campo.
 
 ### C. Mover, duplicar, quitar y seleccionar varios (Historia 3)
 1. Arrastrar el asa de un elemento a otro lugar (ratón) y, en un teléfono o con emulación táctil, con el dedo; el desplazamiento de la página no inicia un arrastre.
-2. Con el teclado: `Alt+Shift+↑/↓`, `Mod+Shift+D` y `Mod+Shift+Backspace` dan el mismo resultado que el menú del asa; el movimiento se anuncia.
-3. Seleccionar tres elementos con Shift+↓ y moverlos, duplicarlos o quitarlos juntos; un solo Deshacer los devuelve. «Convertir» no se ofrece.
+2. Con el teclado: `Esc` entra al modo elementos y `Alt+↑/↓`, `Mod+D` y `Supr` dan el mismo resultado que el menú del botón «Acciones» de la barra; el movimiento se anuncia.
+3. En modo elementos, ampliar la selección a tres elementos con `Shift+↓` y moverlos, duplicarlos o quitarlos juntos; un solo Deshacer los devuelve. «Convertir» no se ofrece. Un rango de texto que cruza párrafos no habilita mover ni quitar.
 
 ### D. Atajos, pegado y deshacer (Historia 4)
 1. Escribir `## Mi título` al comienzo de una línea: se convierte en título; Deshacer lo deja como texto.
@@ -66,7 +66,7 @@ Abrir http://localhost:4321 y un artículo con negrita, cursiva, código y enlac
 ## Accesibilidad y rendimiento
 
 - Lighthouse (solo Accesibilidad, ≥ 95) en el editor, en 360 y 768 px como móvil y en 1024 y 1440 px como escritorio (CE-004), con el procedimiento de la spec 003 (T103): sesión con Playwright, cookie por `--extra-headers` y medición sobre `next start`.
-- NVDA: recorrer la barra, abrir el menú `/`, insertar un elemento, moverlo con el teclado y llegar al panel con `Alt+Shift+P`; todo se anuncia con el nombre y la posición de [atajos.md](contracts/atajos.md).
+- NVDA: recorrer la barra, abrir el menú `/`, insertar un elemento, moverlo con el teclado y llegar al panel con el botón «Propiedades» o con `Enter` en modo elementos; todo se anuncia con el nombre y la posición de [atajos.md](contracts/atajos.md).
 - Rendimiento: con un artículo de 50 elementos, el menú `/` y «Insertar» aparecen en menos de 200 ms (CE-006). Medir también el peso del editor y anotarlo en `validacion.md`.
 
 ## Prueba con personas
