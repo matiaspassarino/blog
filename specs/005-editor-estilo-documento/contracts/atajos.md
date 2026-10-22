@@ -22,7 +22,7 @@ En modo elementos: `Shift+↑` y `Shift+↓` amplían la selección a elementos 
 |---|---|---|
 | Negrita, cursiva, subrayado | `Mod+B`, `Mod+I`, `Mod+U` | botones de la barra |
 | Código en línea | `Mod+E` | «Más formato» |
-| Superíndice, subíndice | `Mod+.`, `Mod+,` | «Más formato» |
+| Superíndice, subíndice | `Ctrl+.`, `Ctrl+,` **fuera de macOS** (en Mac `Cmd+,` abre la configuración y `Cmd+.` detiene la carga en Safari: sin atajo) | «Más formato» |
 | Tachado, resaltado | **sin atajo** (los habituales chocan con Firefox: captura de pantalla e historial) | «Más formato» |
 | Alineación (izquierda, centro, derecha, justificado) | **sin atajo** (`Mod+Shift+R` recarga, `Mod+Shift+J` abre la consola y `Ctrl+Alt` es AltGr en el teclado español) | menú «Alineación» de la barra |
 | Enlace | `Mod+K` | botón «Enlace»: abre un campo de URL (solo `https://` y rutas internas) |
@@ -37,9 +37,10 @@ En modo elementos: `Shift+↑` y `Shift+↓` amplían la selección a elementos 
 | Abrir el menú de acciones | botón «Acciones» de la barra | (el asa flotante es solo para ratón y toque) |
 | Ayuda de atajos | botón «Atajos» del menú de acciones | diálogo con foco gestionado |
 | Celda siguiente o anterior (tabla) | `Tab`, `Shift+Tab`; `Tab` en la última celda agrega una fila (desde 768 px) | — |
-| Salir de una tabla | `Esc` (pasa al modo elementos con la tabla seleccionada; desde ahí `Tab` sale del lienzo) | — |
+| Salir de una tabla | `Esc` (pasa al modo elementos con la tabla seleccionada; desde ahí `Shift+Tab` llega a la barra «Tabla» y `Tab` sale del lienzo). Se anuncia al entrar ("Tabla. Esc para salir") y la barra «Tabla» lo muestra como texto | — |
 | Seleccionar varias celdas (tabla) | `Shift+←/→/↑/↓` | arrastrar con el ratón |
-| Combinar, separar, filas y columnas | sin atajo | barra contextual de la tabla y panel (desde 768 px) |
+| Combinar, separar, filas y columnas | sin atajo | barra «Tabla» (operable también con la tabla seleccionada en modo elementos, sobre la última celda o selección) y panel, desde 768 px; con el dedo, «Combinar con la celda de la derecha» y «… de abajo» |
+| Primera celda con `Shift+Tab` | no hace nada y se anuncia "Primera celda" | — |
 
 Se desactivan los atajos que traen por defecto `Strike`, `Highlight` y `TextAlign` (research D28).
 
@@ -85,7 +86,10 @@ El lienzo usa el `contenteditable` nativo de ProseMirror con `aria-label`, `aria
 | Hoja de propiedades (pantallas angostas) | `aside` no modal, botón «Cerrar»; **no roba el foco** al abrirse (salvo con `Enter` en modo elementos o «Propiedades»); se anuncia "Se abrió el panel de propiedades de la imagen 3" |
 | Barra contextual de la tabla | segunda fila de la barra (`role="toolbar"`, nombre "Tabla"), con el mismo modelo de foco; por debajo de 768 px muestra solo «Quitar tabla» y el texto que explica por qué |
 | Tabla en el lienzo | `table` real con nombre por su descripción ("Precios") o "Tabla 2 de 8"; las celdas de la primera fila son `th` cuando es encabezado |
-| Formatos no disponibles | con código en línea activo, los demás formatos llevan `aria-disabled` y la razón "El código no admite otros formatos" |
+| Formatos no disponibles | con código en línea activo, los demás formatos y «Enlace» llevan `aria-disabled` y la razón "El código no admite otros formatos" («Código» sigue habilitado para quitarlo); en una celda, estilo de párrafo, listas, alineación e «Insertar» llevan "Las celdas solo admiten párrafos con formato". La razón va por `aria-describedby` y un aviso visible al enfocar, que se puede cerrar (1.4.13) |
+| Menú «Alineación» | botón con nombre "Alineación: centro" ("varias" si la selección mezcla); opciones `menuitemradio` con ícono de verificación; fuera de párrafos y títulos, `aria-disabled` con "La alineación es solo para párrafos y títulos" (no se oculta) |
+| Menú «Más formato» | opciones `menuitemcheckbox` con ícono de verificación; el botón dice "Más formato, resaltado activo" y lleva una marca no cromática cuando algo está activo |
+| Celdas seleccionadas | fondo `marca-suave` y `outline` de 2 px de marca (visible en `forced-colors` con `Highlight`) |
 | Selección múltiple | texto fijo "3 elementos seleccionados" junto a la barra y una marca **no cromática** en cada elemento (borde de 2 px a la izquierda y ícono de verificación; contraste ≥ 3:1 y visible en `forced-colors`) |
 
 ## Foco al terminar una acción
@@ -116,11 +120,13 @@ Se evita la superposición con el nombre del elemento que el lector anuncia al r
 | Insertar | "Se insertó una imagen en la posición 3 de 8" |
 | Mover (menú, atajo o arrastre) | "Elemento movido a la posición 2 de 8" |
 | Duplicar | "Elemento duplicado, posición 4 de 9" |
-| Quitar | "Elemento quitado. Pulsa Ctrl+Z para deshacer" (con varios: "3 elementos quitados…") |
+| Quitar | "Elemento quitado. Pulsa Ctrl+Z para deshacer" (`Cmd+Z` en Mac; con varios: "3 elementos quitados…"); en el teléfono, tras «Quitar tabla», también un aviso visible con «Deshacer» |
 | Convertir | "Se convirtió en título 2" |
 | Modo elementos | "3 elementos seleccionados" (al entrar, al salir y al terminar de ampliar) |
 | Pegado con sobrante | "Se crearon 2 párrafos nuevos por el límite de caracteres" |
-| Tablas | "Fila agregada, 4 filas", "Columna quitada, 2 columnas", "Celdas combinadas", "Celdas separadas", "La primera fila es encabezado", "Se alcanzó el máximo de 10 columnas"; al entrar a una celda: "Fila 2, columna 3, Precio" (con *debounce*) |
+| Selección de celdas | "Celdas seleccionadas: 2 filas por 3 columnas" |
+| Acción de tabla no disponible | "Las celdas no forman un rectángulo", "No se puede combinar el encabezado con el cuerpo", "Se alcanzó el máximo de 10 columnas", "Usa «Quitar tabla»" (quitar la única fila) |
+| Tablas | "Tabla. Esc para salir" (al entrar), "Fila agregada, 4 filas", "Columna quitada, 2 columnas", "Celdas combinadas", "Celdas separadas", "La primera fila es encabezado", "Se alcanzó el máximo de 10 columnas"; al entrar a una celda: "Fila 2, columna 3, Precio" (con *debounce*; se deja solo si NVDA no lo anuncia por su cuenta) |
 | Tabla pegada | "Se pegó una tabla de 4 filas y 3 columnas" o, si supera los límites, "La tabla supera el máximo de filas o columnas: se pegó como texto" |
 | Límite de caracteres | "Quedan 500 caracteres" al cruzar el 90 % y "Se alcanzó el máximo de caracteres del párrafo" al 100 %; no se anuncia en cada tecla |
 | Deshacer, rehacer | "Se deshizo: mover elemento" / "Se rehízo: mover elemento" |

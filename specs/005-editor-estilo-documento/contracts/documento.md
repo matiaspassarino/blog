@@ -43,7 +43,7 @@ Todos los elementos llevan `attrs.id` (uuid), único en el documento. Los esquem
 
 | Marca | `attrs` | Reglas |
 |---|---|---|
-| `link` | `href` | `hrefSeguro` de hoy (ruta interna, `http(s)://` o `mailto:`); sin `target`, `rel` ni `class` guardados |
+| `link` | `href` | `hrefSeguro` de hoy (ruta interna, `http(s)://` o `mailto:`); `target`, `rel` y `class` se quitan del esquema del editor y se ponen al dibujar |
 | `bold`, `italic`, `underline`, `strike` | — | Se combinan entre sí y con `link` y `highlight` |
 | `highlight` | — | Un solo color, el del sitio (sin `color`) |
 | `code` | — | **Excluye** cualquier otra marca en el mismo texto |
@@ -63,7 +63,7 @@ celda      = { type: "tableHeader" | "tableCell", attrs?: { colspan?, rowspan? }
 - **Fila de encabezado**: es la primera fila cuando **todas** sus celdas son `tableHeader`. `tableHeader` solo puede estar en la primera fila (no hay columna de encabezado). Una celda combinada no puede abarcar la fila de encabezado y el cuerpo (`rowspan` de un `tableHeader` = 1).
 - **Celdas**: 1 o más `paragraph` sin `textAlign`; hasta 1000 caracteres en total por celda (todos sus párrafos); una celda puede estar vacía (`paragraph` sin `content`). Sin listas, imágenes ni otros elementos.
 - **Publicar**: una tabla sin texto en ninguna celda es un error al publicar ("La tabla no tiene contenido"); un borrador la admite.
-- No se guardan anchos de columna (`colwidth`): el sitio reparte el ancho.
+- No se guardan anchos de columna: `colwidth` se quita del esquema del editor y el sitio reparte el ancho. En el `codeBlock`, el `language` de la librería también se quita: queda solo `lenguaje`.
 
 ## Errores
 

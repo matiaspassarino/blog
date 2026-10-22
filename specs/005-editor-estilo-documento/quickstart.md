@@ -19,7 +19,7 @@ pnpm dev                            # web :4321 y admin :3100
 
 Usuarios de demo: `admin@demo.local` / `demo-admin-2026`, `editora@demo.local` / `demo-editora-2026`.
 
-**Una base local con datos propios** (no la del seed): exportar los artículos y convertirlos con el script, igual que en la nube (ver "Corte en la nube", pasos 2 y 4, con `psql` contra `127.0.0.1:56322`).
+**Una base local con datos propios** (no la del seed): exportar los artículos y convertirlos con el script, igual que en la nube (ver "Corte en la nube", pasos 2 y 4), aplicando la migración y el SQL de la conversión en una sola ejecución de `psql -1` contra `127.0.0.1:56322`.
 
 ## Verificación automática
 
@@ -72,10 +72,12 @@ En una PC con 8 GB de RAM conviene usar el *build* del admin (`pnpm --filter adm
 4. Guardar, abrir la vista previa y el sitio: se ve igual; el subrayado no parece un enlace (color del texto, sin efecto al pasar el puntero).
 
 ### G. Tablas (Historia 7)
+0. Al entrar a una tabla se anuncia "Tabla. Esc para salir" y la barra «Tabla» lo muestra; `Esc` → `Shift+Tab` llega a la barra «Tabla» con la última celda recordada.
 1. Insertar una tabla (3 × 3 con encabezado); Tab avanza de celda y en la última agrega una fila; Enter en una celda crea un párrafo dentro de ella.
 2. Seleccionar dos celdas contiguas (ratón o `Shift+→`) y combinarlas; separarlas; intentar combinar una celda del encabezado con una del cuerpo: no se permite y se explica.
 3. Agregar y quitar filas y columnas desde la barra contextual y desde el panel; llegar a 10 columnas: se avisa del máximo.
-4. A 360 px: solo se escribe en las celdas y se ve el texto que explica por qué; «Quitar tabla» sigue disponible.
+4. A 360 px: solo se escribe en las celdas y se ve el texto que explica por qué; «Quitar tabla» sigue disponible. A 768 px con el dedo, «Combinar con la celda de la derecha» y «… de abajo» funcionan sin seleccionar.
+4b. Con el cursor en una celda, estilo de párrafo, listas, alineación e «Insertar» aparecen no disponibles con la razón.
 5. En el sitio, a 360 px, la tabla se desplaza dentro de su recuadro (se alcanza con Tab), sin desplazamiento horizontal de la página; un lector de pantalla anuncia la descripción y los encabezados.
 6. Buscar una palabra que solo está en una celda: el artículo aparece en los resultados (`buscar_articulos`).
 
@@ -91,12 +93,12 @@ En una PC con 8 GB de RAM conviene usar el *build* del admin (`pnpm --filter adm
 Al cerrar la spec (RF-030), con `/validar` aprobado y el CI en verde. Antes de cada SQL, verificar que la URL del proyecto tenga `kgavzwzlhbzjkvreqhbu` (en la organización está también "Indy sur").
 
 1. **Aviso**: avisar a quienes usan el panel de producción que durante unos minutos no se puede guardar.
-2. **Exportar y convertir**: en el SQL Editor (o con el MCP), `select json_agg(json_build_object('id', id, 'version', version, 'contenido', contenido)) from public.articulos;`, guardar el resultado como JSON y correr `pnpm --filter @blog/bloques convertir-contenido -- --entrada articulos-nube.json --salida conversion-nube.sql`. Si informa un artículo que no pasa la verificación, corregirlo (en producción, con el panel viejo) y volver a exportar. Los dos archivos **no** se commitean.
-3. **Migración**: ejecutar `20261023120000_contenido_documento.sql` sola en el SQL Editor (o con el MCP). Desde este momento el panel viejo no puede guardar contenido.
-4. **Conversión**: ejecutar `conversion-nube.sql` (una transacción). Si falla, no cambió nada: revisar el mensaje, volver al paso 2.
-5. **Limpieza**: pushear el último commit, que elimina el script y `conversion-anterior/`.
-6. **Merge**: mergear el PR; Vercel despliega el sitio y el panel.
-7. **Comprobación** (CE-010): abrir los artículos publicados de producción y comparar con lo que se veía antes (texto, encabezados, imágenes y enlaces); abrir uno en el panel y guardarlo sin tocar (no sube la versión); revisar los advisors de Supabase y anotar todo en `validacion.md` y en `CLAUDE.md`.
+2. **Exportar y convertir**: en el SQL Editor (o con el MCP), `select json_agg(json_build_object('id', id, 'version', version, 'contenido', contenido)) from public.articulos;`, guardar el resultado como JSON y correr `pnpm --filter @blog/bloques convertir-contenido --entrada articulos-nube.json --salida conversion-nube.sql`. Si informa un artículo que no pasa la verificación, corregirlo (en producción, con el panel viejo) y volver a exportar. Los dos archivos **no** se commitean.
+3. **Programados**: comprobar que ninguno vence en la próxima hora (`select … where estado = 'programado' and programado_para < now() + interval '1 hour'`) y pausar el job: `select cron.alter_job(jobid, active := false) from cron.job where jobname = 'publicar-programados';`. Comprobar `select tableowner from pg_tables where schemaname = 'public' and tablename = 'articulos';` (debe dar `postgres`).
+4. **Migración y conversión juntas**: pegar en **una sola ejecución** del SQL Editor el contenido de `20261023120000_contenido_documento.sql` seguido del de `conversion-nube.sql` (el editor corre todo en una transacción). Si falla, no cambió nada: revisar el mensaje y volver al paso 2. Después, `select conname, convalidated from pg_constraint where conrelid = 'public.articulos'::regclass;` (los dos checks en `true`). Desde este momento el panel viejo no puede guardar contenido.
+5. **Limpieza**: pushear el último commit, que elimina el script, `conversion-anterior/`, `corpus-contenido.ts`, la caracterización, `conversion.test.sql` y sus *fixtures*, y correr el grep de cierre (`tipos_bloque|esquemaBloque|analizarEnLinea|continuacion|\u200b`, sin resultados).
+6. **Merge**: mergear el PR; Vercel despliega el sitio y el panel. Reactivar el job (`active := true`).
+7. **Comprobación** (CE-010): abrir los artículos publicados de producción y comparar con lo que se veía antes (texto, encabezados, imágenes y enlaces); abrir uno en el panel y guardarlo sin tocar (no sube la versión); revisar los advisors de Supabase y anotar en `validacion.md` la fecha, la cantidad de filas convertidas y el resultado de `convalidated`; en `CLAUDE.md`, sumar la migración a la lista de las aplicadas sin registro en el historial (o registrarla con `supabase migration repair`).
 
 ## Prueba con personas
 

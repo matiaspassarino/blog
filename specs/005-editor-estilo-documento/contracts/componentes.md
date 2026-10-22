@@ -155,9 +155,10 @@ type Props = {
 | `imagenes-en-uso.ts` | `rutasDeImagenes(doc)` y `rutasQuitadas` recorren el documento |
 | `render/Documento.tsx` | Reemplaza a `Bloques`: `<Documento contenido componentes />` con la misma prop `componentes` (la imagen de la web y de la vista previa) |
 | `render/EnLinea.tsx` | Reemplaza a `TextoEnLinea`: pinta `Inline` con las nueve marcas y `hardBreak` |
-| `render/Tabla.tsx` | Región con desplazamiento, `caption`, `th scope="col"`, `colspan` y `rowspan` (research D27) |
+| `render/Tabla.tsx` | Región con `max-w-full`, desplazamiento y sombras solo con CSS, foco con tokens; `caption` visible; `th scope="col"` y `headers`/`id` con `cuadricula()`; `colspan` y `rowspan` (research D27 y D31 U15) |
+| `render/tipos.ts` | `ComponentesBloques` pasa a `ComponentesDocumento` |
 | `render/clases.ts` | Suma las clases de `u`, `mark`, `s`, `sup`, `sub`, de alineación y de tabla, que usan el sitio y el lienzo |
-| `conversion-anterior/` y `scripts/convertir-contenido.ts` | Solo hasta el corte (D25): `bloquesADocumento`, `documentoABloques`, `analizarEnLinea`, `partirParrafos` y el esquema de bloques congelado |
+| `conversion-anterior/` y `scripts/convertir-contenido.ts` | Solo hasta el corte (D25): `bloquesADocumento`, `documentoABloques`, `analizarEnLinea`, `partirParrafos`, `visibleDeBloques` y el esquema de bloques armado con los esquemas de campos de `esquema.ts`. No se exportan |
 
 ### `apps/admin`
 
@@ -165,9 +166,11 @@ type Props = {
 |---|---|
 | `extensiones.ts` | Nodos `imagen`, `galeria`, `cta` y `video` con `attrs` planos; `id` en lugar de `bloqueId`; sin `continuacion`; `underline`, `strike`, `link`, `Highlight`, `Subscript`, `Superscript`, `TextAlign` y la tabla con la configuración de research D23; atajos por defecto desactivados según D28 |
 | `extensiones.test.ts` (nuevo) | Contrato: el esquema de ProseMirror coincide **exactamente** con la lista permitida |
-| `BarraHerramientas` | Subrayado, menú «Alineación» (muestra la vigente como texto; solo con el cursor en un párrafo o título), «Más formato» (tachado, resaltado, código, superíndice, subíndice) con estado activo y `aria-disabled` con la razón |
-| `BarraTabla.tsx` (nuevo) | Barra contextual de la tabla (D29): segunda fila de la barra con el cursor en una celda; acciones con nombre y anuncio; por debajo de 768 px solo «Quitar tabla» y el texto de RF-029 |
+| `BarraHerramientas` | Subrayado; menú «Alineación» (`menuitemradio`, muestra la vigente, `aria-disabled` con razón fuera de párrafos y títulos); «Más formato» (`menuitemcheckbox`: tachado, resaltado, código, superíndice, subíndice) con estado activo no solo de color; reglas de `aria-disabled` de [atajos.md](atajos.md) (código, celdas); se quita `estado.sinMarcas` de los títulos |
+| `BarraTabla.tsx` (nuevo) | Barra contextual de la tabla (D29 y D31): fila dentro de la barra fija, visible con el cursor en una celda **o con la tabla seleccionada en el modo elementos** (actúa sobre la última celda o selección guardada); texto visible "Esc: salir de la tabla"; acciones con nombre, anuncio y `aria-disabled` con razón fija; «Combinar con la celda de la derecha» y «… de abajo»; se reacomoda con «Más»; por debajo de 768 px (ancho de la ventana) solo «Quitar tabla» y el texto de RF-029 |
 | `documento/tablas.ts` (nuevo) | Comandos con las reglas propias: insertar y quitar filas y columnas con límites, combinar (rectángulo, sin mezclar encabezado y cuerpo), separar, fila de encabezado y quitar tabla por `proteger` |
-| `PropiedadesDelElemento` | Alineación de párrafo y título; tabla: descripción, fila de encabezado y las mismas acciones de la barra contextual |
+| `PropiedadesDelElemento` | Alineación de párrafo y título; tabla: descripción (con el aviso no bloqueante "Agrega una descripción para los lectores de pantalla" si falta), fila de encabezado y las mismas acciones de la barra «Tabla» sobre la misma referencia de celda |
+| `nodos/NodoBloque.tsx` | Dibuja el elemento especial con `Documento` (o el componente del elemento) en lugar de `Bloques` |
+| `documento/esquema-prueba.ts` | Solo constructores de nodos sobre `getSchema(extensiones)` (sin esquema a mano) |
 | `menu-insercion.ts`, `MenuInsertar` | Ítem «Tabla» (3 × 3 con encabezado) |
 | `pegado.ts` | Tablas pegadas dentro o fuera de los límites (D28) |
