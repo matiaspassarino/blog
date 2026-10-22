@@ -72,7 +72,11 @@ export function FormularioPerfil({ perfil }: Props) {
 
   return (
     <ContextoEditor.Provider value={contexto}>
-      <form onSubmit={guardar} data-perfil={hidratado ? 'listo' : 'cargando'} className="flex max-w-2xl flex-col gap-panel-seccion">
+      <form
+        onSubmit={guardar}
+        data-perfil={hidratado ? 'listo' : 'cargando'}
+        className="flex max-w-2xl flex-col gap-panel-seccion"
+      >
         {aviso && (
           <AvisoEstado key={aviso.id} tipo={aviso.tipo} enfocar={aviso.tipo === 'error'}>
             {aviso.texto}

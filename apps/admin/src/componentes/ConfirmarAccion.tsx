@@ -3,7 +3,7 @@
 // Confirmación de una acción (RF-024): el diálogo dice qué se pierde o qué cambia, el foco inicial está en
 // "Cancelar" (o en `focoInicial`) y Esc cierra devolviendo el foco a quien lo abrió. Con `cuerpo` aloja un campo
 // (el diálogo de programar) y con `abierto` se controla desde afuera.
-import { useState, type ReactNode, type RefObject } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,13 @@ type Props = {
   etiquetaConfirmar: string;
   /** Nivel de la confirmación (RF-004): `peligro` para las destructivas, `primaria` para el resto. */
   variante: 'primaria' | 'peligro';
-  /** `false` (o una promesa que resuelve `false`) deja el diálogo abierto. */
+  /** Con `esperarResultado`, `false` (o una promesa que resuelve `false`) deja el diálogo abierto. */
   onConfirmar: () => boolean | void | Promise<boolean | void>;
+  /**
+   * El diálogo se cierra recién cuando `onConfirmar` termina y no devuelve `false` (por ejemplo, el diálogo de
+   * programar, que muestra el error junto al campo). Por defecto se cierra al confirmar y sigue la acción.
+   */
+  esperarResultado?: boolean;
   /** Contenido extra entre la descripción y los botones. */
   cuerpo?: ReactNode;
   /** Elemento que recibe el foco al abrir; por defecto, "Cancelar". */
@@ -44,6 +49,7 @@ export function ConfirmarAccion({
   variante,
   onConfirmar,
   cuerpo,
+  esperarResultado = false,
   focoInicial,
   abierto: abiertoControlado,
   alCambiarAbierto,
@@ -52,26 +58,33 @@ export function ConfirmarAccion({
 }: Props) {
   const [abiertoPropio, setAbiertoPropio] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const confirmado = useRef(false);
   const abierto = abiertoControlado ?? abiertoPropio;
 
-  // Radix solo avisa por acá la apertura, Esc, el clic afuera y "Cancelar": confirmar se resuelve en `confirmar`.
+  // Radix avisa por acá la apertura, Esc, el clic afuera, "Cancelar" y, sin `esperarResultado`, la confirmación.
   function cambiarAbierto(nuevo: boolean) {
     setAbiertoPropio(nuevo);
     alCambiarAbierto?.(nuevo);
-    if (!nuevo) alCerrar?.('cancelado');
+    if (nuevo) return;
+    alCerrar?.(confirmado.current ? 'confirmado' : 'cancelado');
+    confirmado.current = false;
   }
 
   async function confirmar(evento: { preventDefault: () => void }) {
-    // Radix cierra solo al hacer clic; acá se decide según el resultado.
+    if (!esperarResultado) {
+      // Radix cierra el diálogo y la acción sigue por su cuenta.
+      confirmado.current = true;
+      void onConfirmar();
+      return;
+    }
     evento.preventDefault();
     if (confirmando) return;
     setConfirmando(true);
     try {
       const resultado = await onConfirmar();
       if (resultado === false) return;
-      setAbiertoPropio(false);
-      alCambiarAbierto?.(false);
-      alCerrar?.('confirmado');
+      confirmado.current = true;
+      cambiarAbierto(false);
     } finally {
       setConfirmando(false);
     }

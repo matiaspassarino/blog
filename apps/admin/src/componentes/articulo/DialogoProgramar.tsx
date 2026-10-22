@@ -46,6 +46,7 @@ export function DialogoProgramar({ abierto, alCambiarAbierto, onProgramar, alCer
         alCambiarAbierto(nuevo);
       }}
       alCerrar={alCerrar}
+      esperarResultado
       focoInicial={campo}
       onConfirmar={programar}
       cuerpo={

@@ -302,14 +302,16 @@ export function EditorArticulo({
 
               <section aria-labelledby="titulo-imagen-destacada" className="flex flex-col gap-4">
                 <TituloSeccion id="titulo-imagen-destacada">Imagen destacada</TituloSeccion>
-                <ImagenEditable
-                  imagen={actual.imagen_destacada}
-                  alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
-                  idRuta="campo-imagen_destacada"
-                  idAlt="campo-imagen_destacada"
-                  errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
-                  errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
-                />
+                <fieldset aria-labelledby="titulo-imagen-destacada" className="min-w-0">
+                  <ImagenEditable
+                    imagen={actual.imagen_destacada}
+                    alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
+                    idRuta="campo-imagen_destacada"
+                    idAlt="campo-imagen_destacada"
+                    errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
+                    errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
+                  />
+                </fieldset>
               </section>
 
               <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">

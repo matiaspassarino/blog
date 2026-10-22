@@ -65,6 +65,8 @@ test.describe('Casos borde: sesión vencida mientras se escribe (RF-002)', () =>
     await ingresar(page, USUARIOS.editor);
     await page.goto(urlDelArticulo(articulo.id));
     await campoTitulo(page).fill(titulo('escrito sin guardar'));
+    // Next precarga los enlaces visibles; con la sesión ya vencida esas precargas la cerrarían antes de guardar.
+    await page.waitForLoadState('networkidle');
     await envejecerActividad(page, 9);
 
     await botonGuardar(page).click();
