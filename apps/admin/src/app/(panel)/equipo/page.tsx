@@ -4,6 +4,7 @@ import { forbidden } from 'next/navigation';
 import { GestorEquipo } from '../../../componentes/equipo/GestorEquipo';
 import { exigirMiembro } from '../../../lib/sesion';
 import { crearClienteDeSesion } from '../../../lib/supabase';
+import { EncabezadoPagina } from '../../../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Equipo' };
 
@@ -15,8 +16,8 @@ export default async function PaginaEquipo() {
   const equipo = await listarEquipo(await crearClienteDeSesion());
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="font-titulos text-titulo-2 font-semibold">Equipo</h1>
+    <div className="flex flex-col gap-panel-seccion">
+      <EncabezadoPagina titulo="Equipo" />
       <GestorEquipo equipo={equipo} miembroId={miembro.id} />
     </div>
   );

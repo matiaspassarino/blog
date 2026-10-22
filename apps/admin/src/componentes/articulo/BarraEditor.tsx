@@ -180,7 +180,7 @@ export function BarraEditor({
             : ''}
         </p>
         {motivo && (
-          <p id={idMotivo} className="text-texto-suave">
+          <p id={idMotivo} className="text-sm text-texto-suave">
             {motivo}
           </p>
         )}

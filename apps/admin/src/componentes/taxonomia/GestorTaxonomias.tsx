@@ -13,6 +13,7 @@ import { DialogoEdicion } from './DialogoEdicion';
 import { FormularioAlta } from './FormularioAlta';
 import { TEXTOS, cuentaDeArticulos, type Tipo } from './textos';
 import { Icono } from '../Icono';
+import { EstadoVacio } from '../estructura/EstadoVacio';
 
 type Props = { tipo: Tipo; taxonomias: TaxonomiaConConteo[] };
 
@@ -36,7 +37,7 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-panel-seccion">
       {error && (
         <AvisoEstado tipo="error" enfocar>
           {error}
@@ -46,7 +47,7 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
       <FormularioAlta tipo={tipo} alError={setError} />
 
       {taxonomias.length === 0 ? (
-        <p className="text-texto-suave">{textos.vacio}</p>
+        <EstadoVacio mensaje={textos.vacio} />
       ) : (
         <Table role="table">
           <TableHeader>

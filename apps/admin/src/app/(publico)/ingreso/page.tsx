@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { FormularioIngreso } from '../../../componentes/acceso/FormularioIngreso';
 import { obtenerMiembro } from '../../../lib/sesion';
 import { rutaInterna } from '../../../lib/volver';
+import { EncabezadoPagina } from '../../../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Ingresar' };
 
@@ -16,7 +17,7 @@ export default async function PaginaIngreso({ searchParams }: PageProps<'/ingres
 
   return (
     <>
-      <h1 className="font-titulos text-titulo-2 font-semibold">Ingresar al panel</h1>
+      <EncabezadoPagina titulo="Ingresar al panel" />
       <FormularioIngreso volver={destino} motivo={typeof motivo === 'string' ? motivo : undefined} />
     </>
   );

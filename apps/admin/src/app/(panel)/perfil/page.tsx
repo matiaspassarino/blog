@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { FormularioPerfil } from '../../../componentes/perfil/FormularioPerfil';
 import { exigirMiembro } from '../../../lib/sesion';
 import { crearClienteDeSesion } from '../../../lib/supabase';
+import { EncabezadoPagina } from '../../../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Mi perfil' };
 
@@ -13,8 +14,8 @@ export default async function PaginaPerfil() {
   if (!perfil) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="font-titulos text-titulo-2 font-semibold">Mi perfil</h1>
+    <div className="flex flex-col gap-panel-seccion">
+      <EncabezadoPagina titulo="Mi perfil" />
       <FormularioPerfil perfil={perfil} />
     </div>
   );

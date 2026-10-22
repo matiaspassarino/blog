@@ -25,7 +25,7 @@ export function InfoPublicacion({ slug, estado, programadoPara, publicadoEn }: P
         Estado: <Badge estado={estado}>{estado}</Badge>
       </p>
       {fechaDelEstado && (
-        <p className="text-texto-suave">
+        <p className="text-sm text-texto-suave">
           {estado === 'programado' ? 'Se publica el ' : 'Publicado el '}
           <FechaLocal iso={fechaDelEstado} />
         </p>

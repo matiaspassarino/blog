@@ -5,7 +5,10 @@ export default function Cargando() {
       <p role="status" className="sr-only">
         Cargando…
       </p>
-      <div className="h-8 w-48 rounded-md bg-superficie" />
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="h-10 w-48 rounded-md bg-superficie" />
+        <div className="h-(--tactil-min) w-40 rounded-md bg-superficie" />
+      </div>
       <div className="mt-6 h-40 rounded-md bg-superficie" />
     </div>
   );

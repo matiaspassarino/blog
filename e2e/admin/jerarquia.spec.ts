@@ -1171,9 +1171,14 @@ test.describe('Estructura', () => {
         // Solo las secciones de primer nivel.
         const secciones = visibles.filter((s) => !visibles.some((otra) => otra !== s && otra.contains(s)));
         secciones.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
-        const entre = secciones
-          .slice(1)
-          .map((s, i) => s.getBoundingClientRect().top - secciones[i]!.getBoundingClientRect().bottom);
+        // Con dos columnas, la separación se mide entre secciones de la misma columna.
+        const entre = secciones.flatMap((s, i) => {
+          const anterior = secciones
+            .slice(0, i)
+            .reverse()
+            .find((otra) => Math.abs(otra.getBoundingClientRect().left - s.getBoundingClientRect().left) < 2);
+          return anterior ? [s.getBoundingClientRect().top - anterior.getBoundingClientRect().bottom] : [];
+        });
         const dentro = secciones.flatMap((s) => {
           const hijos = [...s.children].filter((h) => (h as HTMLElement).getClientRects().length > 0);
           return hijos.slice(1).map((h, i) => h.getBoundingClientRect().top - hijos[i]!.getBoundingClientRect().bottom);

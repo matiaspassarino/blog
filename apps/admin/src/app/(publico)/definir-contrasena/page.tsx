@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { FormularioNuevaContrasena } from '../../../componentes/acceso/FormularioNuevaContrasena';
 import { crearClienteDeSesion } from '../../../lib/supabase';
+import { EncabezadoPagina } from '../../../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Definir contraseña' };
 
@@ -13,7 +14,7 @@ export default async function PaginaDefinirContrasena() {
 
   return (
     <>
-      <h1 className="font-titulos text-titulo-2 font-semibold">Define tu contraseña</h1>
+      <EncabezadoPagina titulo="Define tu contraseña" />
       <FormularioNuevaContrasena />
     </>
   );

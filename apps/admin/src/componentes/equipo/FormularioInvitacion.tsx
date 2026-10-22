@@ -8,6 +8,7 @@ import { CampoFormulario } from '../CampoFormulario';
 import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select } from '../ui/select';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 type Props = { alExito: (mensaje: string) => void; alError: (mensaje: string | null) => void };
 
@@ -44,7 +45,7 @@ export function FormularioInvitacion({ alExito, alError }: Props) {
       onSubmit={enviar}
       className="flex flex-col gap-4 rounded-md border border-borde p-4"
     >
-      <h2 className="font-titulos text-xl font-semibold">Invitar a una persona</h2>
+      <TituloSeccion>Invitar a una persona</TituloSeccion>
       <div className="grid gap-4 md:grid-cols-3">
         <CampoFormulario etiqueta="Nombre">
           {(a) => <Input {...a} name="nombre" maxLength={80} autoComplete="off" />}

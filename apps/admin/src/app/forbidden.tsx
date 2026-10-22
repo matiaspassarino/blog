@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '../componentes/ui/button';
+import { EncabezadoPagina } from '../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Sin permiso' };
 
@@ -8,8 +9,10 @@ export const metadata: Metadata = { title: 'Sin permiso' };
 export default function SinPermiso() {
   return (
     <main id="contenido" className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 p-4">
-      <h1 className="font-titulos text-titulo-2 font-semibold">No tienes permiso para ver esta página</h1>
-      <p className="text-texto-suave">Si crees que es un error, habla con un administrador.</p>
+      <EncabezadoPagina
+        titulo="No tienes permiso para ver esta página"
+        descripcion="Si crees que es un error, habla con un administrador."
+      />
       <Button asChild variante="secundaria" className="self-start">
         <Link href="/articulos">Ir a los artículos</Link>
       </Button>

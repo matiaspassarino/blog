@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { cn } from '../../lib/cn';
 import { BarraAcciones } from '../estructura/BarraAcciones';
 import { Button } from './button';
+import { CLASES_TITULO_SECCION } from '../estructura/TituloSeccion';
 
 export const AlertDialog = AlertDialogPrimitive.Root;
 export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
@@ -31,7 +32,7 @@ export function AlertDialogContent({
 }
 
 export function AlertDialogTitle({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Title>) {
-  return <AlertDialogPrimitive.Title className={cn('font-titulos text-xl font-semibold', className)} {...props} />;
+  return <AlertDialogPrimitive.Title className={cn(CLASES_TITULO_SECCION, className)} {...props} />;
 }
 
 export function AlertDialogDescription({

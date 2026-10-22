@@ -28,7 +28,7 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
 }
 
 export function TableHead({ className, ...props }: ComponentProps<'th'>) {
-  return <th className={cn('px-3 py-2 font-semibold text-texto-suave', className)} {...props} />;
+  return <th className={cn('px-3 py-2 text-sm font-semibold text-texto-suave', className)} {...props} />;
 }
 
 /** `etiqueta` es el rótulo que se ve en la tarjeta (< 768 px). */

@@ -36,6 +36,9 @@ import { aDatosArticulo, validarEditor } from './datos';
 import { ImagenEditable } from './ImagenEditable';
 import { ListaBloques } from './ListaBloques';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
+import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
+import { EstadoVacio } from '../estructura/EstadoVacio';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 /** Lo que el panel de publicación muestra del artículo, además de lo que edita el formulario. */
 export type Publicacion = {
@@ -244,11 +247,7 @@ export function EditorArticulo({
   return (
     <ContextoEditor.Provider value={contexto}>
       <div className="flex flex-col gap-6" data-editor={hidratado ? 'listo' : 'cargando'}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 ref={titulo} tabIndex={-1} className="font-titulos text-titulo-2 font-semibold">
-            {nuevo ? 'Nuevo artículo' : 'Editar artículo'}
-          </h1>
-        </div>
+        <EncabezadoPagina titulo={nuevo ? 'Nuevo artículo' : 'Editar artículo'} refTitulo={titulo} tituloEnfocable />
 
         {aviso && (
           <AvisoEstado tipo="error" enfocar>
@@ -256,12 +255,9 @@ export function EditorArticulo({
           </AvisoEstado>
         )}
         {errores.length > 0 && (
-          <div
-            role="alert"
-            className="rounded-md border border-error-borde bg-error-suave p-3 font-semibold text-error"
-          >
+          <AvisoEstado tipo="error" cerrable={false}>
             {resumenDeErrores(errores)}
-          </div>
+          </AvisoEstado>
         )}
         {conflicto && (
           <AvisoConflicto
@@ -274,8 +270,8 @@ export function EditorArticulo({
         {verVigente && vigente && <ComparacionVersiones propia={actual} vigente={vigente} />}
 
         <fieldset disabled={reemplazando} className="contents">
-          <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-            <div className="flex min-w-0 flex-col gap-6">
+          <div className="grid gap-panel-seccion lg:grid-cols-[1fr_20rem]">
+            <div className="flex min-w-0 flex-col gap-panel-seccion">
               <CampoFormulario etiqueta="Título" id="campo-titulo" error={errorTitulo}>
                 {(a) => (
                   <Input
@@ -304,8 +300,8 @@ export function EditorArticulo({
                 )}
               </CampoFormulario>
 
-              <fieldset className="flex flex-col gap-3 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Imagen destacada</legend>
+              <section aria-labelledby="titulo-imagen-destacada" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-imagen-destacada">Imagen destacada</TituloSeccion>
                 <ImagenEditable
                   imagen={actual.imagen_destacada}
                   alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
@@ -314,12 +310,10 @@ export function EditorArticulo({
                   errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
                   errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
                 />
-              </fieldset>
+              </section>
 
-              <section aria-labelledby="titulo-contenido" className="flex flex-col gap-3">
-                <h2 id="titulo-contenido" className="font-titulos text-xl font-semibold">
-                  Contenido
-                </h2>
+              <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-contenido">Contenido</TituloSeccion>
                 <ListaBloques
                   contenido={actual.contenido}
                   errores={errores.filter((error) => error.indice >= 0)}
@@ -329,7 +323,7 @@ export function EditorArticulo({
               </section>
             </div>
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-panel-seccion">
               {id && (
                 <InfoPublicacion
                   slug={estado.guardado.slug}
@@ -338,53 +332,56 @@ export function EditorArticulo({
                   publicadoEn={publicacion.publicado_en}
                 />
               )}
-              <CampoFormulario etiqueta="Categoría" id="campo-categoria">
-                {(a) => (
-                  <Select
-                    {...a}
-                    value={actual.categoria_id ?? ''}
-                    onChange={(e) =>
-                      despachar({
-                        tipo: 'campo',
-                        campo: 'categoria_id',
-                        valor: e.target.value === '' ? null : e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Sin categoría</option>
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </CampoFormulario>
-
-              <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Etiquetas</legend>
-                {etiquetas.length === 0 && <p className="text-texto-suave">Todavía no hay etiquetas.</p>}
-                {etiquetas.map((etiqueta) => (
-                  <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
-                    <Checkbox
-                      checked={actual.etiquetas.includes(etiqueta.id)}
+              <section aria-labelledby="titulo-taxonomias" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-taxonomias">Taxonomías</TituloSeccion>
+                <CampoFormulario etiqueta="Categoría" id="campo-categoria">
+                  {(a) => (
+                    <Select
+                      {...a}
+                      value={actual.categoria_id ?? ''}
                       onChange={(e) =>
                         despachar({
                           tipo: 'campo',
-                          campo: 'etiquetas',
-                          valor: e.target.checked
-                            ? [...actual.etiquetas, etiqueta.id]
-                            : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
+                          campo: 'categoria_id',
+                          valor: e.target.value === '' ? null : e.target.value,
                         })
                       }
-                    />
-                    <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
-                  </label>
-                ))}
-              </fieldset>
+                    >
+                      <option value="">Sin categoría</option>
+                      {categorias.map((categoria) => (
+                        <option key={categoria.id} value={categoria.id}>
+                          {categoria.nombre}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </CampoFormulario>
 
-              <fieldset className="flex flex-col gap-4 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Para buscadores</legend>
+                <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
+                  <legend className="px-1 font-semibold">Etiquetas</legend>
+                  {etiquetas.length === 0 && <EstadoVacio mensaje="Todavía no hay etiquetas." />}
+                  {etiquetas.map((etiqueta) => (
+                    <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
+                      <Checkbox
+                        checked={actual.etiquetas.includes(etiqueta.id)}
+                        onChange={(e) =>
+                          despachar({
+                            tipo: 'campo',
+                            campo: 'etiquetas',
+                            valor: e.target.checked
+                              ? [...actual.etiquetas, etiqueta.id]
+                              : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
+                          })
+                        }
+                      />
+                      <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              </section>
+
+              <section aria-labelledby="titulo-buscadores" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-buscadores">Para buscadores</TituloSeccion>
                 <CampoFormulario
                   etiqueta="Título SEO"
                   id="campo-titulo-seo"
@@ -411,7 +408,7 @@ export function EditorArticulo({
                     />
                   )}
                 </CampoFormulario>
-              </fieldset>
+              </section>
             </div>
           </div>
         </fieldset>

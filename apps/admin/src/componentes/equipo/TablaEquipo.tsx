@@ -12,6 +12,7 @@ import { Button } from '../ui/button';
 import { Select } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Icono } from '../Icono';
+import { EstadoVacio } from '../estructura/EstadoVacio';
 
 type Props = {
   equipo: FilaEquipo[];
@@ -53,7 +54,7 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
     );
   }
 
-  if (equipo.length === 0) return <p className="text-texto-suave">Todavía no hay miembros.</p>;
+  if (equipo.length === 0) return <EstadoVacio mensaje="Todavía no hay miembros." />;
 
   return (
     <Table role="table">

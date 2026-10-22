@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ConfirmarEnlace } from '../../../../componentes/acceso/ConfirmarEnlace';
 import { FormularioRecuperacion } from '../../../../componentes/acceso/FormularioRecuperacion';
+import { EncabezadoPagina } from '../../../../componentes/estructura/EncabezadoPagina';
 
 export const metadata: Metadata = { title: 'Confirmar enlace' };
 
@@ -15,12 +16,10 @@ export default async function PaginaConfirmar({ searchParams }: PageProps<'/auth
 
   return (
     <>
-      <h1 className="font-titulos text-titulo-2 font-semibold">
-        {tipo === 'invite' ? 'Te invitaron al panel' : 'Define tu contraseña'}
-      </h1>
+      <EncabezadoPagina titulo={tipo === 'invite' ? 'Te invitaron al panel' : 'Define tu contraseña'} />
       {valido ? (
         <>
-          <p className="text-texto-suave">Pulsa el botón para continuar y elegir tu contraseña.</p>
+          <p className="text-sm text-texto-suave">Pulsa el botón para continuar y elegir tu contraseña.</p>
           <ConfirmarEnlace tokenHash={tokenHash} tipo={tipo} />
         </>
       ) : (
