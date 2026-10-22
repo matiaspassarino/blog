@@ -26,7 +26,7 @@ import { Button } from '../../ui/button';
 import { esEnlacePermitido } from './extensiones';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import type { ContextoDeAcciones } from './acciones-elemento';
-import { elementoActivo } from './comandos';
+import { elementoActivo, salirDelModo } from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 import { MenuInsertar } from './MenuInsertar';
 import type { SeleccionDelDocumento } from './tipos';
@@ -453,7 +453,16 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
             <span className="px-2 text-sm font-semibold">
               {cantidad === 1 ? '1 elemento seleccionado' : `${cantidad} elementos seleccionados`}
             </span>
-            <Button variante="secundaria" tamanio="compacto" onClick={() => editor?.commands.focus()} {...ctl('salir')}>
+            <Button
+              variante="secundaria"
+              tamanio="compacto"
+              onClick={() => {
+                if (!editor) return;
+                salirDelModo()(editor.state, (tr) => editor.view.dispatch(tr));
+                editor.commands.focus();
+              }}
+              {...ctl('salir')}
+            >
               Salir de la selección
             </Button>
           </>

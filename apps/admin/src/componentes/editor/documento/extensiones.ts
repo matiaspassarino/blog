@@ -33,7 +33,7 @@ import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { claveErrores, claveModo } from './claves';
-import { ampliarSeleccion, duplicarRango, moverRango, quitarRango, rangoDeElementos } from './comandos';
+import { ampliarSeleccion, duplicarRango, moverRango, quitarRango, rangoDeElementos, salirDelModo } from './comandos';
 import { proteger, type DevolucionesDeProteccion } from './proteger';
 import { NodoBloque } from './nodos/NodoBloque';
 
@@ -326,16 +326,6 @@ function iconoDeSeleccion() {
   return icono;
 }
 
-/** Cursor de texto dentro del elemento (o en el texto contiguo, si es un elemento especial). */
-function volverAlTexto(editor: Editor) {
-  const { doc, selection, tr } = editor.state;
-  const inicio = selection.from;
-  const nodo = selection instanceof NodeSelection ? selection.node : doc.resolve(inicio).nodeAfter;
-  const destino =
-    nodo?.isAtom || !nodo ? Selection.near(doc.resolve(selection.to), 1) : Selection.near(doc.resolve(inicio + 1));
-  editor.view.dispatch(tr.setSelection(destino).setMeta(claveModo, false));
-}
-
 /**
  * Modo elementos (contracts/atajos.md): `Esc` selecciona el elemento entero, `Shift+↑/↓` suma contiguos, `Alt+↑/↓`
  * mueve, `Mod+D` duplica, `Supr`/`Retroceso` quita y `Enter` abre las propiedades. Cada elemento seleccionado lleva
@@ -355,7 +345,7 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           key: claveModo,
           state: {
             init: () => false,
-            apply: (tr, anterior) => tr.getMeta(claveModo) ?? (tr.selectionSet || tr.docChanged ? false : anterior),
+            apply: (tr, anterior) => tr.getMeta(claveModo) ?? (tr.selectionSet ? false : anterior),
           },
           props: {
             decorations: (estado) => {
@@ -402,10 +392,14 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           const { doc, selection, tr } = editor.state;
           if (claveModo.getState(editor.state)) {
             // Esc dentro del modo: vuelve al texto.
-            volverAlTexto(editor);
+            salirDelModo()(editor.state, (tr) => editor.view.dispatch(tr));
             return true;
           }
-          const { $from } = selection;
+          // El navegador puede haber movido el cursor un instante antes de que ProseMirror lo sepa (un clic seguido de
+          // `Esc`): se lee la selección del DOM y no la del estado.
+          const dom = window.getSelection();
+          const posDelDom = dom?.anchorNode ? editor.view.posAtDOM(dom.anchorNode, dom.anchorOffset) : selection.from;
+          const $from = selection instanceof NodeSelection ? selection.$from : doc.resolve(posDelDom);
           if ($from.depth === 0 && !(selection instanceof NodeSelection)) return false;
           const pos = selection instanceof NodeSelection ? selection.from : $from.before(1);
           editor.view.dispatch(tr.setSelection(NodeSelection.create(doc, pos)).setMeta(claveModo, true));

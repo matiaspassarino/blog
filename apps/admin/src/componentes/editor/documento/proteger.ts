@@ -72,10 +72,24 @@ export function decidirBorrado(estado: EditorState, contexto: Contexto): Decisio
   const idsDespues = new Set(despues.map((e) => e.id));
   const idsAntes = new Set(antes.map((e) => e.id));
   const quitados = antes.filter((e) => !idsDespues.has(e.id));
-  const movidos = idsMovidos(
+  // Si la transacción deja elementos seleccionados enteros, esos son los que se movieron (un intercambio de vecinos
+  // es ambiguo para la comparación de secuencias).
+  const seleccionados = new Set<string>();
+  const { selection } = contexto.transaccion;
+  if (selection.$from.depth === 0 && selection.from !== selection.to) {
+    contexto.transaccion.doc.nodesBetween(selection.from, selection.to, (nodo, _pos, padre) => {
+      if (padre === contexto.transaccion.doc) seleccionados.add(String(nodo.attrs.bloqueId ?? ''));
+      return false;
+    });
+  }
+  const porSecuencia = idsMovidos(
     antes.filter((e) => idsDespues.has(e.id)).map((e) => e.id),
     despues.filter((e) => idsAntes.has(e.id)).map((e) => e.id),
   );
+  const movidos =
+    porSecuencia.size > 0 && seleccionados.size > 0 && quitados.length === 0
+      ? new Set([...seleccionados].filter((id) => idsAntes.has(id) && idsDespues.has(id)))
+      : porSecuencia;
   if (quitados.length === 0 && movidos.size === 0) return { accion: 'permitir' };
 
   const tocados = [...quitados.map((e) => e.id), ...movidos];

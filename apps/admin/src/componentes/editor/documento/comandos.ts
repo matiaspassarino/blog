@@ -368,3 +368,19 @@ export const moverElementoA =
     }
     return true;
   };
+
+/** Sale del modo elementos: el cursor queda dentro del elemento (o en el texto contiguo, si es un elemento especial). */
+export const salirDelModo = (): Comando => (estado, despachar) => {
+  const rango = rangoDeElementos(estado);
+  if (!rango) return false;
+  if (despachar) {
+    const { doc } = estado;
+    const primero = doc.resolve(rango.desde).nodeAfter;
+    const destino =
+      !primero || primero.isAtom
+        ? Selection.near(doc.resolve(rango.hasta), 1)
+        : Selection.near(doc.resolve(rango.desde + 1));
+    despachar(estado.tr.setSelection(destino).setMeta(claveModo, false));
+  }
+  return true;
+};

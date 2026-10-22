@@ -147,6 +147,12 @@ export default function EditorDocumento({
     | null
   >(null);
   const contenedor = useRef<HTMLDivElement>(null);
+  // Cuándo se anunció por última vez una acción (mover, duplicar…): el conteo del modo elementos no la pisa.
+  const ultimaAccion = useRef(0);
+  const anunciarAccion = (mensaje: string) => {
+    ultimaAccion.current = Date.now();
+    ultimo.current.anunciar(mensaje);
+  };
   const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
 
   useEffect(() => {
@@ -164,7 +170,7 @@ export default function EditorDocumento({
 
   // Las devoluciones de la librería son estables y leen siempre lo último desde `ultimo`.
   const [devoluciones] = useState<DevolucionesDelEditor>(() => ({
-    anunciar: (mensaje) => ultimo.current.anunciar(mensaje),
+    anunciar: (mensaje) => anunciarAccion(mensaje),
     menuAbierto: () => ultimo.current.menu !== null,
     alPropiedades: () => ultimo.current.alPropiedades(),
     alMenu: (estado) => {
@@ -190,14 +196,14 @@ export default function EditorDocumento({
     proteccion: {
       subidasEnCurso: () => ultimo.current.subidasEnCurso,
       imagenGuardada: (ruta) => ultimo.current.imagenGuardada(ruta),
-      anunciar: (mensaje) => ultimo.current.anunciar(mensaje),
+      anunciar: (mensaje) => anunciarAccion(mensaje),
       pedirConfirmacion: (cantidad, reintentar) => setDialogo({ tipo: 'quitar', cantidad, reintentar }),
     },
   }));
   const [extensiones] = useState(() => crearExtensiones(devoluciones));
   // Lo que ofrecen el menú de acciones y el asa (las mismas funciones que usan los atajos).
   const [contextoDeAcciones] = useState<ContextoDeAcciones>(() => ({
-    anunciar: (mensaje) => ultimo.current.anunciar(mensaje),
+    anunciar: (mensaje) => anunciarAccion(mensaje),
     alPropiedades: () => ultimo.current.alPropiedades(),
     abrirAtajos: () => setDialogo({ tipo: 'atajos' }),
     pedirConversion: (pierde, aplicar) => setDialogo({ tipo: 'convertir', pierde, aplicar }),
@@ -287,7 +293,10 @@ export default function EditorDocumento({
   const cantidadEnModo = seleccion.tipo === 'elementos' && seleccion.modo ? seleccion.hasta - seleccion.desde : 0;
   useEffect(() => {
     if (cantidadEnModo === 0) return void ultimo.current.anunciar('');
-    const espera = setTimeout(() => ultimo.current.anunciar(anuncioModoElementos(cantidadEnModo)), 500);
+    const programado = Date.now();
+    const espera = setTimeout(() => {
+      if (ultimaAccion.current < programado) ultimo.current.anunciar(anuncioModoElementos(cantidadEnModo));
+    }, 500);
     return () => clearTimeout(espera);
   }, [cantidadEnModo]);
 
