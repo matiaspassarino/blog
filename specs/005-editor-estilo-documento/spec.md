@@ -40,7 +40,7 @@ Esta spec reemplaza el modelo de interacción del editor de bloques que la spec 
 - P: ¿Se guarda una copia del contenido anterior a la conversión para poder volver atrás? → R: **No**: la verificación de ida y vuelta de todos los artículos tiene que pasar antes de aplicar la conversión, y si falla en alguno no se aplica en ninguno (RF-023).
 - P: ¿Cómo se cambia la estructura de una tabla en un teléfono? → R: **En pantallas de menos de 768 px solo se escribe en las celdas**: combinar y separar celdas y agregar o quitar filas y columnas se hace desde 768 px. Insertar una tabla, pegarla y quitarla entera sí se puede (RF-029).
 - P: ¿Cómo se distingue un texto subrayado de un enlace (que el sitio ya subraya)? → R: **El subrayado usa el color del texto, una línea fina y ningún efecto al pasar el puntero**; el enlace conserva el color de marca, su separación y el engrosado al pasar el puntero (RF-026).
-- P: ¿Cómo se coordina en producción la conversión con el despliegue del código nuevo? → R: **La conversión en la nube queda fuera de esta spec**: la spec se cierra en local y producción se actualiza en una tarea aparte.
+- P: ¿Cómo se coordina en producción la conversión con el despliegue del código nuevo? → R: **Corte coordinado dentro de esta spec** (revisada a pedido del usuario: se trabaja en varias PC y conviene que la nube quede al día): al cerrar la spec se aplica la conversión en la nube e inmediatamente se mergea el PR, que despliega el sitio y el panel; sin código de transición (RF-030).
 
 ## Escenarios de usuario y pruebas *(obligatorio)*
 
@@ -214,6 +214,7 @@ Quien escribe puede insertar una tabla, escribir en sus celdas uno o varios pár
 - **Una tabla al final del documento** o dos tablas seguidas: siempre queda un párrafo donde seguir escribiendo.
 - **Conversión que no pasa la verificación**: si un artículo no se puede convertir sin pérdida, la conversión se detiene sin cambiar ningún artículo e indica cuál falló y por qué, para corregirlo antes de reintentar.
 - **Conversión de un artículo con datos inválidos** (por ejemplo, un borrador viejo con un campo vacío): se convierte igual, conservando lo que tiene, y el error aparece en el editor al guardar, como hoy.
+- **Alguien guarda en el panel de producción durante el corte**: el panel viejo envía bloques y la base ya convertida los rechaza con un error comprensible, sin guardar nada inválido; tras el despliegue, la persona recarga y reintenta. El corte se avisa antes a quienes usan el panel.
 - **Un artículo abierto durante la conversión**: quien tenía el editor abierto con la versión anterior recibe el aviso de conflicto de hoy al guardar, y nada se pierde.
 - **Dos elementos especiales seguidos** o un elemento especial al final del documento: siempre queda un párrafo donde seguir escribiendo.
 - **Sin JavaScript**: el panel requiere JavaScript, como hoy; el sitio público muestra todo (formatos, alineación y tablas) sin JavaScript.
@@ -250,6 +251,7 @@ Quien escribe puede insertar una tabla, escribir en sus celdas uno o varios pár
 - **RF-025**: El editor DEBE permitir insertar **tablas** de hasta 10 columnas y 50 filas, con una fila de encabezado opcional y una descripción breve opcional (de hasta 150 caracteres), y DEBE permitir agregar y quitar filas y columnas, moverse entre celdas con Tab y Shift+Tab y escribir en cada celda **uno o varios párrafos** con los formatos de RF-009 y sin alineación (hasta 1000 caracteres por celda en total, contando todos sus párrafos). Una celda NO DEBE contener listas, imágenes ni otros elementos.
 - **RF-028**: El editor DEBE permitir **combinar** celdas contiguas que formen un rectángulo, en horizontal y en vertical, y **separar** una celda combinada, con la barra contextual de la tabla, el panel de propiedades y el teclado. La fila de encabezado NO DEBE combinarse con celdas del cuerpo. Agregar o quitar filas y columnas DEBE mantener la cuadrícula regular sin perder texto (una celda combinada se agranda o se achica). En el editor y en el sitio, cada celda, también las combinadas, DEBE quedar asociada a sus encabezados para los lectores de pantalla.
 - **RF-029**: En pantallas de menos de 768 px, el editor DEBE permitir escribir y dar formato en las celdas, insertar, pegar y quitar una tabla entera, y NO DEBE ofrecer combinar ni separar celdas ni agregar o quitar filas y columnas; DEBE explicar con un texto visible que esos cambios se hacen desde una pantalla más ancha. Desde 768 px DEBEN estar disponibles con ratón, con teclado y con toque.
+- **RF-030**: La conversión DEBE aplicarse también en la base de la nube como parte del cierre de esta spec, en un **corte coordinado**: primero la verificación de ida y vuelta sobre los artículos de la nube, después la conversión y enseguida el merge que despliega el sitio y el panel nuevos. Durante ese intervalo el sitio DEBE seguir sirviendo las páginas ya generadas (la conversión no avisa al sitio), y al terminar todos los artículos publicados DEBEN verse en producción como antes. NO DEBE quedar código que lea el formato anterior.
 - **RF-026**: El sitio público DEBE mostrar los formatos de RF-009, la alineación de RF-024 y las tablas de RF-025 sin JavaScript, con los colores y estilos del diseño del sitio, contraste AA, un subrayado que no se confunde con un enlace (color del texto, línea fina y sin efecto al pasar el puntero, frente al color de marca, la separación y el engrosado del enlace; igual en el lienzo), tablas accesibles (encabezados asociados a sus celdas y descripción como título) y sin desbordar la página en 360 px (la tabla se desplaza dentro de su recuadro, alcanzable con el teclado). Las metas de SEO, rendimiento y accesibilidad del sitio (constitución §IV.8) NO DEBEN empeorar.
 - **RF-027**: La búsqueda del sitio DEBE incluir el texto de todos los elementos del documento, también el de las celdas de las tablas y sus descripciones.
 
@@ -282,6 +284,7 @@ Sin cambios: la feature cambia la forma de editar y de guardar el cuerpo del art
 - **CE-007**: En una prueba con 3 a 5 personas que escriben habitualmente en procesadores de texto, al menos 4 de cada 5 completan sin ayuda una nota con un título, formato, una lista, una tabla y una imagen, y ninguna necesita que se le explique qué es un "bloque".
 - **CE-008**: Un artículo con los nueve formatos en línea, las cuatro alineaciones y una tabla de 5 columnas (con una celda combinada en horizontal, otra en vertical y una celda de dos párrafos) se ve en el sitio igual que en el lienzo, y en 360 px la página no tiene desplazamiento horizontal.
 - **CE-009**: Las páginas de artículo del sitio mantienen las metas de la constitución en móvil (SEO ≥ 95, Rendimiento ≥ 90, Accesibilidad ≥ 95; LCP < 2,5 s, CLS < 0,1) con un artículo que tiene tablas y los formatos nuevos.
+- **CE-010**: Después del corte, el 100 % de los artículos publicados en producción se ven igual que antes (texto visible, encabezados, imágenes y enlaces) y el sitio no da errores en ninguna página de artículo.
 
 ## Supuestos
 
@@ -294,7 +297,7 @@ Sin cambios: la feature cambia la forma de editar y de guardar el cuerpo del art
 - Las Historias 1 a 3 ya están implementadas sobre el formato de bloques; el plan define cómo pasan al documento sin rehacer lo que no cambia.
 - La captura de referencia (lienzo, barra superior y panel de propiedades a la derecha) sirve de guía de disposición; las propiedades se limitan a lo que se guarda.
 - La imagen destacada, el extracto, las etiquetas, la categoría y los campos para buscadores siguen en sus secciones de hoy. El panel de propiedades del elemento comparte la zona lateral con ellas, en pestañas «Artículo» y «Elemento».
-- La conversión de los artículos de la nube y la actualización de producción son una tarea aparte, posterior a esta spec. Como cada push a `main` despliega el sitio y el panel en Vercel, **el merge del PR a `main` tiene que hacerse junto con esa tarea** (conversión en la nube y merge en el mismo momento); hasta entonces la rama se valida en local, porque el preview de Vercel lee la base de la nube, que sigue en el formato anterior.
+- Como cada push a `main` despliega el sitio y el panel en Vercel, la conversión en la nube y el merge del PR se hacen en el mismo momento (RF-030). Hasta entonces la rama se valida en local, porque el preview de Vercel lee la base de la nube, que sigue en el formato anterior.
 - Es un sitio de demo genérico: se privilegia un editor simple y consistente; las funciones nuevas se eligieron por ser las que un procesador de texto ofrece y un blog usa.
 - El texto de la interfaz está en español con tuteo, como el resto del panel.
 
@@ -306,5 +309,4 @@ Sin cambios: la feature cambia la forma de editar y de guardar el cuerpo del art
 - Columnas de diseño (texto en dos columnas), incrustaciones nuevas (además del video de hoy), notas al pie automáticas y plantillas de artículo.
 - Ordenar o filtrar tablas en el sitio, fórmulas y tablas importadas desde archivos.
 - Arrastrar y soltar archivos desde el escritorio como forma de insertar imágenes.
-- Aplicar la conversión en la base de la nube y actualizar producción (tarea aparte; ver Supuestos).
 - Cambios en la imagen destacada, el extracto, las etiquetas, la categoría o los campos para buscadores, o en el SEO del sitio (más allá de que no empeore).
