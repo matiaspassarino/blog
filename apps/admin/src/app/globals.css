@@ -5,6 +5,15 @@
 @source '../../../../packages/bloques/src/render';
 @source '../../../../packages/ui/src';
 
+/* Lienzo del editor de documento (spec 005): el texto de la línea vacía que ve quien edita. */
+.lienzo-documento .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-texto-suave);
+}
+
 body {
   background: var(--color-fondo);
   color: var(--color-texto);

@@ -1,0 +1,391 @@
+// Esquema del documento y extensiones del editor (research D2 y D3 de la spec 005). El documento es una lista de
+// elementos de primer nivel: cada uno es un bloque del contenido guardado. Lo que el sitio no sabe leer no existe
+// en el esquema (sin tachado ni subrayado; títulos sin marcas; citas e ítems de un solo párrafo).
+import {
+  Extension,
+  Mark,
+  Node,
+  markInputRule,
+  mergeAttributes,
+  wrappingInputRule,
+  type AnyExtension,
+  type Editor,
+} from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import {
+  CLASES_CITA,
+  CLASES_CITA_TEXTO,
+  CLASES_CODIGO,
+  CLASES_LISTA,
+  CLASES_LISTA_NUMERADA,
+  CLASES_LISTA_VINETAS,
+  CLASES_PARRAFO,
+  CLASES_SEPARADOR,
+  CLASES_TITULO,
+  CLASES_TITULO_POR_NIVEL,
+} from '@blog/bloques/render';
+import { Placeholder } from '@tiptap/extensions';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Suggestion from '@tiptap/suggestion';
+import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
+import { asegurarIds } from './ids';
+import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
+import { NodoBloque } from './NodoBloque';
+
+const TIPOS_CON_ID = [
+  'paragraph',
+  'heading',
+  'blockquote',
+  'bulletList',
+  'orderedList',
+  'codeBlock',
+  'horizontalRule',
+  'imagenBloque',
+  'galeriaBloque',
+  'ctaBloque',
+  'videoBloque',
+];
+
+/** `https://…` o una ruta interna (`/…`, no `//…`): lo único que el sitio acepta como enlace. */
+export const esEnlacePermitido = (url: string) => /^https:\/\/[^\s/]+\.\S+$/.test(url) || /^\/(?!\/)\S*$/.test(url);
+
+/** Atributos propios: la identidad de cada elemento y los campos que el panel edita (no viajan por el portapapeles). */
+const AtributosDelDocumento = Extension.create({
+  name: 'atributosDelDocumento',
+  addGlobalAttributes() {
+    return [
+      { types: TIPOS_CON_ID, attributes: { bloqueId: { default: '', keepOnSplit: false, rendered: false } } },
+      { types: ['paragraph'], attributes: { continuacion: { default: '', keepOnSplit: false, rendered: false } } },
+      {
+        types: ['blockquote'],
+        attributes: { autor: { default: '', rendered: false }, fuente: { default: '', rendered: false } },
+      },
+      { types: ['codeBlock'], attributes: { lenguaje: { default: '', rendered: false } } },
+    ];
+  },
+});
+
+/** Código en línea que admite negrita, cursiva y enlace adentro, como el sitio (la marca de la librería las excluye). */
+const CodigoEnLinea = Mark.create({
+  name: 'code',
+  excludes: '',
+  code: true,
+  parseHTML: () => [{ tag: 'code' }],
+  renderHTML: ({ HTMLAttributes }) => ['code', mergeAttributes(HTMLAttributes), 0],
+  addCommands() {
+    return {};
+  },
+  addKeyboardShortcuts() {
+    return { 'Mod-e': () => this.editor.commands.toggleMark(this.name) };
+  },
+  addInputRules() {
+    return [markInputRule({ find: /(^|[^`])`([^`]+)`(?!`)$/, type: this.type })];
+  },
+});
+
+/** Cita de un solo párrafo, con autor y fuente en el panel. Enter al final sale de la cita. */
+const Cita = Node.create({
+  name: 'blockquote',
+  group: 'block',
+  content: 'paragraph',
+  defining: true,
+  parseHTML: () => [{ tag: 'blockquote' }],
+  renderHTML: ({ HTMLAttributes }) => ['blockquote', mergeAttributes(HTMLAttributes), 0],
+  addInputRules() {
+    return [wrappingInputRule({ find: /^\s*>\s$/, type: this.type })];
+  },
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        const { $from, empty } = editor.state.selection;
+        if (!empty || $from.node(1).type.name !== 'blockquote') return false;
+        const despues = $from.after(1);
+        if ($from.parentOffset < $from.parent.content.size) return true; // a mitad de la cita no se parte
+        return editor
+          .chain()
+          .insertContentAt(despues, { type: 'paragraph' })
+          .setTextSelection(despues + 1)
+          .run();
+      },
+    };
+  },
+});
+
+/** Ítem de lista de un solo párrafo (sin listas anidadas). */
+const ItemDeLista = Node.create({
+  name: 'listItem',
+  content: 'paragraph',
+  defining: true,
+  parseHTML: () => [{ tag: 'li' }],
+  renderHTML: ({ HTMLAttributes }) => ['li', mergeAttributes(HTMLAttributes), 0],
+  addKeyboardShortcuts() {
+    return { Enter: ({ editor }) => editor.commands.splitListItem(this.name) };
+  },
+});
+
+/** Los títulos no llevan marcas ni saltos simples y las citas y los ítems no ofrecen saltos simples. */
+const ReglasDeTexto = Extension.create({
+  name: 'reglasDeTexto',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const enTitulo = () => this.editor.state.selection.$from.parent.type.name === 'heading';
+    const enCodigo = () => this.editor.state.selection.$from.parent.type.name === 'codeBlock';
+    const sinSalto = () => {
+      const { $from } = this.editor.state.selection;
+      return [...Array($from.depth + 1).keys()].some((n) =>
+        ['heading', 'blockquote', 'listItem'].includes($from.node(n).type.name),
+      );
+    };
+    const sinMarcas = () => enTitulo() || enCodigo();
+    return {
+      'Shift-Enter': sinSalto,
+      'Mod-Enter': sinSalto,
+      'Mod-b': sinMarcas,
+      'Mod-i': sinMarcas,
+      'Mod-e': sinMarcas,
+      'Mod-k': () => {
+        if (!sinMarcas()) this.editor.view.dom.dispatchEvent(new CustomEvent('abrir-enlace'));
+        return true;
+      },
+    };
+  },
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('limpiarTitulos'),
+        appendTransaction: (_transacciones, _antes, despues) => {
+          if (!_transacciones.some((tr) => tr.docChanged)) return null;
+          const tr = despues.tr;
+          despues.doc.descendants((nodo, pos) => {
+            if (nodo.type.name !== 'heading') return;
+            nodo.descendants((hijo, relativa) => {
+              const inicio = pos + 1 + relativa;
+              if (hijo.type.name === 'hardBreak')
+                tr.delete(tr.mapping.map(inicio), tr.mapping.map(inicio + hijo.nodeSize));
+              else if (hijo.marks.length > 0)
+                tr.removeMark(tr.mapping.map(inicio), tr.mapping.map(inicio + hijo.nodeSize));
+            });
+          });
+          return tr.docChanged ? tr.setMeta('addToHistory', false) : null;
+        },
+      }),
+    ];
+  },
+});
+
+/** Clases de tipografía del sitio para cada elemento de primer nivel: el lienzo se ve como el artículo publicado. */
+function clasesDe(nodo: { type: { name: string }; attrs: Record<string, unknown> }): string | undefined {
+  switch (nodo.type.name) {
+    case 'paragraph':
+      return CLASES_PARRAFO;
+    case 'heading':
+      return `${CLASES_TITULO} ${CLASES_TITULO_POR_NIVEL[nodo.attrs.level as 2 | 3 | 4] ?? ''}`;
+    case 'blockquote':
+      return `${CLASES_CITA} ${CLASES_CITA_TEXTO}`;
+    case 'bulletList':
+      return `${CLASES_LISTA} ${CLASES_LISTA_VINETAS}`;
+    case 'orderedList':
+      return `${CLASES_LISTA} ${CLASES_LISTA_NUMERADA}`;
+    case 'codeBlock':
+      return `mt-bloque ${CLASES_CODIGO}`;
+    case 'horizontalRule':
+      return CLASES_SEPARADOR;
+    default:
+      return undefined;
+  }
+}
+
+const Tipografia = Extension.create({
+  name: 'tipografia',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('tipografia'),
+        props: {
+          decorations: ({ doc }) => {
+            const decoraciones: Decoration[] = [];
+            doc.forEach((nodo, desplazamiento) => {
+              const clase = clasesDe(nodo);
+              if (clase)
+                decoraciones.push(Decoration.node(desplazamiento, desplazamiento + nodo.nodeSize, { class: clase }));
+            });
+            return DecorationSet.create(doc, decoraciones);
+          },
+        },
+      }),
+    ];
+  },
+});
+
+/** Asigna el `bloqueId` de los elementos nuevos una sola vez y deduplica los repetidos (research D6 y D21). */
+const AsignarIds = Extension.create({
+  name: 'asignarIds',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('asignarIds'),
+        appendTransaction: (transacciones, _antes, despues) => {
+          if (!transacciones.some((tr) => tr.docChanged)) return null;
+          const elementos = despues.doc.content.content;
+          const actual = {
+            type: 'doc',
+            content: elementos.map((nodo) => ({ type: nodo.type.name, attrs: nodo.attrs })),
+          };
+          const asegurado = asegurarIds(actual);
+          const tr = despues.tr;
+          let pos = 0;
+          elementos.forEach((nodo, i) => {
+            const atributos = asegurado.content?.[i]?.attrs;
+            if (
+              atributos &&
+              (atributos.bloqueId !== nodo.attrs.bloqueId || atributos.continuacion !== nodo.attrs.continuacion)
+            ) {
+              tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, ...atributos });
+            }
+            pos += nodo.nodeSize;
+          });
+          return tr.docChanged ? tr.setMeta('addToHistory', false) : null;
+        },
+      }),
+    ];
+  },
+});
+
+function nodoEspecial(name: string) {
+  return Node.create({
+    name,
+    group: 'block',
+    atom: true,
+    selectable: true,
+    draggable: false,
+    addAttributes() {
+      return { bloque: { default: null, rendered: false } };
+    },
+    parseHTML: () => [],
+    renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-elemento': name })],
+    addNodeView() {
+      return ReactNodeViewRenderer(NodoBloque);
+    },
+  });
+}
+
+export type EstadoMenu = {
+  consulta: string;
+  /** Posición del cursor en pantalla, para ubicar el menú. */
+  rect: DOMRect | null;
+  elegir: (item: ItemDeInsercion) => void;
+};
+
+export type DevolucionesDelEditor = {
+  /** Abre, actualiza (con el estado nuevo) o cierra (con `null`) el menú «/». */
+  alMenu: (estado: EstadoMenu | null) => void;
+  /** Teclas con el menú «/» abierto: devuelve `true` si las atendió. */
+  alTeclearMenu: (evento: KeyboardEvent) => boolean;
+  /** Anuncia una conversión por atajo de escritura. */
+  alConvertir: (nombre: string) => void;
+};
+
+function menuBarra(devoluciones: DevolucionesDelEditor) {
+  return Extension.create({
+    name: 'menuBarra',
+    addProseMirrorPlugins() {
+      return [
+        Suggestion<ItemDeInsercion, ItemDeInsercion>({
+          editor: this.editor,
+          char: '/',
+          startOfLine: true,
+          allow: ({ state, range }) => {
+            const $desde = state.doc.resolve(range.from);
+            return puedeAbrirMenu({
+              antes: $desde.parent.textBetween(0, $desde.parentOffset),
+              despues: $desde.parent.textBetween(range.to - $desde.start(), $desde.parent.content.size),
+            });
+          },
+          items: ({ query }) => filtrarItems(query),
+          command: ({ editor, range, props }) => {
+            editor.chain().focus().deleteRange(range).run();
+            props.insertar(editor);
+          },
+          render: () => {
+            const estado = (props: {
+              query: string;
+              clientRect?: (() => DOMRect | null) | null;
+              command: (item: ItemDeInsercion) => void;
+            }) =>
+              devoluciones.alMenu({ consulta: props.query, rect: props.clientRect?.() ?? null, elegir: props.command });
+            return {
+              onStart: estado,
+              onUpdate: estado,
+              onKeyDown: ({ event }) => devoluciones.alTeclearMenu(event),
+              onExit: () => devoluciones.alMenu(null),
+            };
+          },
+        }),
+      ];
+    },
+  });
+}
+
+/** Anuncia las conversiones por atajo de escritura ("Se convirtió en título 2"); la conversión la hace la librería. */
+function anunciarAtajos(devoluciones: DevolucionesDelEditor) {
+  return Extension.create({
+    name: 'anunciarAtajos',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('anunciarAtajos'),
+          props: {
+            handleTextInput: (vista, desde, hasta, texto) => {
+              const { $from } = vista.state.selection;
+              if ($from.depth !== 1 || $from.parent.type.name !== 'paragraph') return false;
+              const antes = $from.parent.textBetween(0, $from.parentOffset);
+              const atajo = detectarAtajo(antes + texto);
+              if (atajo && desde === hasta) devoluciones.alConvertir(nombreDeAtajo(atajo));
+              return false;
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
+/** Texto de ayuda de la línea vacía: sin teclado físico la «/» suele estar en un segundo nivel. */
+const textoDeLineaVacia = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+    ? 'Escribe o usa Insertar'
+    : 'Escribe o pulsa / para insertar';
+
+export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtension[] {
+  return [
+    StarterKit.configure({
+      heading: { levels: [2, 3, 4] },
+      blockquote: false,
+      listItem: false,
+      code: false,
+      strike: false,
+      underline: false,
+      link: { openOnClick: false, autolink: false, linkOnPaste: false, isAllowedUri: esEnlacePermitido },
+    }),
+    Cita,
+    ItemDeLista,
+    CodigoEnLinea,
+    AtributosDelDocumento,
+    Tipografia,
+    ReglasDeTexto,
+    AsignarIds,
+    nodoEspecial('imagenBloque'),
+    nodoEspecial('galeriaBloque'),
+    nodoEspecial('ctaBloque'),
+    nodoEspecial('videoBloque'),
+    Placeholder.configure({
+      placeholder: ({ node, editor }: { node: { type: { name: string } }; editor: Editor }) =>
+        node.type.name === 'paragraph' && editor.state.doc.childCount > 0 ? textoDeLineaVacia() : '',
+      showOnlyCurrent: true,
+    }),
+    menuBarra(devoluciones),
+    anunciarAtajos(devoluciones),
+  ];
+}

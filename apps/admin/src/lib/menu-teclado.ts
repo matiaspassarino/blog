@@ -34,7 +34,7 @@ export function indicePorLetra(items: ItemMenu[], actual: number, escrito: strin
   if (!prefijo) return -1;
   const total = items.length;
   for (let i = 1; i <= total; i++) {
-    const indice = (((actual < 0 ? -1 : actual) + i) % total + total) % total;
+    const indice = ((((actual < 0 ? -1 : actual) + i) % total) + total) % total;
     if (habilitado(items, indice) && sinTildes(items[indice]?.etiqueta ?? '').startsWith(prefijo)) return indice;
   }
   return -1;

@@ -21,7 +21,12 @@ export type NodoDocumento = {
 };
 
 /** Nodo especial (atómico) del documento de cada tipo de bloque que no es texto. */
-const NODO_DE_TIPO = { imagen: 'imagenBloque', galeria: 'galeriaBloque', cta: 'ctaBloque', video: 'videoBloque' } as const;
+const NODO_DE_TIPO = {
+  imagen: 'imagenBloque',
+  galeria: 'galeriaBloque',
+  cta: 'ctaBloque',
+  video: 'videoBloque',
+} as const;
 const TIPO_DE_NODO: Record<string, keyof typeof NODO_DE_TIPO> = {
   imagenBloque: 'imagen',
   galeriaBloque: 'galeria',
@@ -85,7 +90,10 @@ function enLineaADocumento(texto: string, saltos: boolean): NodoDocumento[] {
     const lineas = saltos ? tramo.texto.split('\n') : [tramo.texto];
     lineas.forEach((linea, i) => {
       if (i > 0) {
-        resultado.push({ type: 'hardBreak', ...(tramo.marcas.length > 0 ? { marks: tramo.marcas.map(marcaDeDocumento) } : {}) });
+        resultado.push({
+          type: 'hardBreak',
+          ...(tramo.marcas.length > 0 ? { marks: tramo.marcas.map(marcaDeDocumento) } : {}),
+        });
       }
       if (linea) resultado.push(nodoDeTexto(linea, tramo.marcas));
     });
@@ -95,10 +103,12 @@ function enLineaADocumento(texto: string, saltos: boolean): NodoDocumento[] {
 
 /** Un párrafo guardado: cada línea es su propio texto en línea (como en el sitio) y el salto simple es `hardBreak`. */
 function parrafoADocumento(texto: string): NodoDocumento[] {
-  return texto.split('\n').flatMap((linea, i): NodoDocumento[] => [
-    ...(i > 0 ? [{ type: 'hardBreak' }] : []),
-    ...enLineaADocumento(linea, false),
-  ]);
+  return texto
+    .split('\n')
+    .flatMap((linea, i): NodoDocumento[] => [
+      ...(i > 0 ? [{ type: 'hardBreak' }] : []),
+      ...enLineaADocumento(linea, false),
+    ]);
 }
 
 function tramosDeDocumento(hijos: NodoDocumento[]): Tramo[] {
@@ -156,7 +166,10 @@ const textoSinMarcas = (hijos: NodoDocumento[] = []) =>
 // Bloques → documento
 
 const conContenido = (content: NodoDocumento[]) => (content.length > 0 ? { content } : {});
-const parrafoEnLinea = (texto: string): NodoDocumento => ({ type: 'paragraph', ...conContenido(enLineaADocumento(texto, true)) });
+const parrafoEnLinea = (texto: string): NodoDocumento => ({
+  type: 'paragraph',
+  ...conContenido(enLineaADocumento(texto, true)),
+});
 
 function bloqueADocumento(bloque: Bloque): NodoDocumento[] {
   const bloqueId = bloque.id;
@@ -209,7 +222,10 @@ function bloqueADocumento(bloque: Bloque): NodoDocumento[] {
 /** Documento del editor para un contenido guardado. Siempre tiene al menos un párrafo. */
 export function bloquesADocumento(contenido: Contenido): NodoDocumento {
   const content = contenido.flatMap(bloqueADocumento);
-  return { type: 'doc', content: content.length > 0 ? content : [{ type: 'paragraph', attrs: { bloqueId: '', continuacion: '' } }] };
+  return {
+    type: 'doc',
+    content: content.length > 0 ? content : [{ type: 'paragraph', attrs: { bloqueId: '', continuacion: '' } }],
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -218,7 +234,9 @@ export function bloquesADocumento(contenido: Contenido): NodoDocumento {
 function idDe(nodo: NodoDocumento): string {
   const id = nodo.attrs?.bloqueId;
   if (typeof id !== 'string' || id === '') {
-    throw new Error(`El elemento "${nodo.type ?? '?'}" no tiene bloqueId: asegurarIds tiene que correr antes de convertir.`);
+    throw new Error(
+      `El elemento "${nodo.type ?? '?'}" no tiene bloqueId: asegurarIds tiene que correr antes de convertir.`,
+    );
   }
   return id;
 }
@@ -271,7 +289,12 @@ function bloqueDeDocumento(nodo: NodoDocumento): Bloque {
         items: (nodo.content ?? []).map((item) => enLineaDeDocumento(primerParrafo(item)?.content)),
       };
     case 'codeBlock':
-      return { id, tipo: 'codigo', codigo: textoSinMarcas(nodo.content), ...opcional('lenguaje', atributos.lenguaje) } as Bloque;
+      return {
+        id,
+        tipo: 'codigo',
+        codigo: textoSinMarcas(nodo.content),
+        ...opcional('lenguaje', atributos.lenguaje),
+      } as Bloque;
     case 'horizontalRule':
       return { id, tipo: 'separador' };
     default: {

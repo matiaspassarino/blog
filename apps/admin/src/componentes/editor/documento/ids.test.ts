@@ -41,7 +41,11 @@ describe('asegurarIds: asignación (RF-012, D21)', () => {
 
   it('asigna uuids distintos a varios elementos vacíos', () => {
     const resultado = asegurar(
-      documento(parrafo(''), { type: 'heading', attrs: { level: 2, bloqueId: '' } }, { type: 'horizontalRule', attrs: { bloqueId: '' } }),
+      documento(
+        parrafo(''),
+        { type: 'heading', attrs: { level: 2, bloqueId: '' } },
+        { type: 'horizontalRule', attrs: { bloqueId: '' } },
+      ),
     );
 
     expect(new Set(ids(resultado)).size).toBe(3);
@@ -166,10 +170,18 @@ describe('asegurarIds: pureza e idempotencia (D6, D12)', () => {
   });
 
   it('conserva el resto del documento (tipos, atributos y contenido)', () => {
-    const heading: Nodo = { type: 'heading', attrs: { level: 3, bloqueId: '' }, content: [{ type: 'text', text: 'T' }] };
+    const heading: Nodo = {
+      type: 'heading',
+      attrs: { level: 3, bloqueId: '' },
+      content: [{ type: 'text', text: 'T' }],
+    };
 
     const resultado = asegurar(documento(heading));
 
-    expect(resultado.content?.[0]).toMatchObject({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'T' }] });
+    expect(resultado.content?.[0]).toMatchObject({
+      type: 'heading',
+      attrs: { level: 3 },
+      content: [{ type: 'text', text: 'T' }],
+    });
   });
 });

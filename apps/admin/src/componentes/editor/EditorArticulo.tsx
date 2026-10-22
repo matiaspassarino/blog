@@ -34,7 +34,7 @@ import { useHidratado } from '../../lib/hidratado';
 import { ContextoEditor } from './ContextoEditor';
 import { aDatosArticulo, validarEditor } from './datos';
 import { ImagenEditable } from './ImagenEditable';
-import { ListaBloques } from './ListaBloques';
+import { CargadorDeEditorDocumento } from './documento/CargadorDeEditorDocumento';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
 import { TituloSeccion } from '../estructura/TituloSeccion';
@@ -106,6 +106,8 @@ export function EditorArticulo({
   const [verVigente, setVerVigente] = useState(false);
   // Mientras se carga la versión vigente para reemplazar, el formulario no admite cambios (se perderían).
   const [reemplazando, setReemplazando] = useState(false);
+  // Sube al adoptar la versión vigente: el documento y su historial se vuelven a crear desde lo adoptado.
+  const [reinicio, setReinicio] = useState(0);
   const titulo = useRef<HTMLHeadingElement>(null);
 
   const hidratado = useHidratado();
@@ -233,6 +235,7 @@ export function EditorArticulo({
     setReemplazando(false);
     if (!cargada) return;
     despachar({ tipo: 'adoptar_vigente', articulo: cargada });
+    setReinicio((n) => n + 1);
     setConflicto(false);
     setVerVigente(false);
     setErrores([]);
@@ -315,11 +318,14 @@ export function EditorArticulo({
 
               <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">
                 <TituloSeccion id="titulo-contenido">Contenido</TituloSeccion>
-                <ListaBloques
+                <CargadorDeEditorDocumento
                   contenido={actual.contenido}
+                  reinicio={reinicio}
                   errores={errores.filter((error) => error.indice >= 0)}
-                  despachar={despachar}
+                  alCambiar={(valor) => despachar({ tipo: 'contenido', valor })}
+                  alSeleccionar={() => {}}
                   anunciar={setAnuncio}
+                  bloqueado={reemplazando}
                 />
               </section>
             </div>

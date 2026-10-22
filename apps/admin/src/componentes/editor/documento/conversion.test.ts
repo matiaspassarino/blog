@@ -85,13 +85,15 @@ describe('bloquesADocumento: forma del documento (contracts/documento.md)', () =
   it('RF-009: un párrafo es un paragraph con su texto', () => {
     const [nodo] = primerNivel([{ id: ID_A, tipo: 'parrafo', texto: 'Hola' }]);
 
-    expect(nodo).toMatchObject({ type: 'paragraph', attrs: { bloqueId: ID_A }, content: [{ type: 'text', text: 'Hola' }] });
+    expect(nodo).toMatchObject({
+      type: 'paragraph',
+      attrs: { bloqueId: ID_A },
+      content: [{ type: 'text', text: 'Hola' }],
+    });
   });
 
   it('RF-004: las marcas pasan a bold, italic, code y link', () => {
-    const [nodo] = primerNivel([
-      { id: ID_A, tipo: 'parrafo', texto: '**a** _b_ `c` [d](/x)' },
-    ]);
+    const [nodo] = primerNivel([{ id: ID_A, tipo: 'parrafo', texto: '**a** _b_ `c` [d](/x)' }]);
     const marcas = hijos(nodo).flatMap((hijo) => hijo.marks ?? []);
 
     expect(marcas.map((marca) => marca.type)).toEqual(['bold', 'italic', 'code', 'link']);
@@ -314,15 +316,17 @@ describe('documentoABloques: reglas de la inversa (contracts/documento.md)', () 
   });
 
   it('un bloqueId ausente (null) también hace fallar', () => {
-    expect(() => aBloques(documento({ type: 'heading', attrs: { level: 2, bloqueId: null }, content: [texto('T')] }))).toThrow();
+    expect(() =>
+      aBloques(documento({ type: 'heading', attrs: { level: 2, bloqueId: null }, content: [texto('T')] })),
+    ).toThrow();
   });
 
   it('los ids existentes se conservan y el orden del documento manda', () => {
-    const doc = documento(
-      { type: 'horizontalRule', attrs: { bloqueId: ID_C } },
-      parrafoDoc(ID_A, [texto('Uno')]),
-      { type: 'heading', attrs: { level: 4, bloqueId: ID_B }, content: [texto('Titulo')] },
-    );
+    const doc = documento({ type: 'horizontalRule', attrs: { bloqueId: ID_C } }, parrafoDoc(ID_A, [texto('Uno')]), {
+      type: 'heading',
+      attrs: { level: 4, bloqueId: ID_B },
+      content: [texto('Titulo')],
+    });
 
     expect(aBloques(doc).map((bloque) => bloque.id)).toEqual([ID_C, ID_A, ID_B]);
   });

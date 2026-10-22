@@ -16,4 +16,6 @@ export const CLASES_LISTA = 'mt-bloque space-y-2 pl-6 text-lg leading-relaxed';
 export const CLASES_LISTA_NUMERADA = 'list-decimal';
 export const CLASES_LISTA_VINETAS = 'list-disc';
 
+export const CLASES_SEPARADOR = 'mx-auto my-12 w-24 border-t-2 border-separador';
+
 export const CLASES_CODIGO = 'overflow-x-auto rounded-md bg-superficie p-4 font-codigo text-sm leading-relaxed';

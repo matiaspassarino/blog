@@ -3,7 +3,7 @@
 // "Más acciones" (spec 004, RF-019): por debajo de 42 rem de ancho de la barra recoge las acciones que no entran
 // en una línea; desde ahí se ven todas en línea y el botón desaparece. La barra se renderiza una sola vez: el panel
 // pasa de menú a `contents` según la container query (research D10).
-import { Children, useId, useRef, type ReactNode } from 'react';
+import { Children, useId, useRef, type ComponentProps, type ReactNode } from 'react';
 import { useDesplegable } from '../../lib/desplegable';
 import { cn } from '../../lib/cn';
 import { Icono } from '../Icono';
@@ -16,6 +16,8 @@ type Props = {
   direccion?: 'arriba' | 'abajo';
   /** Ancho de la barra desde el cual las acciones se ven en línea (42 rem o 48 rem). */
   corte?: '2xl' | '3xl';
+  /** Atributos del botón «Más acciones» (por ejemplo, para que entre al orden de tabulación de una barra). */
+  propsBoton?: Omit<ComponentProps<'button'>, 'children'> & Record<`data-${string}`, string>;
 };
 
 // Las clases se escriben completas: Tailwind no ve las que se arman con texto.
@@ -25,7 +27,7 @@ const CLASES_DE_CORTE = {
 } as const;
 const CLASES_DE_DIRECCION = { arriba: 'right-0 bottom-full mb-2', abajo: 'right-0 top-full mt-2' } as const;
 
-export function MasAcciones({ children, destructivas, direccion = 'arriba', corte = '2xl' }: Props) {
+export function MasAcciones({ children, destructivas, direccion = 'arriba', corte = '2xl', propsBoton }: Props) {
   const clases = CLASES_DE_CORTE[corte];
   const idPanel = useId();
   const refBoton = useRef<HTMLButtonElement>(null);
@@ -47,6 +49,7 @@ export function MasAcciones({ children, destructivas, direccion = 'arriba', cort
         aria-controls={idPanel}
         className={clases.boton}
         onClick={alternar}
+        {...propsBoton}
       >
         <Icono nombre="mas" />
       </Button>
