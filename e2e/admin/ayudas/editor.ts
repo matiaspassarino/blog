@@ -256,3 +256,119 @@ export function archivoDeImagen(
   }[formato]();
   return { name: nombre, mimeType: `image/${formato}`, buffer: Buffer.from(bytes) };
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ayudas de mover, duplicar, quitar y seleccionar varios elementos (spec 005, T064). FASE ROJA: no existen aún.
+//
+// CONTRATO DE INTERFAZ SUPUESTO (contracts/atajos.md y contracts/componentes.md, "AsaDeElemento", "MenuAcciones"):
+//   - Botón «Acciones» de la barra: `aria-haspopup="menu"` y `aria-expanded`; su nombre empieza con "Acciones" y, con un
+//     elemento activo, dice a cuál actúa ("Acciones del elemento 3, párrafo"). Abre un `role="menu"` con `menuitem`:
+//     "Subir", "Bajar", "Duplicar", "Convertir en…", "Quitar", "Seleccionar", "Propiedades" y "Atajos". Los no disponibles
+//     (extremos, varios elementos, subida en curso) llevan `aria-disabled="true"`; «Convertir en…» con varios elementos
+//     seleccionados no se ofrece (no existe). «Convertir en…» abre un submenú con los estilos de texto ("Párrafo", "Título 2"…).
+//   - Asa flotante: un `button` con nombre "Acciones del elemento N, <tipo>" que NO está en la barra; aparece al pasar el
+//     puntero por un elemento (o con el elemento activo) y va después de la barra en el DOM. Al arrastrarla muestra un
+//     texto de destino "Soltar aquí: posición 3 de 8".
+//   - Modo elementos: texto fijo "N elementos seleccionados" (o "1 elemento seleccionado") y botón «Salir de la selección»;
+//     cada elemento seleccionado lleva `data-seleccionado="true"`, un borde izquierdo de 2 px y un ícono (`svg`) de
+//     verificación (la marca que no depende del color).
+//   - Confirmaciones de quitar una imagen guardada: `role="alertdialog"` con botón de confirmar «Quitar…» y «Cancelar».
+//     El aviso de conversión con pérdida es otro `alertdialog` con botones «Convertir» y «Cancelar» que nombra lo perdido.
+//   - Diálogo «Atajos de teclado»: `role="dialog"` con ese nombre; el foco inicial va a su título (`heading`).
+//   - Anuncios: `role="status"` (región persistente de `ContextoEditor`) con los textos de anuncios.ts.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** El botón «Acciones» de la barra de herramientas. */
+export const botonAcciones = (page: Page) => barraDeFormato(page).getByRole('button', { name: /^Acciones/ });
+
+/** El asa flotante del elemento activo (para ratón y toque; va después de la barra en el DOM). */
+export const asaDeElemento = (page: Page) => page.getByRole('button', { name: /^Acciones del elemento \d+, / }).last();
+
+export const menuDeAcciones = (page: Page) => page.getByRole('menu');
+
+/** Una entrada del menú de acciones por el comienzo de su nombre ("Subir", "Convertir en…", "Atajos"…). */
+export const accionDelMenu = (page: Page, nombre: string) =>
+  menuDeAcciones(page).getByRole('menuitem', { name: new RegExp(`^${nombre}`) });
+
+/** Abre el menú de acciones de la barra y elige una entrada con el ratón. */
+export async function elegirAccion(page: Page, nombre: string) {
+  await botonAcciones(page).click();
+  await accionDelMenu(page, nombre).click();
+}
+
+/** Los elementos de primer nivel del lienzo (párrafos, títulos, listas, citas, islas…). */
+export const elementosDelLienzo = (page: Page) => lienzo(page).locator(':scope > *');
+
+/** Los textos de los elementos de primer nivel que son párrafos, títulos, citas o listas, en orden. */
+export const textosDelLienzo = (page: Page) =>
+  elementosDelLienzo(page).evaluateAll((els) =>
+    els
+      .filter((el) => !el.matches('[data-elemento]'))
+      .map((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim())
+      .filter((texto) => texto !== ''),
+  );
+
+/** El texto fijo del modo elementos ("3 elementos seleccionados"). */
+export const textoDeSeleccion = (page: Page) => page.getByText(/^\d+ elementos? seleccionados?$/).first();
+
+/** Los elementos del lienzo marcados como seleccionados en modo elementos. */
+export const elementosSeleccionados = (page: Page) => lienzo(page).locator('[data-seleccionado="true"]');
+
+export const regionDeEstado = (page: Page) => page.getByRole('status');
+
+/** Pone el cursor en el elemento que contiene `texto` y pulsa `Esc`: queda seleccionado ese elemento (modo elementos). */
+export async function entrarAlModo(page: Page, texto: string | RegExp) {
+  await lienzo(page)
+    .getByText(texto, { exact: typeof texto === 'string' })
+    .first()
+    .click();
+  await page.keyboard.press('Escape');
+  await expect(textoDeSeleccion(page)).toBeVisible();
+}
+
+/** Anota (en `window.__anuncios`) cada texto de "N elementos seleccionados" que aparezca en la página. */
+export async function observarAnunciosDeSeleccion(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __anuncios: string[] };
+    w.__anuncios = [];
+    const anotar = (texto: string | null) => {
+      const coincide = texto?.match(/\d+ elementos? seleccionados?/g);
+      if (coincide) w.__anuncios.push(...coincide);
+    };
+    new MutationObserver((cambios) => {
+      for (const cambio of cambios) {
+        if (cambio.target.parentElement?.closest('[role="status"]')) anotar(cambio.target.textContent);
+        cambio.addedNodes.forEach((nodo) => {
+          if ((nodo as Element).closest?.('[role="status"]') ?? nodo.parentElement?.closest('[role="status"]'))
+            anotar(nodo.textContent);
+        });
+      }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+export const anunciosDeSeleccion = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __anuncios: string[] }).__anuncios);
+
+type Punto = { x: number; y: number };
+export const centroDe = async (localizador: Locator): Promise<Punto> => {
+  const caja = (await localizador.boundingBox())!;
+  return { x: caja.x + caja.width / 2, y: caja.y + caja.height / 2 };
+};
+
+/** Arrastra con el ratón desde `desde` hasta `hasta` en pasos (sin soltar si `soltar` es false). */
+export async function arrastrarConRaton(page: Page, desde: Punto, hasta: Punto, soltar = true) {
+  await page.mouse.move(desde.x, desde.y);
+  await page.mouse.down();
+  await page.mouse.move(desde.x + 2, desde.y + 4, { steps: 3 });
+  await page.mouse.move(hasta.x, hasta.y, { steps: 12 });
+  if (soltar) await page.mouse.up();
+}
+
+/** Un toque con el dedo (eventos táctiles reales por CDP: Chromium). `mover` son los puntos intermedios y final. */
+export async function gestoTactil(page: Page, inicio: Punto, mover: Punto[], soltar = true) {
+  const sesion = await page.context().newCDPSession(page);
+  await sesion.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [inicio] });
+  for (const punto of mover) await sesion.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [punto] });
+  if (soltar) await sesion.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  return sesion;
+}

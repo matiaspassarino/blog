@@ -12,12 +12,37 @@
 //     que usa el renderer del sitio: mismo tipo de letra, tamaño, peso, interlineado y color.
 // El esc. 5 con toque no se prueba aquí (hace falta un dispositivo táctil; es de la prueba manual del quickstart).
 import { expect, test, type Page } from '@playwright/test';
-import { articuloPorTitulo, imagenSemilla, limpiarArticulosE2E, parrafo, sembrarArticulo } from './ayudas/articulos';
+import {
+  articuloPorId,
+  articuloPorTitulo,
+  diezBloques,
+  imagenSemilla,
+  limpiarArticulosE2E,
+  parrafo,
+  sembrarArticulo,
+} from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
 import {
   abrirMenuInsertar,
+  accionDelMenu,
+  anunciosDeSeleccion,
   archivoDeImagen,
+  arrastrarConRaton,
+  asaDeElemento,
   barraDeFormato,
+  botonGuardar,
+  botonAcciones,
+  centroDe,
+  elegirAccion,
+  elementosDelLienzo,
+  elementosSeleccionados,
+  entrarAlModo,
+  gestoTactil,
+  menuDeAcciones,
+  observarAnunciosDeSeleccion,
+  regionDeEstado,
+  textoDeSeleccion,
+  textosDelLienzo,
   elegirEstilo,
   elegirImagen,
   escribirEnLienzo,
@@ -973,4 +998,840 @@ test.describe('Elementos especiales y panel: hoja por debajo de 1280 px (H2-E6)'
       });
     });
   }
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T064 (spec 005, H3 esc. 1 a 11; CE-003; quickstart C). FASE ROJA: el menú de acciones, el asa, el modo elementos y la
+// protección de borrado no existen aún (el botón «Acciones» de la barra está deshabilitado). Supuestos de interfaz: ver el
+// encabezado "mover, duplicar, quitar y seleccionar" de ./ayudas/editor.ts. Además:
+//   - Con el cursor en un elemento de texto o con una isla seleccionada, «Acciones» actúa sobre ese elemento; Esc entra al
+//     modo elementos; Alt+↑/↓ mueven, Mod+D duplica y Supr o Retroceso quitan (solo en modo elementos).
+//   - Mover y duplicar dejan el modo elementos puesto sobre el elemento movido o sobre la copia; quitar sale del modo.
+//   - Una imagen ya guardada es la del artículo sembrado (`articulos/e2e-inexistente.png`, ver sembrarOchoElementos).
+//   - La subida en curso se simula demorando `**/storage/v1/object/upload/sign/**` (como en medios.spec.ts).
+//   - El arrastre táctil usa eventos táctiles reales por CDP (Chromium) sobre el asa; el dedo sobre el texto solo desplaza.
+//   - El E2E del orden de `Esc` con la hoja usa 1024 px (la hoja existe por debajo de 1280 px).
+// ---------------------------------------------------------------------------------------------------------------------
+
+const CINCO = ['Uno', 'Dos', 'Tres', 'Cuatro', 'Cinco'];
+const sembrarCinco = (titulo: string) => sembrarArticulo({ titulo, contenido: CINCO.map(parrafo) });
+const sembrarConImagenGuardada = (titulo: string) =>
+  sembrarArticulo({
+    titulo,
+    contenido: [
+      parrafo('Uno'),
+      { id: crypto.randomUUID(), tipo: 'imagen', imagen: imagenSemilla('articulos/e2e-inexistente.png') },
+      parrafo('Tres'),
+    ],
+  });
+const enfocadoEnTexto = (page: Page, texto: string) =>
+  page.evaluate((esperado) => {
+    const nodo = window.getSelection()?.anchorNode;
+    const elemento = nodo instanceof Element ? nodo : nodo?.parentElement;
+    return elemento?.closest('[contenteditable] > *')?.textContent === esperado;
+  }, texto);
+const anuncio = (page: Page, texto: string | RegExp) => regionDeEstado(page).filter({ hasText: texto });
+const menuItem = (page: Page, nombre: string) => page.getByRole('menuitem', { name: nombre, exact: true });
+
+test.describe('Mover, duplicar, quitar y seleccionar', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test.describe('el menú de acciones', () => {
+    test('H3-E1: el botón «Acciones» dice a qué elemento actúa y abre un menú con todas las acciones', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-menu'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      const boton = botonAcciones(page);
+      await expect(boton).toHaveAccessibleName('Acciones del elemento 3, párrafo');
+      await expect(boton).toHaveAttribute('aria-haspopup', 'menu');
+      await expect(boton).toHaveAttribute('aria-expanded', 'false');
+
+      await boton.click();
+      await expect(boton).toHaveAttribute('aria-expanded', 'true');
+      const nombres = ['Subir', 'Bajar', 'Duplicar', 'Convertir en…', 'Quitar', 'Seleccionar', 'Propiedades', 'Atajos'];
+      for (const nombre of nombres) await expect(accionDelMenu(page, nombre), nombre).toBeVisible();
+    });
+
+    test('H3-E1: el asa aparece al pasar el puntero, tiene el mismo nombre y no entra en el orden de tabulación', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-asa'));
+      await abrirArticulo(page, articulo.id);
+
+      await lienzo(page).getByText('Tres', { exact: true }).hover();
+
+      const asa = asaDeElemento(page);
+      await expect(asa).toBeVisible();
+      await expect(asa).toHaveAccessibleName('Acciones del elemento 3, párrafo');
+      await expect(asa).toHaveAttribute('tabindex', '-1');
+    });
+
+    test('H3-E1: pulsar el asa abre el mismo menú de acciones', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-asa-menu'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).hover();
+
+      await asaDeElemento(page).click();
+
+      await expect(menuDeAcciones(page)).toBeVisible();
+      await expect(accionDelMenu(page, 'Duplicar')).toBeVisible();
+    });
+
+    test('H3-E2: el menú se maneja con flechas, Inicio, Fin y una letra; Esc lo cierra sin sacar el foco del lienzo', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-teclado'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+      await botonAcciones(page).focus();
+      await page.keyboard.press('Enter');
+      await expect(menuDeAcciones(page)).toBeVisible();
+      const items = menuDeAcciones(page).getByRole('menuitem');
+
+      await page.keyboard.press('ArrowDown');
+      await expect(items.first()).toBeFocused();
+      await page.keyboard.press('ArrowDown');
+      await expect(items.nth(1)).toBeFocused();
+      await page.keyboard.press('End');
+      await expect(items.last()).toBeFocused();
+      await page.keyboard.press('Home');
+      await expect(items.first()).toBeFocused();
+      await page.keyboard.press('d');
+      await expect(accionDelMenu(page, 'Duplicar')).toBeFocused();
+
+      await page.keyboard.press('Escape');
+      await expect(menuDeAcciones(page)).toHaveCount(0);
+      expect(await lienzoTieneElFoco(page)).toBe(true);
+    });
+
+    test('H3-E2: «Subir» y «Bajar» cambian el elemento de lugar, dejan el foco en él y anuncian la posición', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-mover'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      await elegirAccion(page, 'Subir');
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Dos', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento movido a la posición 2 de 5')).toBeVisible();
+      expect(await enfocadoEnTexto(page, 'Tres')).toBe(true);
+
+      await elegirAccion(page, 'Bajar');
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+      await expect(anuncio(page, 'Elemento movido a la posición 3 de 5')).toBeVisible();
+    });
+
+    test('H3-E2: en los extremos «Subir» y «Bajar» no están disponibles (aria-disabled)', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-extremos'));
+      await abrirArticulo(page, articulo.id);
+
+      await lienzo(page).getByText('Uno', { exact: true }).click();
+      await botonAcciones(page).click();
+      await expect(accionDelMenu(page, 'Subir')).toHaveAttribute('aria-disabled', 'true');
+      await expect(accionDelMenu(page, 'Bajar')).not.toHaveAttribute('aria-disabled', 'true');
+      await page.keyboard.press('Escape');
+
+      await lienzo(page).getByText('Cinco', { exact: true }).click();
+      await botonAcciones(page).click();
+      await expect(accionDelMenu(page, 'Bajar')).toHaveAttribute('aria-disabled', 'true');
+      await expect(accionDelMenu(page, 'Subir')).not.toHaveAttribute('aria-disabled', 'true');
+    });
+
+    test('H3-E5: «Duplicar» deja una copia justo debajo, con el foco en ella y un identificador nuevo al guardar', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-duplicar'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).click();
+
+      await elegirAccion(page, 'Duplicar');
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Dos', 'Dos', 'Tres', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento duplicado, posición 3 de 6')).toBeVisible();
+      await expect(botonAcciones(page)).toHaveAccessibleName('Acciones del elemento 3, párrafo');
+      await guardarYEsperar(page);
+      const ids = contenidoDe(await articuloPorId(articulo.id)).map((b) => b.id);
+      expect(ids).toHaveLength(6);
+      expect(new Set(ids).size).toBe(6);
+    });
+
+    test('H3-E6: «Convertir en…» cambia el tipo conservando el texto y anuncia el nuevo tipo', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-convertir'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      await elegirAccion(page, 'Convertir en…');
+      await menuItem(page, 'Título 2').click();
+
+      await expect(lienzo(page).locator('h2')).toHaveText('Tres');
+      await expect(anuncio(page, /Se convirtió en/)).toBeVisible();
+      await guardarYEsperar(page);
+      expect(contenidoDe(await articuloPorId(articulo.id))[2]).toMatchObject({
+        tipo: 'titulo',
+        nivel: 2,
+        texto: 'Tres',
+      });
+    });
+
+    test('H3-E6: convertir una lista de varios ítems en párrafo avisa antes; cancelar no cambia nada', async ({
+      page,
+    }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-acc-convertir-lista'),
+        contenido: [{ id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['a', 'b', 'c'] }],
+      });
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('b', { exact: true }).click();
+
+      await elegirAccion(page, 'Convertir en…');
+      await menuItem(page, 'Párrafo').click();
+      const aviso = page.getByRole('alertdialog');
+      await expect(aviso).toBeVisible();
+      await expect(aviso).toContainText(/ítems|items/i);
+      await aviso.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(lienzo(page).locator('li')).toHaveCount(3);
+
+      await elegirAccion(page, 'Convertir en…');
+      await menuItem(page, 'Párrafo').click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Convertir' }).click();
+      await expect(lienzo(page).locator('li')).toHaveCount(0);
+    });
+
+    test('H3-E6: convertir una cita con autor en párrafo avisa de que se pierde el autor', async ({ page }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-acc-convertir-cita'),
+        contenido: [{ id: crypto.randomUUID(), tipo: 'cita', texto: 'Una cita', autor: 'Alguien' }],
+      });
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Una cita', { exact: true }).click();
+
+      await elegirAccion(page, 'Convertir en…');
+      await menuItem(page, 'Párrafo').click();
+
+      await expect(page.getByRole('alertdialog')).toContainText(/autor/i);
+    });
+
+    test('H3-E7: «Quitar» saca el elemento, pasa el foco al contiguo y anuncia cómo deshacer', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-quitar'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      await elegirAccion(page, 'Quitar');
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Dos', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento quitado. Pulsa Ctrl+Z para deshacer')).toBeVisible();
+      expect(await lienzoTieneElFoco(page)).toBe(true);
+
+      await page.keyboard.press(`${MOD}+z`);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E7: quitar el último elemento deja el foco en el anterior', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-acc-quitar-ultimo'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Cinco', { exact: true }).click();
+
+      await elegirAccion(page, 'Quitar');
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Dos', 'Tres', 'Cuatro']);
+      expect(await enfocadoEnTexto(page, 'Cuatro')).toBe(true);
+    });
+
+    test('H3-E7: quitar una imagen ya guardada pide confirmación; cancelar la deja y confirmar la quita', async ({
+      page,
+    }) => {
+      const articulo = await sembrarConImagenGuardada(nombreDePrueba('doc-acc-imagen'));
+      await abrirArticulo(page, articulo.id);
+      await isla(page, 'Imagen, 2 de 3').click();
+
+      await elegirAccion(page, 'Quitar');
+      const confirmacion = page.getByRole('alertdialog');
+      await expect(confirmacion).toBeVisible();
+      await confirmacion.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(isla(page, 'Imagen, 2 de 3')).toBeVisible();
+
+      await elegirAccion(page, 'Quitar');
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: /^Quitar/ })
+        .click();
+      await expect(isla(page, IMAGEN)).toHaveCount(0);
+    });
+  });
+
+  test.describe('atajos en modo elementos', () => {
+    test('H3-E9: Esc entra al modo elementos con el elemento seleccionado y Esc otra vez vuelve al texto', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-modo-esc'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      await page.keyboard.press('Escape');
+      await expect(textoDeSeleccion(page)).toHaveText('1 elemento seleccionado');
+      await expect(elementosSeleccionados(page)).toHaveCount(1);
+      await expect(anuncio(page, '1 elemento seleccionado')).toBeVisible();
+      expect(await lienzoTieneElFoco(page)).toBe(true);
+
+      await page.keyboard.press('Escape');
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      await expect(elementosSeleccionados(page)).toHaveCount(0);
+      expect(await lienzoTieneElFoco(page)).toBe(true);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E9: «Seleccionar» del menú entra al modo elementos', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-modo-menu'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).click();
+
+      await elegirAccion(page, 'Seleccionar');
+
+      await expect(textoDeSeleccion(page)).toHaveText('1 elemento seleccionado');
+    });
+
+    test('H3-E9: Shift + clic sobre el asa entra al modo elementos', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-modo-asa'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).hover();
+
+      await asaDeElemento(page).click({ modifiers: ['Shift'] });
+
+      await expect(textoDeSeleccion(page)).toHaveText('1 elemento seleccionado');
+      await expect(menuDeAcciones(page)).toHaveCount(0);
+    });
+
+    test('H3-E8: Alt+↑ y Alt+↓ mueven el elemento seleccionado y se anuncia la posición', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-atajo-mover'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Tres');
+
+      await page.keyboard.press('Alt+ArrowUp');
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Dos', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento movido a la posición 2 de 5')).toBeVisible();
+      await expect(textoDeSeleccion(page)).toBeVisible();
+
+      await page.keyboard.press('Alt+ArrowUp');
+      expect(await textosDelLienzo(page)).toEqual(['Tres', 'Uno', 'Dos', 'Cuatro', 'Cinco']);
+      await page.keyboard.press('Alt+ArrowUp'); // ya en el extremo: no hace nada
+      expect(await textosDelLienzo(page)).toEqual(['Tres', 'Uno', 'Dos', 'Cuatro', 'Cinco']);
+
+      await page.keyboard.press('Alt+ArrowDown');
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Dos', 'Cuatro', 'Cinco']);
+    });
+
+    test('H3-E8: Mod+D duplica el elemento seleccionado y la copia queda seleccionada', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-atajo-duplicar'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+
+      await page.keyboard.press(`${MOD}+d`);
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Dos', 'Dos', 'Tres', 'Cuatro', 'Cinco']);
+      await expect(botonAcciones(page)).toHaveAccessibleName('Acciones del elemento 3, párrafo');
+      await expect(textoDeSeleccion(page)).toHaveText('1 elemento seleccionado');
+    });
+
+    test('H3-E8: Supr y Retroceso quitan el elemento seleccionado y se puede deshacer', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-atajo-quitar'));
+      await abrirArticulo(page, articulo.id);
+
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Delete');
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento quitado. Pulsa Ctrl+Z para deshacer')).toBeVisible();
+
+      await entrarAlModo(page, 'Cuatro');
+      await page.keyboard.press('Backspace');
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Cinco']);
+
+      await page.keyboard.press(`${MOD}+z`);
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Cuatro', 'Cinco']);
+    });
+
+    test('H3-E8: los atajos figuran en el menú de acciones y en el diálogo «Atajos de teclado» (con foco gestionado)', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-atajo-ayuda'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+
+      await botonAcciones(page).click();
+      await expect(accionDelMenu(page, 'Subir')).toContainText(/Alt\s*\+\s*↑/);
+      await expect(accionDelMenu(page, 'Bajar')).toContainText(/Alt\s*\+\s*↓/);
+      await expect(accionDelMenu(page, 'Duplicar')).toContainText(/(Ctrl|Cmd|⌘)\s*\+?\s*D/);
+      await expect(accionDelMenu(page, 'Quitar')).toContainText(/Supr|Del/);
+
+      await accionDelMenu(page, 'Atajos').click();
+      const dialogo = page.getByRole('dialog', { name: 'Atajos de teclado' });
+      await expect(dialogo).toBeVisible();
+      await expect(dialogo.getByRole('heading', { name: 'Atajos de teclado' })).toBeFocused();
+      await expect(dialogo).toContainText('Esc');
+
+      await page.keyboard.press('Escape');
+      await expect(dialogo).toHaveCount(0);
+      await expect(botonAcciones(page)).toBeFocused();
+    });
+
+    test('H3-E9: un rango de texto que cruza párrafos da formato pero no habilita mover ni quitar', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-rango-texto'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).click();
+      await page.keyboard.press('Shift+ArrowDown');
+      await page.keyboard.press('Shift+ArrowDown');
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+
+      await page.keyboard.press('Alt+ArrowUp');
+      await page.keyboard.press('Alt+ArrowDown');
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+
+      await botonAcciones(page).click();
+      for (const nombre of ['Subir', 'Bajar', 'Quitar', 'Duplicar']) {
+        await expect(accionDelMenu(page, nombre), nombre).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+      await expect(botonDeBarra(page, 'Negrita')).not.toHaveAttribute('aria-disabled', 'true');
+    });
+  });
+
+  test.describe('selección de varios elementos', () => {
+    test('H3-E9: Shift+↓ amplía a los contiguos, muestra «3 elementos seleccionados» y anuncia solo al terminar', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-ampliar'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await observarAnunciosDeSeleccion(page);
+
+      await page.keyboard.press('Shift+ArrowDown');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await expect(textoDeSeleccion(page)).toHaveText('3 elementos seleccionados');
+      await expect(elementosSeleccionados(page)).toHaveCount(3);
+      await expect(anuncio(page, '3 elementos seleccionados')).toBeVisible();
+      await page.waitForTimeout(800);
+      const anuncios = await anunciosDeSeleccion(page);
+      expect(anuncios).toContain('3 elementos seleccionados');
+      expect(anuncios).not.toContain('2 elementos seleccionados');
+    });
+
+    test('H3-E9: Shift+↑ amplía hacia arriba', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-arriba'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Cuatro');
+
+      await page.keyboard.press('Shift+ArrowUp');
+
+      await expect(textoDeSeleccion(page)).toHaveText('2 elementos seleccionados');
+    });
+
+    test('H3-E9: cada elemento seleccionado lleva una marca que no depende del color, también en colores forzados', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-marca'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+      const seleccionados = elementosSeleccionados(page);
+      await expect(seleccionados).toHaveCount(2);
+
+      for (const forzados of ['none', 'active'] as const) {
+        await page.emulateMedia({ forcedColors: forzados });
+        for (let i = 0; i < 2; i++) {
+          const marca = await seleccionados.nth(i).evaluate((el) => {
+            const estilo = getComputedStyle(el);
+            return {
+              ancho: parseFloat(estilo.borderLeftWidth),
+              estilo: estilo.borderLeftStyle,
+              icono: el.querySelector('svg') !== null,
+            };
+          });
+          expect(marca.estilo, `borde (${forzados})`).not.toBe('none');
+          expect(marca.ancho, `borde (${forzados})`).toBeGreaterThanOrEqual(2);
+          expect(marca.icono, `ícono (${forzados})`).toBe(true);
+        }
+      }
+      await expect(elementosDelLienzo(page)).toHaveCount(5);
+    });
+
+    test('H3-E9: el botón «Salir de la selección» vuelve al texto', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-salir'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.getByRole('button', { name: 'Salir de la selección', exact: true }).click();
+
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      await expect(elementosSeleccionados(page)).toHaveCount(0);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E11: Esc o un clic en un texto cancelan la selección múltiple sin cambios', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-cancelar'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+      await expect(textoDeSeleccion(page)).toHaveText('2 elementos seleccionados');
+
+      await page.keyboard.press('Escape');
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+      await lienzo(page).getByText('Cinco', { exact: true }).click();
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E10: el menú sobre varios elementos no ofrece «Convertir en…»', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-convertir'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await botonAcciones(page).click();
+
+      await expect(accionDelMenu(page, 'Convertir en…')).toHaveCount(0);
+      await expect(accionDelMenu(page, 'Quitar')).toBeVisible();
+    });
+
+    test('H3-E10: Alt+↑ mueve el conjunto y un solo Deshacer lo devuelve', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-mover'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Tres');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.keyboard.press('Alt+ArrowUp');
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Cuatro', 'Dos', 'Cinco']);
+
+      await botonDeBarra(page, 'Deshacer').click();
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+      await expect(anuncio(page, /Se deshizo: mover elemento/)).toBeVisible();
+    });
+
+    test('H3-E10: Mod+D duplica el conjunto (A B → A B A′ B′) y un solo Deshacer quita las copias', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-duplicar'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.keyboard.press(`${MOD}+d`);
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Dos', 'Tres', 'Dos', 'Tres', 'Cuatro', 'Cinco']);
+
+      await page.keyboard.press(`${MOD}+z`);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E10: quitar varios sin imágenes guardadas no pide confirmación y se anuncia la cantidad', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-quitar'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Dos');
+      await page.keyboard.press('Shift+ArrowDown');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.keyboard.press('Delete');
+
+      await expect(page.getByRole('alertdialog')).toHaveCount(0);
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Cinco']);
+      await expect(anuncio(page, '3 elementos quitados. Pulsa Ctrl+Z para deshacer')).toBeVisible();
+      await page.keyboard.press(`${MOD}+z`);
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+
+    test('H3-E10: quitar varios pide confirmación solo si alguno tiene una imagen ya guardada', async ({ page }) => {
+      const articulo = await sembrarConImagenGuardada(nombreDePrueba('doc-multi-quitar-imagen'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Uno');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.keyboard.press('Delete');
+
+      const confirmacion = page.getByRole('alertdialog');
+      await expect(confirmacion).toBeVisible();
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres']);
+      await confirmacion.getByRole('button', { name: /^Quitar/ }).click();
+      await expect(isla(page, IMAGEN)).toHaveCount(0);
+      expect(await textosDelLienzo(page)).toEqual(['Tres']);
+    });
+
+    test('H3-E10: arrastrar el asa de la selección mueve el conjunto', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-multi-asa'));
+      await abrirArticulo(page, articulo.id);
+      await entrarAlModo(page, 'Cuatro');
+      await page.keyboard.press('Shift+ArrowDown');
+      await lienzo(page).getByText('Cuatro', { exact: true }).hover();
+      const asa = asaDeElemento(page);
+      await expect(asa).toBeVisible();
+      const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
+
+      await arrastrarConRaton(page, await centroDe(asa), { x: cajaUno.x + 40, y: cajaUno.y + 2 });
+
+      expect(await textosDelLienzo(page)).toEqual(['Cuatro', 'Cinco', 'Uno', 'Dos', 'Tres']);
+    });
+  });
+
+  test.describe('arrastrar el asa con el ratón', () => {
+    test('H3-E3: soltar el asa entre otros dos elementos lo deja ahí, anuncia la posición y deja el foco en él', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-arrastre'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).hover();
+      const asa = asaDeElemento(page);
+      await expect(asa).toBeVisible();
+      const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
+
+      await arrastrarConRaton(page, await centroDe(asa), { x: cajaUno.x + 40, y: cajaUno.y + 2 }, false);
+      await expect(page.getByText('Soltar aquí: posición 1 de 5')).toBeVisible();
+      await page.mouse.up();
+
+      expect(await textosDelLienzo(page)).toEqual(['Tres', 'Uno', 'Dos', 'Cuatro', 'Cinco']);
+      await expect(anuncio(page, 'Elemento movido a la posición 1 de 5')).toBeVisible();
+      expect(await enfocadoEnTexto(page, 'Tres')).toBe(true);
+      await expect(page.getByText(/^Soltar aquí/)).toHaveCount(0);
+    });
+
+    test('H3-E3: el indicador de destino cambia con el puntero', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-arrastre-destino'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).hover();
+      const asa = asaDeElemento(page);
+      const cajaCinco = (await lienzo(page).getByText('Cinco', { exact: true }).boundingBox())!;
+      const destino = { x: cajaCinco.x + 40, y: cajaCinco.y + cajaCinco.height - 2 };
+
+      await arrastrarConRaton(page, await centroDe(asa), destino, false);
+
+      await expect(page.getByText('Soltar aquí: posición 5 de 5')).toBeVisible();
+      await page.mouse.up();
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres', 'Cuatro', 'Cinco', 'Dos']);
+    });
+
+    test('H3-E3: Esc durante el arrastre lo cancela sin cambios', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-arrastre-esc'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).hover();
+      const asa = asaDeElemento(page);
+      const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
+
+      await arrastrarConRaton(page, await centroDe(asa), { x: cajaUno.x + 40, y: cajaUno.y + 2 }, false);
+      await expect(page.getByText(/^Soltar aquí/)).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+      await expect(page.getByText(/^Soltar aquí/)).toHaveCount(0);
+    });
+
+    test('H3-E3: soltar fuera del documento cancela el movimiento', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-arrastre-fuera'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).hover();
+      const asa = asaDeElemento(page);
+
+      await arrastrarConRaton(page, await centroDe(asa), { x: 5, y: 5 });
+
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+      await expect(page.getByText(/^Soltar aquí/)).toHaveCount(0);
+    });
+
+    test('H3-E3: arrastrar una imagen por su cuerpo no la mueve (solo el asa arrastra)', async ({ page }) => {
+      const articulo = await sembrarConImagenGuardada(nombreDePrueba('doc-arrastre-nodo'));
+      await abrirArticulo(page, articulo.id);
+      const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
+
+      await arrastrarConRaton(page, await centroDe(isla(page, IMAGEN)), { x: cajaUno.x + 40, y: cajaUno.y + 2 });
+
+      expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres']);
+      await expect(isla(page, 'Imagen, 2 de 3')).toBeVisible();
+    });
+  });
+
+  test.describe('subida en curso', () => {
+    test('H3-E7: con una subida en curso no se puede mover ni quitar, y se anuncia por qué', async ({ page }) => {
+      await page.route('**/storage/v1/object/upload/sign/**', async (ruta) => {
+        await new Promise((resolver) => setTimeout(resolver, 3000));
+        await ruta.continue();
+      });
+      const articulo = await sembrarCinco(nombreDePrueba('doc-subida'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Cinco', { exact: true }).click();
+      await insertarDesdeBarra(page, 'Imagen');
+      await elegirImagen(page, panelDePropiedades(page), archivoDeImagen('png'));
+      await isla(page, IMAGEN).click();
+      await page.keyboard.press('Escape');
+
+      await botonAcciones(page).click();
+      for (const nombre of ['Subir', 'Bajar', 'Quitar']) {
+        await expect(accionDelMenu(page, nombre), nombre).toHaveAttribute('aria-disabled', 'true');
+      }
+      await page.keyboard.press('Escape');
+
+      await page.keyboard.press('Alt+ArrowUp');
+      await page.keyboard.press('Delete');
+      await expect(anuncio(page, 'Subiendo imagen… No se puede mover ni quitar hasta que termine')).toBeVisible();
+      await expect(isla(page, IMAGEN)).toBeVisible();
+      expect(await textosDelLienzo(page)).toEqual(CINCO);
+    });
+  });
+
+  test.describe('orden de Esc con la hoja (por debajo de 1280 px)', () => {
+    test.use({ viewport: { width: 1024, height: 800 } });
+
+    test('H3-E11: Esc cierra primero el menú, después la selección múltiple y por último la hoja', async ({ page }) => {
+      const articulo = await sembrarOchoElementos(nombreDePrueba('doc-esc-orden'));
+      await abrirArticulo(page, articulo.id);
+      await isla(page, 'Imagen, 3 de 8').click();
+      await botonPropiedades(page).click();
+      await expect(panelDePropiedades(page)).toBeVisible();
+
+      await botonAcciones(page).click();
+      await expect(menuDeAcciones(page)).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(menuDeAcciones(page)).toHaveCount(0);
+      await expect(panelDePropiedades(page)).toBeVisible();
+
+      await lienzo(page).getByText('Dos', { exact: true }).click();
+      await page.keyboard.press('Escape');
+      await page.keyboard.press('Shift+ArrowDown');
+      await expect(textoDeSeleccion(page)).toHaveText('2 elementos seleccionados');
+      await page.keyboard.press('Escape');
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      await expect(panelDePropiedades(page)).toBeVisible();
+
+      await page.keyboard.press('Escape');
+      await expect(panelDePropiedades(page)).toHaveCount(0);
+      expect(await lienzoTieneElFoco(page)).toBe(true);
+    });
+  });
+
+  test.describe('con el dedo (emulación táctil)', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    test('H3-E3: arrastrar el asa con el dedo reordena el elemento', async ({ page }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-tactil-asa'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Tres', { exact: true }).tap();
+      const asa = asaDeElemento(page);
+      await expect(asa).toBeVisible();
+      const inicio = await centroDe(asa);
+      const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
+      const destino = { x: cajaUno.x + 20, y: cajaUno.y + 2 };
+      const pasos = Array.from({ length: 10 }, (_, i) => ({
+        x: inicio.x + ((destino.x - inicio.x) * (i + 1)) / 10,
+        y: inicio.y + ((destino.y - inicio.y) * (i + 1)) / 10,
+      }));
+
+      const sesion = await gestoTactil(page, inicio, pasos, false);
+      await expect(page.getByText('Soltar aquí: posición 1 de 5')).toBeVisible();
+      await sesion.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+      expect(await textosDelLienzo(page)).toEqual(['Tres', 'Uno', 'Dos', 'Cuatro', 'Cinco']);
+    });
+
+    test('H3-E4: desplazar la pantalla con el dedo sobre el texto no inicia ningún arrastre', async ({ page }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-tactil-scroll'),
+        contenido: Array.from({ length: 40 }, (_, i) => parrafo(`Párrafo número ${i + 1}`)),
+      });
+      await abrirArticulo(page, articulo.id);
+      const antes = await textosDelLienzo(page);
+      const origen = await centroDe(lienzo(page).getByText('Párrafo número 3', { exact: true }));
+      const pasos = Array.from({ length: 12 }, (_, i) => ({ x: origen.x, y: origen.y - (i + 1) * 20 }));
+
+      await gestoTactil(page, origen, pasos);
+
+      expect(await textosDelLienzo(page)).toEqual(antes);
+      await expect(page.getByText(/^Soltar aquí/)).toHaveCount(0);
+      await expect(textoDeSeleccion(page)).toHaveCount(0);
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    });
+
+    test('H3-E3: en una imagen, un toque largo no inicia un arrastre del elemento', async ({ page }) => {
+      const articulo = await sembrarConImagenGuardada(nombreDePrueba('doc-tactil-imagen'));
+      await abrirArticulo(page, articulo.id);
+
+      const sesion = await gestoTactil(page, await centroDe(isla(page, IMAGEN)), [], false);
+      await page.waitForTimeout(800);
+      await sesion.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+      await expect(page.getByText(/^Soltar aquí/)).toHaveCount(0);
+      await expect(isla(page, 'Imagen, 2 de 3')).toBeVisible();
+    });
+  });
+
+  test.describe('una imagen ya guardada pide confirmación por cualquier vía (H3-E7)', () => {
+    const VIAS: { via: string; accion: (page: Page) => Promise<void> }[] = [
+      { via: 'el menú «Quitar»', accion: (page) => elegirAccion(page, 'Quitar') },
+      { via: 'Supr en modo elementos', accion: (page) => page.keyboard.press('Delete') },
+      { via: 'Retroceso en modo elementos', accion: (page) => page.keyboard.press('Backspace') },
+      { via: 'cortar', accion: (page) => page.keyboard.press(`${MOD}+x`) },
+      { via: 'escribir sobre la selección', accion: (page) => page.keyboard.type('x') },
+      {
+        via: 'Mod+A y borrar',
+        accion: async (page) => {
+          await page.keyboard.press(`${MOD}+a`);
+          await page.keyboard.press('Delete');
+        },
+      },
+    ];
+
+    for (const { via, accion } of VIAS) {
+      test(`H3-E7: por ${via} se pide confirmación y cancelar deja la imagen`, async ({ page }) => {
+        const articulo = await sembrarConImagenGuardada(nombreDePrueba('doc-via'));
+        await abrirArticulo(page, articulo.id);
+        if (via.startsWith('Mod+A')) {
+          await lienzo(page).getByText('Uno', { exact: true }).click();
+        } else {
+          await isla(page, 'Imagen, 2 de 3').click();
+          if (via !== 'el menú «Quitar»') await page.keyboard.press('Escape');
+        }
+
+        await accion(page);
+
+        const confirmacion = page.getByRole('alertdialog');
+        await expect(confirmacion).toBeVisible();
+        await confirmacion.getByRole('button', { name: 'Cancelar' }).click();
+        await expect(isla(page, IMAGEN)).toBeVisible();
+        expect(await textosDelLienzo(page)).toEqual(['Uno', 'Tres']);
+      });
+    }
+  });
+
+  test('CE-003: con solo el teclado se seleccionan los diez tipos y se reordenan cinco elementos', async ({ page }) => {
+    const diez = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-ce003-diez'),
+      contenido: diezBloques(imagenSemilla('articulos/e2e-inexistente.png')),
+    });
+    await abrirArticulo(page, diez.id);
+    await lienzo(page).focus();
+    await page.keyboard.press('Escape');
+    for (let i = 0; i < 9; i++) await page.keyboard.press('Shift+ArrowDown');
+    await expect(textoDeSeleccion(page)).toHaveText('10 elementos seleccionados');
+
+    const cinco = await sembrarCinco(nombreDePrueba('doc-ce003-cinco'));
+    await abrirArticulo(page, cinco.id);
+    await lienzo(page).focus();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Escape'); // modo elementos sobre "Cinco"
+    for (let i = 0; i < 4; i++) await page.keyboard.press('Alt+ArrowUp');
+    expect(await textosDelLienzo(page)).toEqual(['Cinco', 'Uno', 'Dos', 'Tres', 'Cuatro']);
+
+    await botonGuardar(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status').filter({ hasText: /guardad/i })).toBeVisible();
+    const textos = contenidoDe(await articuloPorId(cinco.id)).map((b) => b.texto);
+    expect(textos).toEqual(['Cinco', 'Uno', 'Dos', 'Tres', 'Cuatro']);
+  });
 });
