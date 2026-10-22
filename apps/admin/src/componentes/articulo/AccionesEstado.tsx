@@ -8,7 +8,7 @@ import type { Articulo, EstadoArticulo, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
 import { useId, useRef, useState } from 'react';
 import { cambiarEstadoAccion, eliminarArticuloAccion } from '../../acciones/articulos';
-import { aIsoUtc } from '../../lib/fechas';
+import { ahoraLocal, aIsoUtc } from '../../lib/fechas';
 import { mensajeDeError } from '../../lib/mensajes';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
@@ -18,7 +18,7 @@ import { FechaLocal } from '../FechaLocal';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { accionesDisponibles, destinoDe, type AccionEstado } from './acciones-disponibles';
+import { accionesDisponibles, ANUNCIOS, destinoDe, ETIQUETAS, type AccionEstado } from './acciones-disponibles';
 
 type Props = {
   id: string;
@@ -32,29 +32,6 @@ type Props = {
   /** El estado cambió: el editor adopta el artículo devuelto (versión y fechas nuevas). */
   alCambiarEstado: (articulo: Articulo) => void;
 };
-
-const ETIQUETAS: Record<AccionEstado, string> = {
-  publicar: 'Publicar',
-  programar: 'Programar',
-  cancelar_programacion: 'Cancelar programación',
-  volver_a_borrador: 'Volver a borrador',
-  archivar: 'Archivar',
-  eliminar: 'Eliminar',
-};
-
-const ANUNCIOS: Record<EstadoArticulo, string> = {
-  borrador: 'El artículo volvió a borrador',
-  programado: 'El artículo quedó programado',
-  publicado: 'El artículo se publicó',
-  archivado: 'El artículo se archivó',
-};
-
-/** Valor para `min` de un datetime-local: ahora, en hora local y sin segundos. */
-function ahoraLocal() {
-  const ahora = new Date();
-  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
-  return ahora.toISOString().slice(0, 16);
-}
 
 export function AccionesEstado({
   id,
