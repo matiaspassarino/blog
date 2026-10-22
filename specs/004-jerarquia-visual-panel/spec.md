@@ -4,7 +4,7 @@
 
 **Creada**: 2026-10-21
 
-**Estado**: Borrador
+**Estado**: Planificada
 
 **Entrada**: Descripción del usuario: "Hay que mejorar la UX/UI del backoffice. Hay errores en los botones y falta jerarquía visual." Errores señalados: "todo pesa igual" (no queda clara la acción principal de cada pantalla) y "tamaños desparejos" (alturas, anchos y alineación de los botones inconsistentes). El editor de notas se trata aparte, en la spec 005.
 
