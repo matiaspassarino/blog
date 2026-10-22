@@ -168,7 +168,7 @@ description: "Lista de tareas: jerarquía visual del panel"
 - [X] T058 Lighthouse (solo Accesibilidad) en `/ingreso`, `/articulos`, el editor y `/equipo`, en 360, 768, 1024 y 1440 px, con el procedimiento de T103 de la spec 003 ([quickstart.md](quickstart.md#accesibilidad-y-rendimiento)), y Lighthouse del sitio (`/` y un artículo con CTA) para confirmar que no bajó (CE-004, CE-005). Anotar las mediciones en `specs/004-jerarquia-visual-panel/validacion.md`.
 - [X] T059 Recorrer [quickstart.md](quickstart.md) (A a E) y la comprobación visual del sitio (E); corregir el quickstart si algo cambió.
 - [X] T060 Ejecutar `/validar` (`revisor-ux-ui` y `consistencia-codigo`; `arquitecto-db` no aplica porque no hay cambios de base) y resolver todos los BLOQUEANTES en `specs/004-jerarquia-visual-panel/validacion.md`. CE-002 se cumple con la revisión pantalla por pantalla de `revisor-ux-ui` contra la matriz (aclaración 5).
-- [ ] T061 Actualizar `CLAUDE.md` ("Estado actual": spec 004 y lo que sigue, spec 005 del editor estilo documento) y abrir el PR a `main`.
+- [X] T061 Actualizar `CLAUDE.md` ("Estado actual": spec 004 y lo que sigue, spec 005 del editor estilo documento) y abrir el PR a `main`.
 
 ---
 
