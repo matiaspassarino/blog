@@ -21,7 +21,7 @@
 //     selector de archivos del sistema; al subir, el foco va a "Texto alternativo"; botón "Quitar imagen";
 //     errores en `role="alert"`.
 import { expect, type Locator, type Page } from '@playwright/test';
-import { pngDecodificable } from '../../../packages/db/src/pruebas/imagenes';
+import { avifMinimo, jpegMinimo, pngDecodificable, webpMinimo } from '../../../packages/db/src/pruebas/imagenes';
 
 const NOMBRE_DE_TIPO = {
   parrafo: 'párrafo',
@@ -199,4 +199,60 @@ export async function elegirEstilo(page: Page, estilo: string) {
     .or(page.getByRole('menuitemradio', { name: estilo, exact: true }))
     .or(page.getByRole('option', { name: estilo, exact: true }))
     .click();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ayudas de los elementos especiales y el panel de propiedades (spec 005, T049). FASE ROJA: no existen aún.
+//
+// CONTRATO DE INTERFAZ SUPUESTO (contracts/componentes.md y contracts/atajos.md):
+//   - Isla de un elemento especial dentro del lienzo: nombre accesible "<Tipo>, <posición> de <total>" ("Imagen, 3 de 8",
+//     "Galería, 2 de 5", "Llamada a la acción…", "Video…"); es un nodo no editable, sin botones tabulables.
+//   - Panel de propiedades: `aside` (rol `complementary`) con nombre "Propiedades del elemento N, <tipo>". Desde 1280 px
+//     vive en la pestaña «Elemento» (`role="tab"`) de la columna lateral, junto a la pestaña «Artículo»; **Publicación**
+//     (grupo/región con nombre "Publicación") nunca está dentro de una pestaña. Por debajo de 1280 px es la hoja: el
+//     mismo `aside`, con botón «Cerrar», que solo existe mientras está abierta.
+//   - Botón «Propiedades» en la barra de herramientas (aparece con un elemento seleccionado).
+//   - Texto de error en la isla: contiene "error" o el mensaje de validación, visible sin color (no solo color).
+//   - Insertar imagen o galería deja el foco en el primer campo del panel (el selector «Elegir imagen» / «Agregar imagen»).
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const panelDePropiedades = (page: Page) =>
+  page.getByRole('complementary', { name: /^Propiedades del elemento/ });
+
+export const pestana = (page: Page, nombre: 'Artículo' | 'Elemento') =>
+  page.getByRole('tab', { name: nombre, exact: true });
+
+/** La isla de un elemento especial en el lienzo, por su nombre accesible ("Imagen, 3 de 8"). */
+export const isla = (page: Page, nombre: string | RegExp) =>
+  lienzo(page).getByLabel(nombre, { exact: typeof nombre === 'string' });
+
+/** Inserta un elemento desde «Insertar» de la barra (por el comienzo de su nombre en el menú). */
+export async function insertarDesdeBarra(page: Page, nombre: string) {
+  await abrirMenuInsertar(page);
+  await opcionDeInsercion(page, nombre).click();
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+}
+
+/** Inserta un elemento escribiendo «/» y el filtro en una línea vacía, y Enter sobre la opción activa. */
+export async function insertarConBarra(page: Page, filtro: string) {
+  await escribirEnLienzo(page, `/${filtro}`);
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+}
+
+export type FormatoDeImagen = 'png' | 'jpeg' | 'webp' | 'avif';
+
+/** Archivo de imagen válido del formato pedido (bytes mínimos y decodificables por el validador del cliente). */
+export function archivoDeImagen(
+  formato: FormatoDeImagen,
+  nombre = `foto.${formato === 'jpeg' ? 'jpg' : formato}`,
+): ArchivoDePrueba {
+  const bytes = {
+    png: () => pngDecodificable(4, 3),
+    jpeg: () => jpegMinimo(40, 30),
+    webp: () => webpMinimo(16, 12),
+    avif: () => avifMinimo(20, 10),
+  }[formato]();
+  return { name: nombre, mimeType: `image/${formato}`, buffer: Buffer.from(bytes) };
 }
