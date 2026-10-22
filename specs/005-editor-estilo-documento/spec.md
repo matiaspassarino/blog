@@ -25,7 +25,11 @@ El contenido guardado **no cambia**: sigue siendo la misma lista de bloques de l
 ### Sesión 2026-10-22
 
 - P: ¿El formato en línea se ve aplicado mientras se escribe o el texto conserva los marcadores visibles? → R: El usuario pidió un editor "estilo WordPress" y autorizó sumar una librería si hace falta: el formato se ve aplicado mientras se escribe (la negrita se ve en negrita), y lo guardado sigue siendo el texto con las cuatro marcas de hoy (RF-009).
-- P: ¿Se reordena también arrastrando el control del bloque? → R: Sin respuesta explícita; se toma por defecto **solo menú y atajos de teclado**, sin arrastre. Queda para confirmar en `/speckit-clarify` (RF-007).
+- P: ¿Se reordena también arrastrando el control del bloque, o alcanza con el menú y los atajos? → R: Opción B: **menú y atajos de teclado, más arrastrar el asa del bloque con ratón y con el dedo**. Mover con el menú y con teclado se mantiene siempre como alternativa sin arrastre (RF-007).
+- P: ¿Cómo se ven dentro del documento los bloques con varios campos (imagen, galería, llamada a la acción, video, cita con autor)? → R: Opción B: **vista resumida** (cómo se verá el bloque) que **muestra sus campos solo cuando el bloque tiene el foco o se lo selecciona** (RF-004).
+- P: ¿El deshacer es un historial único del documento o uno por bloque? → R: Opción A: **un solo historial para todo el documento**, con el texto y las acciones de bloque (insertar, convertir, mover, duplicar, quitar) en el orden en que ocurrieron (RF-011).
+- P: ¿Se pueden seleccionar varios bloques a la vez para moverlos, duplicarlos o quitarlos juntos? → R: Opción B: **selección múltiple de bloques** para mover, duplicar y quitar; convertir de tipo sigue siendo de a un bloque (RF-019).
+- P: ¿Qué hace el editor cuando un texto pegado o escrito supera el máximo de caracteres del bloque? → R: Opción B: **al pegar, el texto que no entra pasa a párrafos nuevos a continuación; al escribir a mano, se avisa del máximo sin cortar nada** (RF-015, casos borde).
 
 ## Escenarios de usuario y pruebas *(obligatorio)*
 
@@ -62,8 +66,10 @@ La persona inserta una imagen, una galería, una llamada a la acción, un video 
 1. **Dado** el menú «/», **cuando** se lo abre, **entonces** ofrece los diez tipos de bloque (párrafo, título, imagen, cita, lista, galería, llamada a la acción, separador, código y video), cada uno con su nombre y una descripción corta.
 2. **Dado** que se elige «Imagen», **cuando** se inserta, **entonces** aparece el bloque con el selector de imagen, el texto alternativo (o la marca de decorativa) y la leyenda, con las mismas reglas y mensajes de hoy.
 3. **Dado** que se elige «Galería» o «Lista» o «Llamada a la acción» o «Video» o «Código» o «Cita», **cuando** se inserta, **entonces** muestra sus campos propios en el lugar, y los errores de validación aparecen en el campo exacto del bloque, como hoy.
-4. **Dado** un título, **cuando** se lo inserta, **entonces** permite elegir su nivel (2, 3 o 4) sin salir del bloque.
-5. **Dado** un bloque con más campos, **cuando** la persona recorre el documento con Tab, **entonces** el foco pasa por los campos del bloque en el orden de lectura y vuelve al texto continuo sin quedar atrapado.
+4. **Dado** un bloque con varios campos (imagen, galería, llamada a la acción, video o cita con autor) que no tiene el foco, **cuando** se mira el documento, **entonces** se ve como una vista resumida de cómo quedará (la imagen con su leyenda, el título y el botón de la llamada a la acción, las miniaturas de la galería, etc.), sin campos abiertos; **cuando** el bloque recibe el foco o se lo selecciona con clic, toque o teclado, **entonces** se abren sus campos para editarlos y, al salir del bloque, vuelve a la vista resumida.
+5. **Dado** un bloque con un error de validación, **cuando** el bloque no tiene el foco, **entonces** su vista resumida muestra que hay un error (con texto, no solo color) y, al intentar guardar, el bloque se abre en el campo del primer error.
+6. **Dado** un título, **cuando** se lo inserta, **entonces** permite elegir su nivel (2, 3 o 4) sin salir del bloque.
+7. **Dado** un bloque con más campos, **cuando** la persona recorre el documento con Tab, **entonces** el foco pasa por los campos del bloque en el orden de lectura y vuelve al texto continuo sin quedar atrapado.
 
 ---
 
@@ -83,7 +89,11 @@ Cada bloque tiene a su lado un control discreto (aparece al pasar el puntero, al
 4. **Dado** un bloque de texto (párrafo, título, cita o lista), **cuando** se elige «Convertir en…» y otro tipo de texto, **entonces** el bloque cambia de tipo conservando su texto, y si el nuevo tipo no admite algún dato, se avisa antes de convertir.
 5. **Dado** el menú de acciones, **cuando** se elige «Quitar», **entonces** el bloque desaparece y el foco pasa al bloque contiguo; si el bloque tenía una imagen ya guardada, se mantiene la confirmación de hoy antes de quitarla.
 6. **Dado** un teclado, **cuando** la persona usa los atajos de mover, duplicar y quitar sobre el bloque con foco, **entonces** obtiene el mismo resultado que con el menú, y los atajos figuran en el menú y en la ayuda del editor.
-7. **Dado** el control de un bloque, **cuando** se lo usa, **entonces** el orden se cambia solo con el menú de acciones y los atajos de teclado, sin arrastrar (decisión por defecto, a confirmar en la clarificación; si se agregara arrastrar, el menú y el teclado seguirían como alternativa).
+7. **Dado** el asa de un bloque, **cuando** la persona la arrastra con el ratón o con el dedo y la suelta entre otros dos bloques, **entonces** el bloque queda en ese lugar, se muestra dónde caería mientras se arrastra, se anuncia la nueva posición y el foco queda en el bloque movido; soltar fuera del documento o pulsar Esc cancela el movimiento sin cambios.
+8. **Dado** un bloque con el foco, **cuando** la persona amplía la selección con Shift+clic o Shift+flecha arriba/abajo (o con el modo de selección del menú de acciones en el teléfono), **entonces** quedan seleccionados varios bloques consecutivos, se anuncia la cantidad ("3 bloques seleccionados") y se muestra cuáles son con texto además del color.
+9. **Dado** varios bloques seleccionados, **cuando** se elige «Subir», «Bajar», «Duplicar» o «Quitar» en el menú o con su atajo (o se arrastra el asa de la selección), **entonces** la acción se aplica al conjunto en un solo paso, que se deshace de una vez, y «Convertir en…» no se ofrece; quitar varios bloques pide confirmación solo si alguno tiene una imagen ya guardada.
+10. **Dado** varios bloques seleccionados, **cuando** la persona pulsa Esc o hace clic en cualquier texto, **entonces** la selección se cancela sin cambios.
+11. **Dado** un teléfono, **cuando** la persona desplaza la pantalla con el dedo sobre el texto, **entonces** no se inicia ningún arrastre: solo el asa del bloque arrastra.
 
 ---
 
@@ -101,7 +111,7 @@ Mientras escribe, la persona aplica negrita, cursiva, código en línea y enlace
 2. **Dado** un texto seleccionado en un bloque de párrafo, cita o lista, **cuando** la persona usa la barra de formato o el atajo de teclado, **entonces** se aplica o se quita la marca (negrita, cursiva, código o enlace) sobre la selección.
 3. **Dado** un bloque que no admite marcas (título, código, separador), **cuando** se lo selecciona, **entonces** la barra de formato no se ofrece.
 4. **Dado** una conversión no deseada por un atajo, **cuando** la persona pulsa Deshacer inmediatamente, **entonces** vuelve el texto escrito tal cual («# » queda como texto).
-5. **Dado** cualquier acción del editor (escribir, convertir, mover, duplicar, quitar), **cuando** la persona pulsa Deshacer, **entonces** vuelve al estado anterior; Rehacer lo repite.
+5. **Dado** cualquier acción del editor (escribir, convertir, mover, duplicar, quitar), **cuando** la persona pulsa Deshacer, **entonces** vuelve al estado anterior en un único historial del documento, sin importar dónde esté el cursor; Rehacer lo repite. Un bloque quitado por error se recupera con Deshacer, y el texto escrito de corrido se deshace por tramos razonables (no letra por letra).
 
 ---
 
@@ -126,9 +136,10 @@ Los artículos que ya existen se abren en el nuevo editor sin cambios, se guarda
 - **Documento vacío**: un artículo sin bloques muestra un párrafo vacío para empezar; si se guarda así y el artículo se está publicando, se mantiene la regla de hoy de que un publicado necesita al menos un bloque con contenido.
 - **«/» dentro de un texto**: escribir «/» en medio de una frase o de una URL no abre el menú; solo al comienzo de una línea vacía o tras un espacio al inicio de un bloque vacío.
 - **Pegar texto**: pegar varios párrafos crea un bloque por párrafo; pegar texto con formato se reduce a texto plano con las cuatro marcas permitidas; nunca se acepta HTML.
-- **Textos largos**: un párrafo que llega al máximo de caracteres del esquema avisa antes de truncar y no pierde lo escrito.
+- **Textos largos**: al pegar un texto que supera el máximo de caracteres del bloque, el sobrante pasa a párrafos nuevos a continuación (cortando en un fin de oración o de palabra, nunca a mitad de palabra) y se avisa cuántos bloques se crearon; al escribir a mano, el editor avisa que se llegó al máximo con un mensaje que se anuncia, sin cortar ni perder lo escrito, y el error de validación aparece al guardar como hoy. Si el bloque no es de texto continuo (título, cita, ítem de lista, código), el sobrante se mantiene en el campo y se marca el error en lugar de crear bloques de otro tipo.
 - **Conversión con pérdida**: convertir una lista de varios ítems a párrafo, o una cita con autor a párrafo, avisa qué se perdería y permite cancelar.
 - **Bloques de imagen o galería con subida en curso**: el guardado queda bloqueado como hoy y no se puede quitar o mover el bloque en medio de la subida.
+- **Arrastrar en una pantalla larga**: al arrastrar cerca del borde superior o inferior de la ventana el documento se desplaza solo, para poder llegar a otro lugar del documento.
 - **Muchos bloques**: un artículo con el máximo de bloques sigue siendo ágil al escribir y al abrir el menú.
 - **Menú «/» sin resultados**: «/zzz» muestra «Sin resultados» y no cambia nada al pulsar Enter.
 - **Sin JavaScript**: el panel requiere JavaScript, como hoy; no hay alternativa sin él.
@@ -141,21 +152,22 @@ Los artículos que ya existen se abren en el nuevo editor sin cambios, se guarda
 - **RF-001**: El editor DEBE presentar el cuerpo del artículo como un documento continuo de bloques consecutivos, sin botón de «Agregar bloque», sin selector de tipo y sin una fila de botones por bloque.
 - **RF-002**: Un artículo nuevo DEBE abrir con un párrafo vacío y el cursor en él. Enter al final de un bloque de texto DEBE crear un párrafo nuevo debajo; Enter en una lista DEBE agregar un ítem, y sobre un ítem vacío DEBE salir de la lista.
 - **RF-003**: Escribir «/» al comienzo de una línea vacía DEBE abrir un menú de bloques con los diez tipos, filtrable al escribir, navegable con flechas, Enter y Esc, y también con ratón y toque. Elegir un tipo DEBE convertir esa línea en ese bloque y dejar el cursor listo para escribir.
-- **RF-004**: Los diez tipos de bloque DEBEN poder insertarse y editarse en su lugar con los mismos campos, límites y mensajes de validación de hoy; el esquema de bloques del contenido NO DEBE cambiar.
+- **RF-004**: Los diez tipos de bloque DEBEN poder insertarse y editarse en su lugar con los mismos campos, límites y mensajes de validación de hoy; el esquema de bloques del contenido NO DEBE cambiar. Los bloques con varios campos DEBEN mostrarse como una vista resumida y abrir sus campos solo cuando tienen el foco o están seleccionados, y DEBEN indicar con texto cuando tienen un error.
 - **RF-005**: Cada línea vacía del documento DEBE ofrecer también un botón visible para abrir el menú de bloques (para teclado virtual y toque), con área táctil de al menos 44 × 44 px.
 - **RF-006**: Cada bloque DEBE ofrecer un control de acciones, visible al pasar el puntero, al recibir el foco y siempre en pantallas táctiles, con las acciones subir, bajar, duplicar, convertir (entre los tipos de texto) y quitar, cada una con su nombre accesible y su posición.
-- **RF-007**: Las acciones de bloque DEBEN tener atajos de teclado documentados dentro del editor, de modo que reordenar, duplicar y quitar se puedan hacer sin ratón y sin arrastrar (spec 003, RF-025). El reordenamiento NO DEBE exigir arrastrar.
+- **RF-007**: Las acciones de bloque DEBEN tener atajos de teclado documentados dentro del editor, de modo que reordenar, duplicar y quitar se puedan hacer sin ratón y sin arrastrar (spec 003, RF-025). Además, el bloque DEBE poder arrastrarse por su asa con ratón y con el dedo para reordenarlo; el arrastre es una forma adicional y el menú y los atajos DEBEN seguir ofreciendo el mismo resultado sin arrastrar.
 - **RF-008**: Tras cada acción (insertar, convertir, mover, duplicar, quitar) el foco DEBE quedar en un lugar útil y una región de estado DEBE anunciar lo ocurrido en español, con la posición desde 1.
 - **RF-009**: Las marcas en línea DEBEN limitarse a negrita, cursiva, código en línea y enlace (spec 003, RF-005), aplicables con una barra sobre la selección y con atajos de teclado, solo en los bloques que las admiten (párrafo, cita y lista). El formato DEBE verse aplicado mientras se escribe (la negrita se ve en negrita, el enlace como enlace), sin mostrar los marcadores, y lo guardado DEBE seguir siendo el texto con las mismas cuatro marcas de hoy. NO DEBE permitirse HTML.
 - **RF-010**: Los atajos de escritura tipo Markdown («# », «## », «### », «- », «1. », «> », «---» y las tres comillas invertidas) DEBEN convertir la línea al tipo correspondiente, y Deshacer inmediato DEBE dejar el texto escrito tal cual.
-- **RF-011**: El editor DEBE ofrecer Deshacer y Rehacer para las acciones de escritura y de estructura, con los atajos habituales.
+- **RF-011**: El editor DEBE ofrecer Deshacer y Rehacer con los atajos habituales sobre **un solo historial del documento** que incluya el texto y las acciones de estructura (insertar, convertir, mover, duplicar y quitar bloques), y que se reinicie al adoptar la versión vigente con «Reemplazar con la vigente».
 - **RF-012**: Un artículo existente DEBE abrirse sin cambios y guardarse con un contenido idéntico al original cuando no se edita; el modelo de datos, las migraciones y el esquema de bloques NO DEBEN cambiar.
 - **RF-013**: La validación previa al guardado, los errores por bloque y campo, el enfoque del primer error, el aviso de cambios sin guardar, el aviso de conflicto con comparación de versiones, el bloqueo durante subidas de imagen y la limpieza de imágenes sin uso DEBEN comportarse como hoy.
 - **RF-014**: El editor DEBE poder usarse completo con teclado y lector de pantalla y en pantallas desde 360 px, sin cortes ni superposiciones, con las áreas táctiles mínimas de la spec 004 y sin depender del color solo.
-- **RF-015**: Pegar texto en el documento DEBE crear un bloque por párrafo y reducir el formato a texto plano con las cuatro marcas permitidas, sin HTML.
+- **RF-015**: Pegar texto en el documento DEBE crear un bloque por párrafo y reducir el formato a texto plano con las cuatro marcas permitidas, sin HTML. Si un párrafo pegado supera el máximo de caracteres del bloque, el sobrante DEBE pasar a párrafos nuevos a continuación sin perder texto, y el aviso de cuántos bloques se crearon DEBE anunciarse.
 - **RF-016**: Una conversión de bloque que pierda datos (por ejemplo, una lista de varios ítems a párrafo) DEBE avisar qué se perdería y permitir cancelar antes de aplicarla.
 - **RF-017**: El menú de bloques DEBE abrirse sin demora perceptible y el editor DEBE seguir siendo ágil con el máximo de bloques que admite el esquema.
 - **RF-018**: Los permisos, la barra fija del editor, el recuadro «Publicación», las secciones y los textos de la spec 004 NO DEBEN cambiar, salvo los textos propios de los bloques.
+- **RF-019**: El editor DEBE permitir seleccionar varios bloques consecutivos (con Shift y clic o flechas, y con un modo de selección accesible desde el menú de acciones en pantallas táctiles) y aplicarles mover, duplicar y quitar como una sola acción, que Deshacer revierte de una vez; convertir de tipo NO DEBE ofrecerse con varios bloques seleccionados.
 
 ### Requisitos de permisos *(obligatorio si hay datos o acciones restringidas)*
 

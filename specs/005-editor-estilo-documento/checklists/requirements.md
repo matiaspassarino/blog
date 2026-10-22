@@ -31,4 +31,4 @@
 
 ## Notas
 
-- Formato visible mientras se escribe: decidido (2026-10-22). Reordenar sin arrastrar: tomado por defecto, a confirmar en `/speckit-clarify`.
+- Decisiones de la clarificación (2026-10-22): formato visible, arrastrar el asa, bloques resumidos, historial único, selección múltiple y texto largo; ver `## Aclaraciones` en la spec.
