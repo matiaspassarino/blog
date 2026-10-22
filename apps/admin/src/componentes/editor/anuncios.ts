@@ -22,23 +22,6 @@ export const nombreDeTipo = (tipo: TipoBloque) => NOMBRES_DE_TIPO[tipo];
 
 const conMayuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
 
-export const etiquetaDeBloque = (posicion: number, tipo: TipoBloque) => `Bloque ${posicion}: ${nombreDeTipo(tipo)}`;
-
-const ACCIONES_DE_BOTON = { subir: 'Subir', bajar: 'Bajar', duplicar: 'Duplicar', quitar: 'Quitar' } as const;
-
-export const nombreDeBoton = (accion: keyof typeof ACCIONES_DE_BOTON, posicion: number, tipo: TipoBloque) =>
-  `${ACCIONES_DE_BOTON[accion]} bloque ${posicion}, ${nombreDeTipo(tipo)}`;
-
-export function anuncioDeMovimiento(tipo: TipoBloque, posicion: number, total: number) {
-  const participio = TIPOS_FEMENINOS.includes(tipo) ? 'movida' : 'movido';
-  return `${conMayuscula(nombreDeTipo(tipo))} ${participio} a la posición ${posicion} de ${total}`;
-}
-
-export function anuncioDeQuitado(posicion: number, tipo: TipoBloque, quedan: number) {
-  const resto = quedan === 0 ? 'No quedan bloques' : quedan === 1 ? 'Queda 1 bloque' : `Quedan ${quedan} bloques`;
-  return `Bloque ${posicion}, ${nombreDeTipo(tipo)}, eliminado. ${resto}`;
-}
-
 // Anuncios del editor estilo documento (spec 005, contracts/atajos.md): se dice «elemento», nunca «bloque».
 const articuloIndefinido = (tipo: TipoBloque) => (TIPOS_FEMENINOS.includes(tipo) ? 'una' : 'un');
 

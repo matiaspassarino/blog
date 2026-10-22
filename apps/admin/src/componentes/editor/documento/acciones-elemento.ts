@@ -128,7 +128,7 @@ export type ContextoDeAcciones = {
 const despachar = (editor: Editor) => (tr: Transaction) => editor.view.dispatch(tr);
 
 /** Entra al modo elementos con el elemento activo (como `Esc`). */
-export function entrarAlModo(editor: Editor) {
+function entrarAlModo(editor: Editor) {
   seleccionarElementoActivo()(editor.state, despachar(editor));
 }
 

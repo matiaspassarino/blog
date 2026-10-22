@@ -7,6 +7,4 @@ export { textoPlano, crearBloque } from './utilidades';
 export { analizarEnLinea, serializarEnLinea, normalizarMarcas, type NodoEnLinea } from './en-linea';
 export { partirParrafos, unirParrafos, type TramoDeParrafo } from './parrafos';
 export { detectarImagen, type ImagenDetectada, type TipoImagenArchivo } from './imagen-archivo';
-export { agregarBloque, moverBloque, duplicarBloque, quitarBloque, actualizarBloque } from './operaciones';
-export { aplicarMarca, type MarcaEnLinea, type Seleccion } from './marcas';
 export { rutasDeImagenes, rutasQuitadas, type ImagenesDeArticulo } from './imagenes-en-uso';

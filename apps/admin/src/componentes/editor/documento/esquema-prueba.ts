@@ -11,7 +11,7 @@ import { Schema, type Node as NodoPm } from '@tiptap/pm/model';
 import { EditorState, Plugin } from '@tiptap/pm/state';
 import { claveModo } from './claves';
 
-export const esquema = new Schema({
+const esquema = new Schema({
   nodes: {
     doc: { content: 'block+' },
     text: { group: 'inline' },
@@ -85,8 +85,6 @@ export const lista = (bloqueId: string, items: string[], ordenada = false) =>
     { bloqueId },
     items.map((item) => esquema.nodes.listItem!.create(null, parrafo('', item))),
   );
-export const codigo = (bloqueId: string, texto: string) =>
-  esquema.nodes.codeBlock!.create({ bloqueId }, contenido(texto));
 export const separador = (bloqueId: string) => esquema.nodes.horizontalRule!.create({ bloqueId });
 export const imagen = (bloqueId: string, ruta: string) =>
   esquema.nodes.imagenBloque!.create({

@@ -16,11 +16,6 @@
 //     | { tipo: 'campo'; campo: 'titulo' | 'slug' | 'extracto' | 'titulo_seo' | 'descripcion_seo' | 'imagen_destacada' | 'categoria_id' | 'etiquetas'; valor: unknown }
 //         (escribir el campo `slug` a mano activa `slugManual`)
 //     | { tipo: 'sugerir_slug'; slug: string }          (resultado de `previsualizarSlugAccion`; solo si !slugManual)
-//     | { tipo: 'agregar_bloque'; bloque: TipoBloque; posicion?: number }
-//     | { tipo: 'mover_bloque'; indice: number; destino: number }
-//     | { tipo: 'duplicar_bloque'; indice: number }
-//     | { tipo: 'quitar_bloque'; indice: number }
-//     | { tipo: 'actualizar_bloque'; indice: number; cambios: Partial<Bloque> }
 //     | { tipo: 'guardado'; articulo: DatosArticulo }   (respuesta de `guardarArticulo`: adopta slug y versión definitivos)
 //     | { tipo: 'adoptar_vigente'; articulo: DatosArticulo }   ("Reemplazar con la vigente", D13: descarta lo propio)
 import { crearBloque, type Contenido } from '@blog/bloques';
@@ -70,19 +65,10 @@ describe('estado del editor (H2)', () => {
       expect(estaSucio(revertido)).toBe(false);
     });
 
-    it('H2-E6: editar un bloque lo marca como sucio', () => {
-      const estado = reductor(estadoInicial(datosBase(), { nuevo: false }), {
-        tipo: 'actualizar_bloque',
-        indice: 0,
-        cambios: { texto: 'Cambiado' },
-      });
-      expect(estaSucio(estado)).toBe(true);
-    });
-
     it('no muta el estado recibido', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
       const copia = structuredClone(inicial);
-      reductor(inicial, { tipo: 'quitar_bloque', indice: 0 });
+      reductor(inicial, { tipo: 'contenido', valor: [parrafo('Otro')] });
       reductor(inicial, { tipo: 'campo', campo: 'titulo', valor: 'Otro' });
       expect(inicial).toEqual(copia);
     });
@@ -109,48 +95,6 @@ describe('estado del editor (H2)', () => {
     });
   });
 
-  describe('bloques', () => {
-    it('H2-E2: agregar inserta un bloque del tipo pedido al final o en la posición dada', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const alFinal = reductor(inicial, { tipo: 'agregar_bloque', bloque: 'separador' });
-      const alPrincipio = reductor(inicial, { tipo: 'agregar_bloque', bloque: 'cita', posicion: 0 });
-      expect(alFinal.datos.contenido.map((b) => b.tipo)).toEqual(['parrafo', 'parrafo', 'parrafo', 'separador']);
-      expect(alPrincipio.datos.contenido.map((b) => b.tipo)).toEqual(['cita', 'parrafo', 'parrafo', 'parrafo']);
-    });
-
-    it('H2-E2: mover (subir y bajar) cambia el orden y conserva el contenido', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const bajado = reductor(inicial, { tipo: 'mover_bloque', indice: 0, destino: 1 });
-      const subido = reductor(bajado, { tipo: 'mover_bloque', indice: 2, destino: 1 });
-      expect(textos(bajado.datos.contenido)).toEqual(['Dos', 'Uno', 'Tres']);
-      expect(textos(subido.datos.contenido)).toEqual(['Dos', 'Tres', 'Uno']);
-    });
-
-    it('H2-E2: duplicar inserta una copia debajo con un id nuevo', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const estado = reductor(inicial, { tipo: 'duplicar_bloque', indice: 1 });
-      const ids = estado.datos.contenido.map((b) => b.id);
-      expect(textos(estado.datos.contenido)).toEqual(['Uno', 'Dos', 'Dos', 'Tres']);
-      expect(new Set(ids).size).toBe(4);
-    });
-
-    it('H2-E2: quitar elimina solo ese bloque', () => {
-      const estado = reductor(estadoInicial(datosBase(), { nuevo: false }), { tipo: 'quitar_bloque', indice: 1 });
-      expect(textos(estado.datos.contenido)).toEqual(['Uno', 'Tres']);
-    });
-
-    it('actualizar un bloque conserva su id y su tipo', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const id = inicial.datos.contenido[0]!.id;
-      const estado = reductor(inicial, {
-        tipo: 'actualizar_bloque',
-        indice: 0,
-        cambios: { texto: 'Nuevo', id: crypto.randomUUID(), tipo: 'cita' } as never,
-      });
-      expect(estado.datos.contenido[0]).toMatchObject({ id, tipo: 'parrafo', texto: 'Nuevo' });
-    });
-  });
-
   describe('después de guardar y ante conflictos', () => {
     it('H2-E1: tras guardar adopta el slug definitivo y la versión nueva, y queda limpio', () => {
       const inicial = estadoInicial(datosBase({ slug: 'repetido' }), { nuevo: false });
@@ -168,14 +112,17 @@ describe('estado del editor (H2)', () => {
 
     it('H2-E5: un conflicto no despacha nada: lo escrito sigue en `datos` y el editor sigue sucio', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const editado = reductor(inicial, { tipo: 'actualizar_bloque', indice: 0, cambios: { texto: 'Mi versión' } });
+      const editado = reductor(inicial, {
+        tipo: 'contenido',
+        valor: [parrafo('Mi versión'), parrafo('Dos'), parrafo('Tres')],
+      });
       expect(textos(editado.datos.contenido)[0]).toBe('Mi versión');
       expect(estaSucio(editado)).toBe(true);
     });
 
     it('H2-E5: "Reemplazar con la vigente" descarta lo propio y adopta la versión del servidor', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const editado = reductor(inicial, { tipo: 'quitar_bloque', indice: 0 });
+      const editado = reductor(inicial, { tipo: 'contenido', valor: [parrafo('Dos')] });
       const vigente = datosBase({ version: 5, titulo: 'Título del otro', contenido: [parrafo('Del otro')] });
 
       const estado = reductor(editado, { tipo: 'adoptar_vigente', articulo: vigente });

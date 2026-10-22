@@ -1,16 +1,6 @@
 // Estado del editor de artículos como funciones puras (spec 003, research D12 y D13). El componente
 // `EditorArticulo` lo usa con `useReducer`; vive aparte para probarlo sin React.
-import {
-  actualizarBloque,
-  agregarBloque,
-  duplicarBloque,
-  moverBloque,
-  quitarBloque,
-  type Contenido,
-  type Imagen,
-  type TipoBloque,
-} from '@blog/bloques';
-import type { CambiosDeBloque } from './bloques/tipos';
+import type { Contenido, Imagen } from '@blog/bloques';
 
 export type DatosArticulo = {
   version: number;
@@ -41,11 +31,6 @@ export type AccionEditor =
   | { tipo: 'campo'; campo: CampoEditable; valor: unknown }
   | { tipo: 'sugerir_slug'; slug: string }
   | { tipo: 'contenido'; valor: Contenido }
-  | { tipo: 'agregar_bloque'; bloque: TipoBloque; posicion?: number }
-  | { tipo: 'mover_bloque'; indice: number; destino: number }
-  | { tipo: 'duplicar_bloque'; indice: number }
-  | { tipo: 'quitar_bloque'; indice: number }
-  | { tipo: 'actualizar_bloque'; indice: number; cambios: CambiosDeBloque }
   | { tipo: 'guardado'; articulo: DatosArticulo }
   | { tipo: 'adoptar_vigente'; articulo: DatosArticulo };
 
@@ -73,7 +58,6 @@ const conDatos = (estado: EstadoEditor, cambios: Partial<DatosArticulo>): Estado
 });
 
 export function reductor(estado: EstadoEditor, accion: AccionEditor): EstadoEditor {
-  const { contenido } = estado.datos;
   switch (accion.tipo) {
     case 'campo':
       return {
@@ -85,20 +69,6 @@ export function reductor(estado: EstadoEditor, accion: AccionEditor): EstadoEdit
       return estado.slugManual ? estado : conDatos(estado, { slug: accion.slug });
     case 'contenido':
       return conDatos(estado, { contenido: accion.valor });
-    case 'agregar_bloque':
-      return conDatos(estado, { contenido: agregarBloque(contenido, accion.bloque, accion.posicion) });
-    case 'mover_bloque':
-      return conDatos(estado, { contenido: moverBloque(contenido, accion.indice, accion.destino) });
-    case 'duplicar_bloque':
-      return conDatos(estado, { contenido: duplicarBloque(contenido, accion.indice) });
-    case 'quitar_bloque':
-      return conDatos(estado, { contenido: quitarBloque(contenido, accion.indice) });
-    case 'actualizar_bloque': {
-      const bloque = contenido[accion.indice];
-      if (!bloque) return estado;
-      const cambios = typeof accion.cambios === 'function' ? accion.cambios(bloque) : accion.cambios;
-      return conDatos(estado, { contenido: actualizarBloque(contenido, accion.indice, cambios) });
-    }
     case 'guardado':
     case 'adoptar_vigente':
       return {

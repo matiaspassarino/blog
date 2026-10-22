@@ -14,7 +14,7 @@ type Base = { indice: number; campo: string; etiqueta: string; errores: ErrorBlo
 
 export const idDeCampoDeBloque = (indice: number, campo: string) => `bloque-${indice}-${campo}`;
 
-export function CampoBloque({
+function CampoBloque({
   indice,
   campo,
   etiqueta,
