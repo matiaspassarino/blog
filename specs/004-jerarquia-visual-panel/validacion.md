@@ -57,6 +57,7 @@ Menores corregidos: comentarios de "fase roja" y referencias a `AccionesEstado` 
 - **Botón estándar con `py-2`** (con el borde de 1 px, `py-2.5` medía 46 px y no se alineaba con los campos de 44 px).
 - **T041 parcial**: se dejaron los `self-start` de los botones únicos.
 - **Pruebas ajustadas** (las escribió `escritor-tests` y tenían supuestos que no se cumplían): clics forzados que caían sobre la barra fija, la ayuda que mide superposición dentro de un diálogo abierto, la separación entre secciones medida por columna, `networkidle` antes de vencer la sesión (las precargas de Next la cerraban antes de guardar) y dos expectativas del diálogo de reemplazar y de "No tienes permiso".
+- **Una línea solo desde 1440 px**: en el CI de Linux (tipografía del sistema más ancha) la barra con "Cancelar programación" o "Volver a borrador" se parte en dos líneas a 768 y 1024 px. RF-019 pide ver todas las acciones, no una sola línea; la prueba exige línea única solo a 1440 px y, a 768 y 1024 px, que no haya acciones cortadas ni superpuestas.
 - **Cobertura no E2E**: la fila "Definir contraseña" de la matriz no tiene prueba E2E (exige una sesión de recuperación) y los vacíos de categorías y etiquetas se saltan si el seed ya trae elementos; los componentes sí se prueban con render estático.
 
 ## Entorno
