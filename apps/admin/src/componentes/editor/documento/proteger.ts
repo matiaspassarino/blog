@@ -146,7 +146,9 @@ export function proteger(devoluciones: DevolucionesDeProteccion) {
         });
         return false;
       }
-      if (decision.anuncio && quitaElementosEnteros(estado, tr)) devoluciones.anunciar(decision.anuncio);
+      if (decision.anuncio && (!quitoAlgo(estado, tr) || quitaElementosEnteros(estado, tr))) {
+        devoluciones.anunciar(decision.anuncio);
+      }
       return true;
     },
   });
@@ -161,4 +163,10 @@ function quitaElementosEnteros(estado: EditorState, tr: Transaction): boolean {
   if (selection.$from.depth === 0) return true;
   const idsDespues = new Set(elementosConId(tr.doc).map((e) => e.id));
   return elementosConId(estado.doc).some((e) => !idsDespues.has(e.id) && e.nodo.type.name !== 'paragraph');
+}
+
+/** Algún elemento con identidad desaparece (a diferencia de moverlo). */
+function quitoAlgo(estado: EditorState, tr: Transaction): boolean {
+  const despues = new Set(elementosConId(tr.doc).map((e) => e.id));
+  return elementosConId(estado.doc).some((e) => !despues.has(e.id));
 }

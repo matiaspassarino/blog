@@ -48,7 +48,11 @@ const archivoPng = (name = 'foto.png', ancho = 4, alto = 3): ArchivoDePrueba => 
 });
 
 /** Espera a que React haya hidratado el editor: antes, un campo rellenado puede perder su selección. */
-export const esperarEditorListo = (page: Page) => expect(page.locator('[data-editor="listo"]')).toBeVisible();
+export const esperarEditorListo = async (page: Page) => {
+  await expect(page.locator('[data-editor="listo"]')).toBeVisible();
+  // El lienzo se carga bajo demanda: hasta entonces solo hay un esqueleto.
+  await expect(page.getByLabel('Contenido del artículo', { exact: true })).toBeVisible();
+};
 
 export const botonGuardar = (page: Page) => page.getByRole('button', { name: 'Guardar', exact: true });
 

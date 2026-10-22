@@ -137,7 +137,6 @@ export function EditorArticulo({
     // La pestaña cambia sola solo al seleccionar un elemento especial distinto del anterior (no al mover el cursor).
     if (activo && especial && activo.bloqueId !== ultimoId.current) setPestania('elemento');
     ultimoId.current = activo?.bloqueId ?? null;
-    if (!activo) setHojaAbierta(false);
     if (activo?.origen === 'insertar-texto') setPestania('elemento');
     if (activo?.origen === 'insertar') {
       setHojaAbierta(true);
@@ -150,6 +149,7 @@ export function EditorArticulo({
     },
     [elemento],
   );
+  const alCerrarHoja = useCallback(() => setHojaAbierta(false), []);
   const alPropiedades = useCallback(() => {
     setPestania('elemento');
     setHojaAbierta(true);
@@ -413,6 +413,8 @@ export function EditorArticulo({
                   acciones={acciones}
                   anunciar={setAnuncio}
                   subidasEnCurso={idsSubiendo}
+                  hojaAbierta={hojaAbierta}
+                  alCerrarHoja={alCerrarHoja}
                   bloqueado={reemplazando}
                 />
               </section>
@@ -569,7 +571,7 @@ export function EditorArticulo({
           </div>
         </fieldset>
 
-        {!anchoDeEscritorio && hojaAbierta && elemento && seleccion.tipo === 'elementos' && (
+        {!anchoDeEscritorio && hojaAbierta && (
           <div
             data-panel-propiedades
             style={{ bottom: altoDeLaBarra }}
@@ -585,9 +587,9 @@ export function EditorArticulo({
               <PropiedadesDelElemento
                 variante="hoja"
                 seleccion={seleccion}
-                posicion={elemento.posicion}
-                indice={elemento.indice}
-                errores={errores.filter((error) => error.indice === elemento.indice)}
+                posicion={elemento?.posicion ?? 0}
+                indice={elemento?.indice ?? -1}
+                errores={errores.filter((error) => error.indice === elemento?.indice)}
                 alCambiar={alCambiarElemento}
                 alCerrar={() => {
                   setHojaAbierta(false);

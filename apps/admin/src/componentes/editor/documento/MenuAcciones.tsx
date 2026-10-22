@@ -26,7 +26,7 @@ type Props = {
 export function MenuAcciones({ editor, contexto, alCerrar, className }: Props) {
   const [vista, setVista] = useState<'principal' | 'convertir'>('principal');
   // Se calculan al abrir (y al cambiar de vista): el menú se vuelve a montar cada vez que se abre.
-  const [items] = useState(() => itemsDeAcciones(editor));
+  const [items] = useState(() => itemsDeAcciones(editor, contexto));
   const lista =
     vista === 'principal'
       ? items.map((i) => ({ etiqueta: i.etiqueta, deshabilitado: i.deshabilitado }))

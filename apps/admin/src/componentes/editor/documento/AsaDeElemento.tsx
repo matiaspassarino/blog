@@ -10,12 +10,19 @@ import { useEffect, useRef, useState, type PointerEvent, type RefObject } from '
 import { nombreDeTipo } from '../anuncios';
 import { Icono } from '../../Icono';
 import { registrarAccion, type ContextoDeAcciones } from './acciones-elemento';
-import { elementoActivo, moverElementoA, seleccionarElementos, tipoDeElemento } from './comandos';
+import {
+  elementoActivo,
+  moverElementosA,
+  rangoDeElementos,
+  salirDelModo,
+  seleccionarElementos,
+  tipoDeElemento,
+} from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 
 type Props = { editor: Editor; contexto: ContextoDeAcciones; contenedor: RefObject<HTMLElement | null> };
 
-type Arrastre = { desde: number; indice: number; ranura: number };
+type Arrastre = { desde: number; hasta: number; indice: number; ranura: number };
 
 /** Píxeles que hay que mover el asa para que cuente como arrastre y no como pulsación. */
 const UMBRAL_DE_ARRASTRE_PX = 4;
@@ -107,8 +114,13 @@ export function AsaDeElemento({ editor, contexto, contenedor }: Props) {
       evento.clientX <= raiz.right + 48 &&
       evento.clientY >= raiz.top &&
       evento.clientY <= raiz.bottom;
-    if (dentro && moverElementoA(actual.desde, actual.indice)(editor.state, (tr) => editor.view.dispatch(tr))) {
+    if (
+      dentro &&
+      moverElementosA(actual.desde, actual.hasta, actual.ranura)(editor.state, (tr) => editor.view.dispatch(tr))
+    ) {
       registrarAccion(editor, 'mover elemento');
+      // El cursor queda dentro del elemento movido.
+      salirDelModo()(editor.state, (tr) => editor.view.dispatch(tr));
     }
     editor.commands.focus();
   }
@@ -171,8 +183,17 @@ export function AsaDeElemento({ editor, contexto, contenedor }: Props) {
             venArrastre.current = true;
             setMenuAbierto(false);
             const ranura = ranuraDe(evento.clientY);
-            const desde = arrastre?.desde ?? indice;
-            setArrastre({ desde, ranura, indice: ranura > desde ? ranura - 1 : ranura });
+            // Con varios elementos seleccionados, el asa de cualquiera de ellos mueve el conjunto.
+            const rango = rangoDeElementos(editor.state);
+            const seleccionados = rango
+              ? [editor.state.doc.resolve(rango.desde).index(0), editor.state.doc.resolve(rango.hasta).index(0) - 1]
+              : null;
+            const [desde, hasta] =
+              seleccionados && indice >= seleccionados[0]! && indice <= seleccionados[1]!
+                ? seleccionados
+                : [indice, indice];
+            const cantidad = hasta! - desde! + 1;
+            setArrastre({ desde: desde!, hasta: hasta!, ranura, indice: ranura > hasta! ? ranura - cantidad : ranura });
           }}
           onPointerUp={(evento) => terminar(inicio.current?.moviendo === true, evento)}
           onPointerCancel={() => terminar(false)}

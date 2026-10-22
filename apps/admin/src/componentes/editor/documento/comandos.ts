@@ -337,20 +337,17 @@ export const seleccionarElementoActivo = (): Comando => (estado, despachar) => {
   return true;
 };
 
-/** Mueve el elemento `desde` (índice) a la posición `haciaIndice` (el índice que tendrá al terminar): el arrastre del asa. */
-export const moverElementoA =
-  (desde: number, haciaIndice: number): Comando =>
+/**
+ * Arrastre del asa: mueve los elementos `desde..hasta` (índices, desde 0) a la ranura `ranura` (0 = antes del primero,
+ * n = después del último, contada sobre el documento de partida). Es una sola transacción.
+ */
+export const moverElementosA =
+  (desde: number, hasta: number, ranura: number): Comando =>
   (estado, despachar) => {
     const { doc } = estado;
-    if (
-      desde < 0 ||
-      desde >= doc.childCount ||
-      haciaIndice < 0 ||
-      haciaIndice >= doc.childCount ||
-      desde === haciaIndice
-    ) {
-      return false;
-    }
+    const cantidad = hasta - desde + 1;
+    if (desde < 0 || hasta < desde || hasta >= doc.childCount || ranura < 0 || ranura > doc.childCount) return false;
+    if (ranura >= desde && ranura <= hasta + 1) return false; // no cambia de lugar
     if (despachar) {
       const inicios: number[] = [];
       let pos = 0;
@@ -358,13 +355,15 @@ export const moverElementoA =
         inicios.push(pos);
         pos += nodo.nodeSize;
       });
-      const nodo = doc.child(desde);
-      const tr = estado.tr.delete(inicios[desde]!, inicios[desde]! + nodo.nodeSize);
-      // Sin el elemento, el que queda en `haciaIndice` es el que sigue al destino.
+      const fin = hasta + 1 < doc.childCount ? inicios[hasta + 1]! : doc.content.size;
+      const contenido = doc.slice(inicios[desde]!, fin).content;
+      const tr = estado.tr.delete(inicios[desde]!, fin);
+      // En el documento sin los elementos movidos, la ranura queda `cantidad` lugares antes si estaba después.
+      const nueva = ranura > hasta ? ranura - cantidad : ranura;
       let destino = 0;
-      for (let i = 0; i < haciaIndice; i++) destino += tr.doc.child(i).nodeSize;
-      tr.insert(destino, nodo);
-      despachar(seleccionarRango(tr, destino, destino + nodo.nodeSize));
+      for (let i = 0; i < nueva; i++) destino += tr.doc.child(i).nodeSize;
+      tr.insert(destino, contenido);
+      despachar(seleccionarRango(tr, destino, destino + (fin - inicios[desde]!)));
     }
     return true;
   };

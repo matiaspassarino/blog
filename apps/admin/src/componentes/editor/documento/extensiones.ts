@@ -11,7 +11,7 @@ import {
   type AnyExtension,
   type Editor,
 } from '@tiptap/core';
-import { NodeSelection, Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   CLASES_CITA,
@@ -386,21 +386,6 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
               });
               return DecorationSet.create(estado.doc, decoraciones);
             },
-            handleKeyDown: (vista, evento) => {
-              const { selection } = vista.state;
-              const entero = selection instanceof NodeSelection && selection.$from.depth === 0;
-              if (!entero || evento.key.length !== 1 || evento.ctrlKey || evento.metaKey || evento.altKey) return false;
-              // Escribir sobre un elemento seleccionado lo reemplazaría: en el modo elementos se sale al texto; con un
-              // elemento especial tocado, la tecla se ignora.
-              if (claveModo.getState(vista.state) || !selection.node.isAtom) {
-                const { doc, tr } = vista.state;
-                vista.dispatch(
-                  tr.setSelection(Selection.near(doc.resolve(selection.from + 1))).setMeta(claveModo, false),
-                );
-                return false;
-              }
-              return true;
-            },
           },
         }),
       ];
@@ -413,8 +398,11 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           if (claveModo.getState(editor.state)) {
             // Esc dentro del modo: vuelve al texto.
             salirDelModo()(editor.state, (tr) => editor.view.dispatch(tr));
+            devoluciones.salioDelModo();
             return true;
           }
+          // Con la hoja abierta, el `Esc` que sigue a salir del modo la cierra (último en el orden de `Esc`).
+          if (devoluciones.cerrarHojaPendiente()) return true;
           // El navegador puede haber movido el cursor un instante antes de que ProseMirror lo sepa (un clic seguido de
           // `Esc`): se lee la selección del DOM y no la del estado.
           const dom = window.getSelection();
@@ -471,6 +459,10 @@ export type EstadoMenu = {
 };
 
 export type DevolucionesDelEditor = {
+  /** Salió del modo elementos con `Esc`: el próximo `Esc` puede cerrar la hoja de propiedades. */
+  salioDelModo: () => void;
+  /** Cierra la hoja de propiedades si estaba abierta y se acababa de salir del modo; `true` si la cerró. */
+  cerrarHojaPendiente: () => boolean;
   /** Lo que `proteger` necesita saber para decidir si se puede quitar o mover un elemento. */
   proteccion: DevolucionesDeProteccion;
   /** Anuncios para la región de estado persistente. */

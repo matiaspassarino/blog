@@ -48,15 +48,42 @@ function cantidadSeleccionada(estado: EditorState): number {
   return cantidad;
 }
 
-export function itemsDeAcciones(editor: Editor): ItemDeAccion[] {
+/** Algún elemento seleccionado (o el activo) tiene una subida en curso. */
+function conSubidaEnCurso(editor: Editor, subidas: ReadonlySet<string>): boolean {
+  if (subidas.size === 0) return false;
+  const rango = rangoDeElementos(editor.state);
+  const { doc } = editor.state;
+  const activo = elementoActivo(editor.state);
+  const desde = rango?.desde ?? activo?.pos ?? 0;
+  const hasta = rango?.hasta ?? (activo ? activo.pos + activo.nodo.nodeSize : 0);
+  let con = false;
+  doc.nodesBetween(desde, hasta, (nodo, _pos, padre) => {
+    if (padre === doc && subidas.has(String(nodo.attrs.bloqueId ?? ''))) con = true;
+    return false;
+  });
+  return con;
+}
+
+export function itemsDeAcciones(editor: Editor, contexto: ContextoDeAcciones): ItemDeAccion[] {
   const virtual = estadoEnModo(editor.state);
   const activo = elementoActivo(editor.state);
   const varios = cantidadSeleccionada(editor.state) > 1;
   const sinPropiedades = !activo || varios || activo.tipo === 'parrafo' || activo.tipo === 'separador';
   const mod = teclaModificadora();
+  const subiendo = conSubidaEnCurso(editor, contexto.subidasEnCurso());
   const items: ItemDeAccion[] = [
-    { id: 'subir', etiqueta: 'Subir', atajo: 'Alt + ↑', deshabilitado: !virtual || !moverRango(-1)(virtual) },
-    { id: 'bajar', etiqueta: 'Bajar', atajo: 'Alt + ↓', deshabilitado: !virtual || !moverRango(1)(virtual) },
+    {
+      id: 'subir',
+      etiqueta: 'Subir',
+      atajo: 'Alt + ↑',
+      deshabilitado: subiendo || !virtual || !moverRango(-1)(virtual),
+    },
+    {
+      id: 'bajar',
+      etiqueta: 'Bajar',
+      atajo: 'Alt + ↓',
+      deshabilitado: subiendo || !virtual || !moverRango(1)(virtual),
+    },
     { id: 'duplicar', etiqueta: 'Duplicar', atajo: `${mod} + D`, deshabilitado: !virtual },
   ];
   if (!varios) {
@@ -67,7 +94,7 @@ export function itemsDeAcciones(editor: Editor): ItemDeAccion[] {
     });
   }
   items.push(
-    { id: 'quitar', etiqueta: 'Quitar', atajo: 'Supr', deshabilitado: !virtual },
+    { id: 'quitar', etiqueta: 'Quitar', atajo: 'Supr', deshabilitado: subiendo || !virtual },
     { id: 'seleccionar', etiqueta: 'Seleccionar', atajo: 'Esc', deshabilitado: !activo },
     { id: 'propiedades', etiqueta: 'Propiedades', atajo: 'Enter', deshabilitado: sinPropiedades },
     { id: 'atajos', etiqueta: 'Atajos', deshabilitado: false },
@@ -90,6 +117,8 @@ export const ESTILOS_DE_CONVERSION: EstiloDeConversion[] = [
 
 export type ContextoDeAcciones = {
   anunciar: (mensaje: string) => void;
+  /** Elementos con una subida en curso: no se pueden mover ni quitar. */
+  subidasEnCurso: () => ReadonlySet<string>;
   alPropiedades: () => void;
   abrirAtajos: () => void;
   /** La conversión pierde datos: la interfaz pide confirmar y luego llama a `aplicar`. */

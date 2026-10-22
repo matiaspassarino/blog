@@ -40,6 +40,9 @@ export type PropsEditorDocumento = {
   anunciar: (mensaje: string) => void;
   /** `bloqueId` de los elementos con una subida de imagen en curso: no se pueden mover ni quitar. */
   subidasEnCurso: ReadonlySet<string>;
+  /** La hoja de propiedades está abierta; `Esc` la cierra al final del orden de `Esc`. */
+  hojaAbierta: boolean;
+  alCerrarHoja: () => void;
   /** Mientras se carga la versión vigente: el editor no admite cambios. */
   bloqueado: boolean;
 };
@@ -124,6 +127,8 @@ export default function EditorDocumento({
   acciones,
   anunciar,
   subidasEnCurso,
+  hojaAbierta,
+  alCerrarHoja,
   bloqueado,
 }: PropsEditorDocumento) {
   const { imagenGuardada } = useContextoEditor();
@@ -139,7 +144,10 @@ export default function EditorDocumento({
     anunciar,
     subidasEnCurso,
     imagenGuardada,
+    hojaAbierta,
+    alCerrarHoja,
   });
+  const salioDelModo = useRef(false);
   const [dialogo, setDialogo] = useState<
     | { tipo: 'quitar'; cantidad: number; reintentar: () => void }
     | { tipo: 'convertir'; pierde: string[]; aplicar: () => void }
@@ -165,6 +173,8 @@ export default function EditorDocumento({
       anunciar,
       subidasEnCurso,
       imagenGuardada,
+      hojaAbierta,
+      alCerrarHoja,
     };
   });
 
@@ -172,6 +182,15 @@ export default function EditorDocumento({
   const [devoluciones] = useState<DevolucionesDelEditor>(() => ({
     anunciar: (mensaje) => anunciarAccion(mensaje),
     menuAbierto: () => ultimo.current.menu !== null,
+    salioDelModo: () => {
+      salioDelModo.current = true;
+    },
+    cerrarHojaPendiente: () => {
+      if (!salioDelModo.current || !ultimo.current.hojaAbierta) return false;
+      salioDelModo.current = false;
+      ultimo.current.alCerrarHoja();
+      return true;
+    },
     alPropiedades: () => ultimo.current.alPropiedades(),
     alMenu: (estado) => {
       setMenu(estado);
@@ -204,6 +223,7 @@ export default function EditorDocumento({
   // Lo que ofrecen el menú de acciones y el asa (las mismas funciones que usan los atajos).
   const [contextoDeAcciones] = useState<ContextoDeAcciones>(() => ({
     anunciar: (mensaje) => anunciarAccion(mensaje),
+    subidasEnCurso: () => ultimo.current.subidasEnCurso,
     alPropiedades: () => ultimo.current.alPropiedades(),
     abrirAtajos: () => setDialogo({ tipo: 'atajos' }),
     pedirConversion: (pierde, aplicar) => setDialogo({ tipo: 'convertir', pierde, aplicar }),
