@@ -43,7 +43,7 @@ Un editor o un admin entra a cualquier pantalla del panel y distingue sin pensar
 3. **Dado** un borrador sin cambios pendientes en el editor, **cuando** se modifica cualquier campo, **entonces** "Guardar" pasa a ser la acción principal y "Publicar" pasa a secundaria; **cuando** se guarda, "Publicar" vuelve a ser la principal.
 4. **Dado** un diálogo de confirmación de una acción destructiva (eliminar un artículo, una categoría o una etiqueta, desactivar a un miembro), **cuando** se abre, **entonces** la acción que confirma usa el estilo destructivo y "Cancelar" se ve con menos peso.
 5. **Dado** cualquier pantalla con una acción destructiva disponible (por ejemplo "Eliminar" en el editor para un admin), **cuando** se muestra, **entonces** queda separada de las acciones comunes y no se confunde con la principal.
-6. **Dado** la pantalla de equipo, **cuando** hay varios miembros, **entonces** las acciones de cada fila (cambiar rol, desactivar, reenviar invitación) tienen menos peso que la acción principal de la pantalla ("Invitar").
+6. **Dado** la pantalla de equipo, **cuando** hay varios miembros, **entonces** las acciones de cada fila (reenviar invitación, reactivar, desactivar) tienen menos peso que la acción principal de la pantalla ("Enviar invitación").
 
 ---
 
