@@ -142,3 +142,61 @@ export async function completarBloque(page: Page, grupo: Locator, tipo: TipoDeBl
       break;
   }
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ayudas del editor estilo documento (spec 005, T039). FASE ROJA: el lienzo y la barra no existen aún.
+//
+// CONTRATO DE INTERFAZ SUPUESTO (contracts/atajos.md y contracts/componentes.md):
+//   - Lienzo: `contenteditable` con nombre accesible "Contenido del artículo" (`aria-label`), `aria-multiline="true"`, sin
+//     `role="textbox"` forzado. Cada elemento de texto es un nodo real (`p`, `h2`, `h3`, `h4`, `blockquote`, `ul`/`ol`
+//     con `li`, `pre`). Con el menú «/» abierto declara `aria-haspopup="listbox"`, `aria-controls` y
+//     `aria-activedescendant` (id de la opción activa).
+//   - Barra: `role="toolbar"` con nombre "Formato del texto"; botones "Negrita", "Cursiva", "Código", "Enlace" (los de
+//     estado con `aria-pressed`), "Lista con viñetas", "Lista numerada", "Insertar", "Deshacer" y "Rehacer".
+//   - Selector de estilo de párrafo: botón de la barra cuyo nombre empieza con "Estilo de párrafo" y cuyo texto visible
+//     es el estilo vigente (Párrafo, Título 2, Título 3, Título 4, Cita); abre un menú con `menuitem` u `option` por estilo.
+//   - Campo de enlace: `input` con etiqueta "URL del enlace" (Enter aplica, Esc cierra y devuelve el foco al lienzo;
+//     una URL no permitida marca `aria-invalid="true"`).
+//   - Menú de inserción («/» e «Insertar»): `role="listbox"` con `role="option"` (nombre que empieza con el del elemento:
+//     "Título 2", "Cita", "Imagen"…); sin coincidencias, un `role="status"` con "Sin resultados".
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** El lienzo del documento (el `contenteditable` de ProseMirror). */
+export const lienzo = (page: Page) => page.getByLabel('Contenido del artículo', { exact: true });
+
+/** La barra de herramientas de formato. */
+export const barraDeFormato = (page: Page) => page.getByRole('toolbar', { name: 'Formato del texto', exact: true });
+
+/** Escribe en el lienzo (le da el foco con un clic solo si todavía no lo tiene, para no mover el cursor). */
+export async function escribirEnLienzo(page: Page, texto: string) {
+  const area = lienzo(page);
+  const conFoco = await area.evaluate((el) => el.contains(document.activeElement));
+  if (!conFoco) await area.click();
+  await page.keyboard.type(texto);
+}
+
+/** Abre «Insertar» de la barra y devuelve el listbox (con el foco ya dentro). */
+export async function abrirMenuInsertar(page: Page): Promise<Locator> {
+  await barraDeFormato(page).getByRole('button', { name: 'Insertar', exact: true }).click();
+  const menu = page.getByRole('listbox');
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Una opción del menú de inserción por el comienzo de su nombre (el nombre accesible puede sumar la descripción). */
+export const opcionDeInsercion = (page: Page, nombre: string) =>
+  page.getByRole('option', { name: new RegExp(`^${nombre}`) });
+
+/** El selector de estilo de párrafo de la barra. */
+export const selectorDeEstilo = (page: Page) =>
+  barraDeFormato(page).getByRole('button', { name: /^Estilo de párrafo/ });
+
+/** Elige un estilo de párrafo ("Título 2", "Cita"…) desde el selector de la barra. */
+export async function elegirEstilo(page: Page, estilo: string) {
+  await selectorDeEstilo(page).click();
+  await page
+    .getByRole('menuitem', { name: estilo, exact: true })
+    .or(page.getByRole('menuitemradio', { name: estilo, exact: true }))
+    .or(page.getByRole('option', { name: estilo, exact: true }))
+    .click();
+}
