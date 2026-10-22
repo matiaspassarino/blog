@@ -15,6 +15,8 @@ const TRAZADOS = {
   archivo: 'M4 7h16v4H4zM6 11v8h12v-8M10 15h4',
   sobre: 'M4 6h16v12H4zM4 7l8 6 8-6',
   prohibido: 'M12 3a9 9 0 100 18 9 9 0 000-18zM6 6l12 12',
+  mas: 'M5 12h.01M12 12h.01M19 12h.01',
+  papelera: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
 } as const;
 
 export type NombreIcono = keyof typeof TRAZADOS;

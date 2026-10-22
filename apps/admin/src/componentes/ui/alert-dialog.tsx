@@ -3,6 +3,7 @@
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import type { ComponentProps } from 'react';
 import { cn } from '../../lib/cn';
+import { BarraAcciones } from '../estructura/BarraAcciones';
 import { Button } from './button';
 
 export const AlertDialog = AlertDialogPrimitive.Root;
@@ -18,7 +19,7 @@ export function AlertDialogContent({
       <AlertDialogPrimitive.Overlay className="fixed inset-0 bg-overlay" />
       <AlertDialogPrimitive.Content
         className={cn(
-          'fixed top-1/2 left-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
+          'fixed inset-x-4 top-1/2 mx-auto max-w-md -translate-y-1/2 rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
           className,
         )}
         {...props}
@@ -40,8 +41,12 @@ export function AlertDialogDescription({
   return <AlertDialogPrimitive.Description className={cn('mt-2 text-texto-suave', className)} {...props} />;
 }
 
-export function AlertDialogFooter({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end', className)} {...props} />;
+export function AlertDialogFooter({ className, children }: ComponentProps<'div'>) {
+  return (
+    <div className={cn('mt-6', className)}>
+      <BarraAcciones alineacion="fin">{children}</BarraAcciones>
+    </div>
+  );
 }
 
 export function AlertDialogCancel({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Cancel>) {

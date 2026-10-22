@@ -53,6 +53,8 @@
   /* Espaciado y anchos */
   --spacing-seccion: clamp(3rem, 2rem + 4vw, 6rem);
   --spacing-bloque: 1.5rem;
+  /* Separación entre secciones del panel; dentro de una sección se usa gap-4 (spec 004) */
+  --spacing-panel-seccion: clamp(1.5rem, 1rem + 2vw, 2.5rem);
   --container-lectura: 68ch;
   --container-sitio: 72rem;
   --aspect-tarjeta: 16 / 9;
