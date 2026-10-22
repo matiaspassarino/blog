@@ -147,8 +147,10 @@ test.describe('Bloques (H2-E2)', () => {
 
     const subirPrimero = page.getByRole('button', { name: 'Subir bloque 1, párrafo' });
     await expect(subirPrimero).toHaveAttribute('aria-disabled', 'true');
-    // El botón usa aria-disabled a propósito (no pierde el foco): Playwright lo trata como deshabilitado.
-    await subirPrimero.click({ force: true });
+    // El botón usa aria-disabled a propósito (no pierde el foco): Playwright lo trata como deshabilitado. Se activa
+    // con el teclado: un clic forzado cae sobre lo que tape el botón (la barra fija del editor).
+    await subirPrimero.focus();
+    await page.keyboard.press('Enter');
 
     await expect(grupoDeBloque(page, 1, 'parrafo').getByLabel('Texto', { exact: true })).toHaveValue('A');
   });

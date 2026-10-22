@@ -84,6 +84,8 @@ test.describe('Programar (H3-E3, E4)', () => {
     );
     await expect(campoFechaProgramada(page)).toBeFocused();
     await expect(campoFechaProgramada(page)).toHaveAccessibleDescription(/Elige una fecha y hora/);
+    // Con el diálogo abierto el resto de la página queda inerte: se cierra para leer el estado.
+    await page.keyboard.press('Escape');
     await esperarEstado(page, 'borrador');
     expect(await articuloPorId(articulo.id)).toMatchObject({ estado: 'borrador', programado_para: null });
   });

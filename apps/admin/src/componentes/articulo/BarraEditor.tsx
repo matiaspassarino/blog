@@ -145,7 +145,12 @@ export function BarraEditor({
   const puedeEliminar = enMenu.includes('eliminar');
 
   return (
-    <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8">
+    <div
+      ref={grupo}
+      role="group"
+      aria-label="Acciones del artículo"
+      className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8"
+    >
       {error && (
         <AvisoEstado tipo="error" cerrable={false}>
           {error}
@@ -168,21 +173,18 @@ export function BarraEditor({
           </p>
         )}
       </div>
-      <div ref={grupo}>
-        <BarraAcciones
-          etiqueta="Acciones del artículo"
-          destructivas={
-            puedeEliminar ? (
-              <Button data-accion="eliminar" variante="peligro" onClick={() => setEliminando(true)}>
-                <Icono nombre="papelera" />
-                {ETIQUETAS.eliminar}
-              </Button>
-            ) : undefined
-          }
-        >
-          {[...enBarra, ...enMenu].map(boton)}
-        </BarraAcciones>
-      </div>
+      <BarraAcciones
+        destructivas={
+          puedeEliminar ? (
+            <Button data-accion="eliminar" variante="peligro" onClick={() => setEliminando(true)}>
+              <Icono nombre="papelera" />
+              {ETIQUETAS.eliminar}
+            </Button>
+          ) : undefined
+        }
+      >
+        {[...enBarra, ...enMenu].map(boton)}
+      </BarraAcciones>
 
       {guardado && (
         <>

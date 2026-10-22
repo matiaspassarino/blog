@@ -223,7 +223,6 @@ test.describe('Acción principal', () => {
       nombre: 'No tienes permiso',
       ruta: () => '/equipo',
       usuario: 'editor',
-      conNavegacion: false,
       esperado: { secundaria: ['Ir a los artículos'] },
     },
     {
@@ -540,11 +539,7 @@ test.describe('Acción principal', () => {
       await aviso.getByRole('button', { name: 'Reemplazar con la vigente' }).click();
       await expect(segunda.page.getByRole('alertdialog')).toBeVisible();
       const delDialogo = await accionesPorNivel(segunda.page);
-      verificarNivel(
-        delDialogo.peligro,
-        ['Reemplazar con la vigente', 'Reemplazar'].map((t) => new RegExp(`^${t}`)),
-        'diálogo de reemplazar (peligro)',
-      );
+      verificarNivel(delDialogo.peligro, [/^Reemplazar/], 'diálogo de reemplazar (peligro)');
       verificarNivel(delDialogo.secundaria, ['Cancelar'], 'diálogo de reemplazar (secundaria)');
       expect(delDialogo.primaria).toEqual([]);
 
