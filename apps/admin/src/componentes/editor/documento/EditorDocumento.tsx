@@ -72,6 +72,8 @@ export default function EditorDocumento({
 
   const editor = useEditor({
     immediatelyRender: false,
+    // La barra se actualiza sola (useEditorState): volver a dibujar el lienzo en cada transacción le pisa el cursor.
+    shouldRerenderOnTransaction: false,
     extensions: extensiones,
     content: bloquesADocumento(contenido),
     editable: !bloqueado,

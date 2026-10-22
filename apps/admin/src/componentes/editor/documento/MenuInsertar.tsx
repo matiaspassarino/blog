@@ -22,7 +22,7 @@ type Props = {
   className?: string;
 };
 
-export const idDeOpcion = (idLista: string, item: ItemDeInsercion) => `${idLista}-${item.id}`;
+const idDeOpcion = (idLista: string, item: ItemDeInsercion) => `${idLista}-${item.id}`;
 
 export function MenuInsertar({
   id,

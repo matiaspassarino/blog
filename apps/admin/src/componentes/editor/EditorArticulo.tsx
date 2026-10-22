@@ -4,11 +4,11 @@
 // bloques. El estado vive en un reductor puro (reductor.ts). Valida en el navegador con el mismo esquema que
 // el servidor, enfoca el primer campo inválido, detecta ediciones concurrentes sin perder lo escrito (D13) y
 // avisa antes de salir con cambios sin guardar (RF-010).
-import type { ErrorBloque } from '@blog/bloques';
+import type { Contenido, ErrorBloque } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
 import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   crearArticuloAccion,
   guardarArticulo,
@@ -109,6 +109,10 @@ export function EditorArticulo({
   // Sube al adoptar la versión vigente: el documento y su historial se vuelven a crear desde lo adoptado.
   const [reinicio, setReinicio] = useState(0);
   const titulo = useRef<HTMLHeadingElement>(null);
+  // El lienzo no se vuelve a dibujar en cada tecla: estas props tienen que ser estables.
+  const erroresDeElementos = useMemo(() => errores.filter((error) => error.indice >= 0), [errores]);
+  const alCambiarContenido = useCallback((valor: Contenido) => despachar({ tipo: 'contenido', valor }), []);
+  const alSeleccionar = useCallback(() => {}, []);
 
   const hidratado = useHidratado();
   const sucio = estaSucio(estado);
@@ -319,11 +323,11 @@ export function EditorArticulo({
               <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">
                 <TituloSeccion id="titulo-contenido">Contenido</TituloSeccion>
                 <CargadorDeEditorDocumento
-                  contenido={actual.contenido}
+                  contenido={estado.guardado.contenido}
                   reinicio={reinicio}
-                  errores={errores.filter((error) => error.indice >= 0)}
-                  alCambiar={(valor) => despachar({ tipo: 'contenido', valor })}
-                  alSeleccionar={() => {}}
+                  errores={erroresDeElementos}
+                  alCambiar={alCambiarContenido}
+                  alSeleccionar={alSeleccionar}
                   anunciar={setAnuncio}
                   bloqueado={reemplazando}
                 />

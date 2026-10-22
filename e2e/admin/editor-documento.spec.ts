@@ -112,10 +112,12 @@ test.describe('Escribir como documento', () => {
 
     await expect(lienzo(page).locator('p')).toHaveText(['Primero', 'Segundo']);
 
-    // En medio de un texto, Enter lo parte en dos.
-    await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('Enter');
+    // En medio de un texto, Enter lo parte en dos. ProseMirror ignora los cambios de selección del navegador durante
+    // unos 50 ms después de escribir; con una persona eso no se nota, pero Playwright teclea más rápido.
+    for (const tecla of ['ArrowLeft', 'ArrowLeft', 'Enter']) {
+      await page.waitForTimeout(100);
+      await page.keyboard.press(tecla);
+    }
     await expect(lienzo(page).locator('p')).toHaveText(['Primero', 'Segun', 'do']);
   });
 
@@ -131,7 +133,8 @@ test.describe('Escribir como documento', () => {
     await escribirEnLienzo(page, 'afuera');
 
     await expect(lienzo(page).locator('ul > li')).toHaveText(['uno', 'dos']);
-    await expect(lienzo(page).locator('> p')).toHaveText('afuera');
+    // Detrás de una lista siempre queda un párrafo vacío donde poner el cursor (TrailingNode).
+    await expect(lienzo(page).locator('> p')).toHaveText(['afuera', '']);
   });
 
   test('H1-E3: la negrita se aplica con la barra, se ve en negrita y se quita con el mismo control', async ({
@@ -243,7 +246,7 @@ test.describe('Escribir como documento', () => {
     }
 
     await elegirEstilo(page, 'Párrafo');
-    await expect(lienzo(page).locator('> p')).toHaveText('Un texto');
+    await expect(lienzo(page).locator('> p').first()).toHaveText('Un texto');
     await expect(lienzo(page).locator('h2, h3, h4, blockquote')).toHaveCount(0);
   });
 
@@ -262,7 +265,7 @@ test.describe('Escribir como documento', () => {
     await expect(lienzo(page).locator('ul')).toHaveCount(0);
 
     await botonDeBarra(page, 'Lista numerada').click();
-    await expect(lienzo(page).locator('> p')).toHaveText('Ítem');
+    await expect(lienzo(page).locator('> p')).toHaveText(['Ítem', '']);
   });
 
   test('H1-E5: «/» en una línea vacía abre el menú, se filtra al escribir y Enter inserta la opción activa', async ({

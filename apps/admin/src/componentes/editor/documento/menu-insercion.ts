@@ -19,7 +19,7 @@ const nombreDe = (tipo: TipoBloque, sufijo = '') => `${conMayuscula(nombreDeTipo
  * Inserta un nodo: reemplaza la línea si está vacía o lo pone después del elemento actual. Deja el cursor dentro
  * del nodo nuevo si tiene texto.
  */
-export function insertarElemento(editor: Editor, nodo: JSONContent) {
+function insertarElemento(editor: Editor, nodo: JSONContent) {
   const { $from } = editor.state.selection;
   const actual = $from.node(1);
   const inicio = $from.before(1);

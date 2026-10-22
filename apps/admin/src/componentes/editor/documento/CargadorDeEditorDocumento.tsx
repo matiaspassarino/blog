@@ -2,12 +2,13 @@
 
 // Carga el editor bajo demanda (la librería pesa ~140 KB comprimida y no hace falta en el resto del panel).
 // Mientras llega muestra un esqueleto y, si falla (red caída), un aviso con «Reintentar».
-import { useEffect, useState, type ComponentType } from 'react';
+import { memo, useEffect, useState, type ComponentType } from 'react';
 import { AvisoEstado } from '../../AvisoEstado';
 import { Button } from '../../ui/button';
 import type { PropsEditorDocumento } from './EditorDocumento';
 
-export function CargadorDeEditorDocumento(props: PropsEditorDocumento) {
+// `memo`: volver a dibujar el lienzo en cada tecla le reasigna la selección al navegador y se pierden flechas.
+export const CargadorDeEditorDocumento = memo(function CargadorDeEditorDocumento(props: PropsEditorDocumento) {
   const [Editor, setEditor] = useState<ComponentType<PropsEditorDocumento> | null>(null);
   const [fallo, setFallo] = useState(false);
   const [intento, setIntento] = useState(0);
@@ -53,4 +54,4 @@ export function CargadorDeEditorDocumento(props: PropsEditorDocumento) {
       Cargando el editor…
     </div>
   );
-}
+});

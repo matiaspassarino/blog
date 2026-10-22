@@ -48,7 +48,7 @@ const ESTILOS: Estilo[] = [
   {
     nombre: 'Cita',
     activo: (e) => e.isActive('blockquote'),
-    aplicar: (e) => e.chain().focus().wrapIn('blockquote').run(),
+    aplicar: (e) => e.chain().focus().setParagraph().wrapIn('blockquote').run(),
   },
 ];
 
@@ -363,7 +363,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion }: Props) {
           <Icono nombre="acciones" />
           Acciones
         </Button>
-        <MasAcciones corte="2xl" direccion="abajo" propsBoton={ctl('mas')}>
+        <MasAcciones corte="md" direccion="abajo" propsBoton={ctl('mas')}>
           {deshacerYRehacer}
         </MasAcciones>
         {enModoElementos && (
