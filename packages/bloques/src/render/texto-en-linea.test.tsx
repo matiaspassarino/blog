@@ -73,3 +73,59 @@ describe('Markdown inline en párrafos, citas y listas', () => {
     expect(html).toContain('Un ítem con <em>énfasis</em>.');
   });
 });
+
+// T012 (spec 005): caracterización de la salida actual del sitio. Fija el HTML que genera hoy el analizador en
+// línea para que la extracción a `en-linea.ts` (T022) no cambie nada de lo que ve el lector (R1).
+const P = (interior: string) => `<p class="mt-bloque text-lg leading-relaxed">${interior}</p>`;
+const ENLACE = 'class="underline decoration-marca underline-offset-4 hover:decoration-2"';
+
+describe('Caracterización de la salida en línea (T012)', () => {
+  it.each([
+    ['a **b _c_ d** e', 'a <strong>b <em>c</em> d</strong> e'],
+    ['**a**', '<strong>a</strong>'],
+    ['_a_', '<em>a</em>'],
+    ['`a`**b**', '<code>a</code><strong>b</strong>'],
+    ['_a_**b**', '<em>a</em><strong>b</strong>'],
+    ['**a**_b_', '<strong>a</strong><em>b</em>'],
+    ['**a** **b**', '<strong>a</strong> <strong>b</strong>'],
+    ['_a_ _b_', '<em>a</em> <em>b</em>'],
+    ['`**x**` y **`y`**', '<code>**x**</code> y <strong><code>y</code></strong>'],
+    ['_a _b_', '<em>a _b</em>'],
+  ])('marcas válidas, anidadas y vecinas: %j', (entrada, esperado) => {
+    expect(parrafo(entrada)).toBe(P(esperado));
+  });
+
+  it.each([
+    ['**a **'],
+    ['** a**'],
+    ['foo_bar_ baz'],
+    ['foo_bar_baz'],
+    ['_a_b'],
+    ['**negrita sin cerrar'],
+    ['_cursiva sin cerrar'],
+    ['`sin cerrar'],
+    ['2 * 3 * 4'],
+    ['****'],
+    ['__'],
+    ['``'],
+    ['[]()'],
+    ['[x](/a(b'],
+    ['a*b'],
+  ])('lo que no es una marca válida sale literal: %j', (entrada) => {
+    expect(parrafo(entrada)).toBe(P(entrada));
+  });
+
+  it('enlaces: la URL balancea paréntesis, el externo abre otra pestaña y el inseguro queda como texto', () => {
+    expect(parrafo('[x](/a(b)c) fin')).toBe(P(`<a href="/a(b)c" ${ENLACE}>x</a> fin`));
+    expect(parrafo('[**n**](/x)')).toBe(P(`<a href="/x" ${ENLACE}><strong>n</strong></a>`));
+    expect(parrafo('[a](https://x.com/y)')).toBe(
+      P(
+        `<a href="https://x.com/y" target="_blank" rel="noopener noreferrer" ${ENLACE}>a<span class="sr-only"> (se abre en otra pestaña)</span></a>`,
+      ),
+    );
+    expect(parrafo('[x](javascript:alert(1)) fin')).toBe(P('<span>x</span> fin'));
+    expect(parrafo('[a]()')).toBe(P('<span>a</span>'));
+    expect(parrafo('[a](/x) [b](/y)')).toBe(P(`<a href="/x" ${ENLACE}>a</a> <a href="/y" ${ENLACE}>b</a>`));
+    expect(parrafo('[a [b](/x) c](/y)')).toBe(P(`<a href="/x" ${ENLACE}>a [b</a> c](/y)`));
+  });
+});

@@ -6,11 +6,11 @@ import {
   duplicarBloque,
   moverBloque,
   quitarBloque,
-  type Bloque,
   type Contenido,
   type Imagen,
   type TipoBloque,
 } from '@blog/bloques';
+import type { CambiosDeBloque } from './bloques/tipos';
 
 export type DatosArticulo = {
   version: number;
@@ -37,15 +37,10 @@ export type EstadoEditor = {
 type CampoEditable =
   'titulo' | 'slug' | 'extracto' | 'titulo_seo' | 'descripcion_seo' | 'imagen_destacada' | 'categoria_id' | 'etiquetas';
 
-/**
- * Campos a mezclar en un bloque. Una función recibe el bloque actual: así dos cambios seguidos (por ejemplo dos
- * imágenes que terminan de subir casi a la vez) se suman en lugar de pisarse.
- */
-export type CambiosDeBloque = Partial<Bloque> | ((bloque: Bloque) => Partial<Bloque>);
-
 export type AccionEditor =
   | { tipo: 'campo'; campo: CampoEditable; valor: unknown }
   | { tipo: 'sugerir_slug'; slug: string }
+  | { tipo: 'contenido'; valor: Contenido }
   | { tipo: 'agregar_bloque'; bloque: TipoBloque; posicion?: number }
   | { tipo: 'mover_bloque'; indice: number; destino: number }
   | { tipo: 'duplicar_bloque'; indice: number }
@@ -88,6 +83,8 @@ export function reductor(estado: EstadoEditor, accion: AccionEditor): EstadoEdit
       };
     case 'sugerir_slug':
       return estado.slugManual ? estado : conDatos(estado, { slug: accion.slug });
+    case 'contenido':
+      return conDatos(estado, { contenido: accion.valor });
     case 'agregar_bloque':
       return conDatos(estado, { contenido: agregarBloque(contenido, accion.bloque, accion.posicion) });
     case 'mover_bloque':

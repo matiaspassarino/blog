@@ -39,6 +39,38 @@ export function anuncioDeQuitado(posicion: number, tipo: TipoBloque, quedan: num
   return `Bloque ${posicion}, ${nombreDeTipo(tipo)}, eliminado. ${resto}`;
 }
 
+// Anuncios del editor estilo documento (spec 005, contracts/atajos.md): se dice «elemento», nunca «bloque».
+const articuloIndefinido = (tipo: TipoBloque) => (TIPOS_FEMENINOS.includes(tipo) ? 'una' : 'un');
+
+export const anuncioInsertado = (tipo: TipoBloque, posicion: number, total: number) =>
+  `Se insertó ${articuloIndefinido(tipo)} ${nombreDeTipo(tipo)} en la posición ${posicion} de ${total}`;
+
+export const anuncioMovido = (posicion: number, total: number) => `Elemento movido a la posición ${posicion} de ${total}`;
+
+export const anuncioDuplicado = (posicion: number, total: number) => `Elemento duplicado, posición ${posicion} de ${total}`;
+
+export const anuncioQuitado = (cantidad: number) =>
+  `${cantidad === 1 ? 'Elemento quitado' : `${cantidad} elementos quitados`}. Pulsa Ctrl+Z para deshacer`;
+
+export const anuncioConvertido = (nombre: string) => `Se convirtió en ${nombre}`;
+
+export const anuncioModoElementos = (cantidad: number) =>
+  cantidad === 1 ? '1 elemento seleccionado' : `${cantidad} elementos seleccionados`;
+
+export const anuncioPegadoConSobrante = (cantidad: number) =>
+  `${cantidad === 1 ? 'Se creó 1 párrafo nuevo' : `Se crearon ${cantidad} párrafos nuevos`} por el límite de caracteres`;
+
+export const anuncioDeAvisoDeLimite = (quedan: number) =>
+  `Quedan ${quedan} caracteres (se cuentan las marcas de formato)`;
+
+export const anuncioDeLimiteAlcanzado = () => 'Se alcanzó el máximo de caracteres del párrafo';
+
+export const anuncioDeshacer = (accion: string) => `Se deshizo: ${accion}`;
+
+export const anuncioRehacer = (accion: string) => `Se rehízo: ${accion}`;
+
+export const anuncioSubidaEnCurso = () => 'Subiendo imagen… No se puede mover ni quitar hasta que termine';
+
 const NOMBRES_DE_CAMPO: Record<string, string> = {
   alt: 'Texto alternativo',
   texto: 'Texto',
@@ -71,11 +103,11 @@ export function nombreDeCampo(campo: string) {
   return NOMBRES_DE_CAMPO[segmento ?? ''] ?? conMayuscula(segmento ?? campo);
 }
 
-/** "Hay 3 errores. Revisa el bloque 2, campo Texto alternativo": señala el primero por orden de pantalla. */
+/** "Hay 3 errores. Revisa el elemento 2, campo Texto alternativo": señala el primero por orden de pantalla. */
 export function resumenDeErrores(errores: ErrorBloque[]) {
   const primero = [...errores].sort((a, b) => a.indice - b.indice)[0];
   if (!primero) return '';
   const cantidad = errores.length === 1 ? 'Hay 1 error' : `Hay ${errores.length} errores`;
-  const lugar = primero.indice < 0 ? 'la imagen destacada' : `el bloque ${primero.indice + 1}`;
+  const lugar = primero.indice < 0 ? 'la imagen destacada' : `el elemento ${primero.indice + 1}`;
   return `${cantidad}. Revisa ${lugar}, campo ${nombreDeCampo(primero.campo)}`;
 }

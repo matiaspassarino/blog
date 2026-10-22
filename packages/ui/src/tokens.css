@@ -55,6 +55,10 @@
   --spacing-bloque: 1.5rem;
   /* Separación entre secciones del panel; dentro de una sección se usa gap-4 (spec 004) */
   --spacing-panel-seccion: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  /* Editor de documento (spec 005): panel de propiedades, carril del asa y alto de la hoja inferior */
+  --container-panel-propiedades: 20rem;
+  --carril-asa: var(--tactil-min);
+  --alto-hoja-propiedades: 45dvh;
   --container-lectura: 68ch;
   --container-sitio: 72rem;
   --aspect-tarjeta: 16 / 9;

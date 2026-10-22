@@ -11,7 +11,7 @@ import { ConfirmarAccion } from '../ConfirmarAccion';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
-import { useEditor } from './ContextoEditor';
+import { useContextoEditor } from './ContextoEditor';
 import { SelectorImagen } from './SelectorImagen';
 import { Icono } from '../Icono';
 
@@ -35,7 +35,7 @@ export function ImagenEditable({
   errorAlt,
   etiquetaSelector = 'Elegir imagen',
 }: Props) {
-  const { imagenGuardada } = useEditor();
+  const { imagenGuardada } = useContextoEditor();
   const alt = useRef<HTMLInputElement>(null);
   const pedirFoco = useRef(false);
 

@@ -83,3 +83,26 @@ describe('crearBloque', () => {
     expect(esquemaBloque.safeParse({ ...crearBloque('lista'), items: ['Un item'] }).success).toBe(true);
   });
 });
+
+// T012 (spec 005): caracterización de `textoPlano` sobre textos con las cuatro marcas.
+describe('textoPlano: caracterización (T012)', () => {
+  it.each([
+    ['a **b _c_ d** e', 'a b c d e'],
+    ['**a**', 'a'],
+    ['_a_', 'a'],
+    ['`a`**b**', 'ab'],
+    ['[**n**](/x)', 'n'],
+    ['[a](https://x.com/y)', 'a'],
+    ['[a](/x) [b](/y)', 'a b'],
+    // Desde T023 el contenido de un `código` es literal también en el texto plano (antes se le quitaban las marcas).
+    ['`**x**` y **`y`**', '**x** y y'],
+    ['**a** **b**', 'a b'],
+    ['_a_ _b_', 'a b'],
+    ['**negrita sin cerrar', '**negrita sin cerrar'],
+    ['_cursiva sin cerrar', '_cursiva sin cerrar'],
+    ['`sin cerrar', '`sin cerrar'],
+    ['2 * 3 * 4', '2 * 3 * 4'],
+  ])('%j', (entrada, esperado) => {
+    expect(textoPlano([{ id: id(), tipo: 'parrafo', texto: entrada }] as unknown as Contenido)).toBe(esperado);
+  });
+});

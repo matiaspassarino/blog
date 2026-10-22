@@ -4,6 +4,8 @@ export { esquemaImagen, type Imagen } from './imagen';
 export { esquemaBloque, esquemaContenido, type Bloque, type BloqueDe, type Contenido } from './esquema';
 export { validarContenido, type ErrorBloque } from './validar';
 export { textoPlano, crearBloque } from './utilidades';
+export { analizarEnLinea, serializarEnLinea, normalizarMarcas, type NodoEnLinea } from './en-linea';
+export { partirParrafos, unirParrafos, type TramoDeParrafo } from './parrafos';
 export { detectarImagen, type ImagenDetectada, type TipoImagenArchivo } from './imagen-archivo';
 export { agregarBloque, moverBloque, duplicarBloque, quitarBloque, actualizarBloque } from './operaciones';
 export { aplicarMarca, type MarcaEnLinea, type Seleccion } from './marcas';

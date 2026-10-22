@@ -177,6 +177,26 @@ describe('MasAcciones (T034; RF-019, research D10)', () => {
     expect(etiquetasDe(html).some((e) => e.nombre === 'hr' || e.atributos.role === 'separator')).toBe(false);
   });
 
+  it('T034: por defecto abre hacia arriba y corta a 42 rem (lo de hoy); con props abre hacia abajo y corta a 48 rem', () => {
+    const idDe = (html: string) =>
+      etiquetaDe(html, 'button', (e) => e.atributos['aria-label'] === 'Más acciones')?.atributos['aria-controls'];
+    const porDefecto = menu();
+    const propio = renderToStaticMarkup(
+      <MasAcciones direccion="abajo" corte="3xl">
+        <button>Programar</button>
+      </MasAcciones>,
+    );
+    const panelDe = (html: string) => etiquetasDe(html).find((e) => e.atributos.id === idDe(html));
+
+    expect(panelDe(porDefecto)?.atributos['data-direccion']).toBe('arriba');
+    expect(panelDe(propio)?.atributos['data-direccion']).toBe('abajo');
+    expect(clasesDeEtiqueta(panelDe(propio))).toContain('@3xl:contents');
+    expect(clasesDeEtiqueta(panelDe(propio))).not.toContain('@2xl:contents');
+    expect(
+      clasesDeEtiqueta(etiquetaDe(propio, 'button', (e) => e.atributos['aria-label'] === 'Más acciones')),
+    ).toContain('@3xl:hidden');
+  });
+
   it('sin hijos no renderiza nada (por ejemplo, en un artículo nuevo)', () => {
     expect(renderToStaticMarkup(<MasAcciones>{null}</MasAcciones>)).toBe('');
     expect(renderToStaticMarkup(<MasAcciones>{false}</MasAcciones>)).toBe('');

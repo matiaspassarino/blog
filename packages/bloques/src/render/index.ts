@@ -3,3 +3,4 @@
 // quien solo valida (`@blog/bloques`) no arrastre React.
 export { Bloques } from './Bloques';
 export type { ComponentesBloques, PropsImagen } from './tipos';
+export * from './clases';

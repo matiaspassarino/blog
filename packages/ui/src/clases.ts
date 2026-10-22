@@ -22,7 +22,7 @@ const VARIANTES_PANEL = {
     'border-transparent bg-marca text-marca-contraste hover:bg-marca-hover active:translate-y-px active:bg-marca-hover',
   secundaria: 'border-borde bg-fondo text-texto hover:bg-superficie active:bg-separador',
   terciaria:
-    'border-transparent text-marca hover:bg-marca-suave hover:underline active:bg-marca-suave aria-pressed:bg-marca-suave',
+    'border-transparent text-marca hover:bg-marca-suave hover:underline active:bg-marca-suave aria-pressed:border-marca aria-pressed:bg-marca-suave',
   peligro: 'border-error-borde bg-error-suave text-error hover:bg-fondo active:bg-separador',
 } as const;
 

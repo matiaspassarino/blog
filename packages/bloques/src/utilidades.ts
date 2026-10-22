@@ -1,13 +1,11 @@
+import { analizarEnLinea, type NodoEnLinea } from './en-linea';
 import type { BloqueDe, Contenido } from './esquema';
 import type { TipoBloque } from './tipos-bloque';
 
-// Quita las marcas del Markdown inline (research D9) y las URLs de los enlaces.
-const sinMarcas = (texto: string) =>
-  texto
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/`([^`]*)`/g, '$1');
+// Texto sin las marcas del Markdown inline (research D9) ni las URLs de los enlaces; el U+200B de escape se ignora.
+const textoDeNodos = (nodos: NodoEnLinea[]): string =>
+  nodos.map((nodo) => ('hijos' in nodo ? textoDeNodos(nodo.hijos) : nodo.texto)).join('');
+const sinMarcas = (texto: string) => textoDeNodos(analizarEnLinea(texto)).replaceAll('\u200b', '');
 
 /** Texto legible del contenido (extractos, tiempo de lectura). Omite los bloques de código. */
 export function textoPlano(contenido: Contenido): string {

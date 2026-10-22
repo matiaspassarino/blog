@@ -1,7 +1,6 @@
 'use client';
 
 import type { Bloque, ErrorBloque } from '@blog/bloques';
-import type { CambiosDeBloque } from '../reductor';
 import { EditorCita } from './EditorCita';
 import { EditorCodigo } from './EditorCodigo';
 import { EditorCta } from './EditorCta';
@@ -11,6 +10,7 @@ import { EditorLista } from './EditorLista';
 import { EditorParrafo } from './EditorParrafo';
 import { EditorSeparador } from './EditorSeparador';
 import { EditorTitulo } from './EditorTitulo';
+import type { CambiosDeBloque } from './tipos';
 import { EditorVideo } from './EditorVideo';
 
 type Props = {

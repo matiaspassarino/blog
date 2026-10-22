@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { cambiarEstadoAccion, eliminarArticuloAccion } from '../../acciones/articulos';
 import { mensajeDeError } from '../../lib/mensajes';
 import { urlDeSalida } from '../../lib/salir';
-import { useEditor } from '../editor/ContextoEditor';
+import { useContextoEditor } from '../editor/ContextoEditor';
 import { ANUNCIOS, destinoDe, type AccionEstado } from './acciones-disponibles';
 
 /** `mensaje` vacío: ya se redirigió al ingreso y no hay nada que mostrar. */
@@ -24,7 +24,7 @@ type Opciones = {
 
 export function useCambioDeEstado({ id, version, hayCambiosSinGuardar, alCambiarEstado }: Opciones) {
   const router = useRouter();
-  const { anunciar } = useEditor();
+  const { anunciar } = useContextoEditor();
   const [ocupado, setOcupado] = useState(false);
 
   async function cambiar(accion: Exclude<AccionEstado, 'eliminar'>, programadoPara?: string): Promise<ResultadoCambio> {

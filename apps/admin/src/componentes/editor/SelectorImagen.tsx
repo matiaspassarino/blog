@@ -7,7 +7,7 @@ import { crearClienteNavegador } from '@blog/db/navegador';
 import { useId, useRef, useState } from 'react';
 import { firmarSubidaMedio, registrarMedio } from '../../acciones/medios';
 import { Button } from '../ui/button';
-import { useEditor } from './ContextoEditor';
+import { useContextoEditor } from './ContextoEditor';
 
 const TIPOS_ACEPTADOS = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 const LIMITE_BYTES = 5_242_880;
@@ -25,7 +25,7 @@ type Props = {
 };
 
 export function SelectorImagen({ etiqueta, alSubir, idBoton, error }: Props) {
-  const { anunciar, subiendo } = useEditor();
+  const { anunciar, subiendo } = useContextoEditor();
   const entrada = useRef<HTMLInputElement>(null);
   const boton = useRef<HTMLButtonElement>(null);
   const idError = useId();

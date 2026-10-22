@@ -13,8 +13,8 @@ export type ContextoDelEditor = {
 
 export const ContextoEditor = createContext<ContextoDelEditor | null>(null);
 
-export function useEditor(): ContextoDelEditor {
+export function useContextoEditor(): ContextoDelEditor {
   const contexto = useContext(ContextoEditor);
-  if (!contexto) throw new Error('useEditor debe usarse dentro de <EditorArticulo>');
+  if (!contexto) throw new Error('useContextoEditor debe usarse dentro de <EditorArticulo>');
   return contexto;
 }

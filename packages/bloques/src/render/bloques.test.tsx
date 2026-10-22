@@ -260,3 +260,24 @@ describe('tipo desconocido', () => {
     expect(String(aviso.mock.calls[0]?.join(' '))).toContain('tabla');
   });
 });
+
+// T012 (spec 005): caracterización de cómo parte `Parrafo` el texto (R1: el sitio no cambia).
+describe('Caracterización de los párrafos (T012)', () => {
+  const P = (interior: string) => `<p class="mt-bloque text-lg leading-relaxed">${interior}</p>`;
+  const parrafo = (texto: string) => renderizar(contenidoDe({ tipo: 'parrafo', texto }));
+
+  it.each([
+    ['A\nB', P('A<br/>B')],
+    ['A \n B', P('A <br/> B')],
+    ['A\n\nB', P('A') + P('B')],
+    ['A\n\n\nB', P('A') + P('B')],
+    ['A\n\n\n\nB', P('A') + P('B')],
+    ['A\nB\n\nC\nD', P('A<br/>B') + P('C<br/>D')],
+    ['A\n\n  \n\nB', P('A') + P('B')],
+    ['A\n\n', P('A')],
+    ['\n\nA', P('A')],
+    ['  \n\n  ', ''],
+  ])('%j', (texto, esperado) => {
+    expect(parrafo(texto)).toBe(esperado);
+  });
+});
