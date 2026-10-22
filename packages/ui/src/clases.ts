@@ -27,7 +27,7 @@ const VARIANTES_PANEL = {
 } as const;
 
 const TAMANIOS_PANEL = {
-  estandar: 'px-5 py-2.5',
+  estandar: 'px-5 py-2',
   compacto: 'min-w-(--tactil-min) px-3 py-1.5 text-sm',
   soloIcono: 'size-(--tactil-min) min-w-(--tactil-min) p-0',
 } as const;

@@ -12,7 +12,7 @@ import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
 import { ContextoEditor, type ContextoDelEditor } from '../editor/ContextoEditor';
 import { ImagenEditable } from '../editor/ImagenEditable';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 
@@ -99,7 +99,8 @@ export function FormularioPerfil({ perfil }: Props) {
         <Button
           type="submit"
           variante="primaria"
-          aria-disabled={guardando || subidas > 0 || undefined}
+          aria-disabled={subidas > 0 || undefined}
+          {...estadoOcupado(guardando, 'Guardando…')}
           className="self-start"
         >
           Guardar perfil

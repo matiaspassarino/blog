@@ -69,8 +69,9 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
                 <TableCell etiqueta="Artículos">{taxonomia.conteo}</TableCell>
                 <TableCell etiqueta="Acciones" className="max-md:flex-wrap">
                   <div className="flex flex-wrap gap-2">
-                    <Button variante="secundaria" onClick={() => setEditando(taxonomia)}>
-                      {`Editar ${taxonomia.nombre}`}
+                    <Button variante="secundaria" tamanio="compacto" onClick={() => setEditando(taxonomia)}>
+                      Editar
+                      <span className="sr-only"> {taxonomia.nombre}</span>
                     </Button>
                     <ConfirmarAccion
                       titulo={`¿Eliminar ${taxonomia.nombre}?`}
@@ -79,9 +80,10 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
                       variante="peligro"
                       onConfirmar={() => eliminar(taxonomia)}
                     >
-                      <Button variante="peligro">
-                        <Icono nombre="papelera" />
-                        {`Eliminar ${taxonomia.nombre}`}
+                      <Button variante="peligro" tamanio="compacto">
+                        Eliminar
+                        <span className="sr-only"> {taxonomia.nombre}</span>
+                        <Icono nombre="papelera" className="order-first" />
                       </Button>
                     </ConfirmarAccion>
                   </div>

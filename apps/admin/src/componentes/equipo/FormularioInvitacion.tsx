@@ -5,7 +5,7 @@
 import { useRef, useState } from 'react';
 import { invitarMiembro } from '../../acciones/equipo';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select } from '../ui/select';
 
@@ -61,7 +61,7 @@ export function FormularioInvitacion({ alExito, alError }: Props) {
           )}
         </CampoFormulario>
       </div>
-      <Button type="submit" variante="primaria" aria-disabled={enviando || undefined} className="self-start">
+      <Button type="submit" variante="primaria" {...estadoOcupado(enviando, 'Enviando…')} className="self-start">
         Enviar invitación
       </Button>
     </form>

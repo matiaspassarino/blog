@@ -92,12 +92,14 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                 {fila.acceso === 'invitado' && (
                   <Button
                     variante="secundaria"
+                    tamanio="compacto"
                     aria-disabled={ocupado || undefined}
                     onClick={() =>
                       ejecutar(() => reenviarInvitacion({ id: fila.id }), `Invitación reenviada a ${fila.correo}`)
                     }
                   >
-                    {`Reenviar invitación a ${fila.nombre}`}
+                    Reenviar invitación
+                    <span className="sr-only"> a {fila.nombre}</span>
                   </Button>
                 )}
                 {fila.activo ? (
@@ -110,20 +112,23 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: false }), 'Miembro desactivado')
                     }
                   >
-                    <Button variante="peligro">
-                      <Icono nombre="prohibido" />
-                      {`Desactivar ${fila.nombre}`}
+                    <Button variante="peligro" tamanio="compacto">
+                      Desactivar
+                      <span className="sr-only"> {fila.nombre}</span>
+                      <Icono nombre="prohibido" className="order-first" />
                     </Button>
                   </ConfirmarAccion>
                 ) : (
                   <Button
                     variante="secundaria"
+                    tamanio="compacto"
                     aria-disabled={ocupado || undefined}
                     onClick={() =>
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: true }), 'Miembro reactivado')
                     }
                   >
-                    {`Reactivar ${fila.nombre}`}
+                    Reactivar
+                    <span className="sr-only"> {fila.nombre}</span>
                   </Button>
                 )}
               </div>

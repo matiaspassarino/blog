@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { previsualizarSlugAccion } from '../../acciones/articulos';
 import { crearTaxonomiaAccion } from '../../acciones/taxonomias';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { TEXTOS, type Tipo } from './textos';
@@ -85,7 +85,7 @@ export function FormularioAlta({ tipo, alError }: Props) {
           <Textarea {...a} value={descripcion} maxLength={300} onChange={(e) => setDescripcion(e.target.value)} />
         )}
       </CampoFormulario>
-      <Button type="submit" variante="primaria" aria-disabled={enviando || undefined} className="self-start">
+      <Button type="submit" variante="primaria" {...estadoOcupado(enviando, 'Enviando…')} className="self-start">
         {textos.crear}
       </Button>
     </form>
