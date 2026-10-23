@@ -1,50 +1,50 @@
 'use client';
 
-import type { Bloque, ErrorBloque } from '@blog/bloques';
+import { datosDeElemento, type Elemento, type ErrorElemento } from '@blog/bloques';
 import { EditorCita } from './EditorCita';
 import { EditorCodigo } from './EditorCodigo';
 import { EditorCta } from './EditorCta';
 import { EditorGaleria } from './EditorGaleria';
 import { EditorImagen } from './EditorImagen';
 import { EditorLista } from './EditorLista';
-import { EditorSeparador } from './EditorSeparador';
 import { EditorTitulo } from './EditorTitulo';
-import type { CambiosDeBloque } from './tipos';
+import type { CambiosDeElemento } from './tipos';
 import { EditorVideo } from './EditorVideo';
 
 type Props = {
-  bloque: Bloque;
+  elemento: Elemento;
   indice: number;
-  errores: ErrorBloque[];
-  cambiar: (cambios: CambiosDeBloque) => void;
-  /** En el panel de propiedades los elementos de texto no repiten su texto (se escribe en el lienzo). */
-  soloPropiedades?: boolean;
+  errores: ErrorElemento[];
+  cambiar: (cambios: CambiosDeElemento) => void;
 };
 
-/** Elige el editor según el tipo; cada uno conoce solo los campos de su tipo. */
-export function EditorDeBloque({ bloque, indice, errores, cambiar, soloPropiedades }: Props) {
-  // Cada editor recibe `cambiar` acotado a su tipo: el cast es seguro porque el bloque ya es de ese tipo.
-  const comun = { indice, errores, cambiar: cambiar as never, soloPropiedades };
-  switch (bloque.tipo) {
-    case 'parrafo':
-      return null; // el texto se escribe en el lienzo y no tiene más propiedades
-    case 'titulo':
-      return <EditorTitulo bloque={bloque} {...comun} />;
+/**
+ * Elige el editor de campos según el tipo; cada uno conoce solo los campos de su tipo y los recibe con los nombres
+ * del panel (`datosDeElemento`). El texto de los elementos de texto se escribe en el lienzo; el párrafo y el
+ * separador no tienen campos.
+ */
+export function EditorDeBloque({ elemento, indice, errores, cambiar }: Props) {
+  // Cada editor recibe `cambiar` acotado a su tipo: el cast es seguro porque el elemento ya es de ese tipo.
+  const comun = { indice, errores, cambiar: cambiar as never };
+  switch (elemento.type) {
+    case 'heading':
+      return <EditorTitulo datos={datosDeElemento(elemento)} {...comun} />;
     case 'imagen':
-      return <EditorImagen bloque={bloque} {...comun} />;
-    case 'cita':
-      return <EditorCita bloque={bloque} {...comun} />;
-    case 'lista':
-      return <EditorLista bloque={bloque} {...comun} />;
+      return <EditorImagen datos={datosDeElemento(elemento)} {...comun} />;
+    case 'blockquote':
+      return <EditorCita datos={datosDeElemento(elemento)} {...comun} />;
+    case 'bulletList':
+    case 'orderedList':
+      return <EditorLista datos={datosDeElemento(elemento)} {...comun} />;
     case 'galeria':
-      return <EditorGaleria bloque={bloque} {...comun} />;
+      return <EditorGaleria datos={datosDeElemento(elemento)} {...comun} />;
     case 'cta':
-      return <EditorCta bloque={bloque} {...comun} />;
-    case 'separador':
-      return <EditorSeparador />;
-    case 'codigo':
-      return <EditorCodigo bloque={bloque} {...comun} />;
+      return <EditorCta datos={datosDeElemento(elemento)} {...comun} />;
+    case 'codeBlock':
+      return <EditorCodigo datos={datosDeElemento(elemento)} {...comun} />;
     case 'video':
-      return <EditorVideo bloque={bloque} {...comun} />;
+      return <EditorVideo datos={datosDeElemento(elemento)} {...comun} />;
+    default:
+      return null;
   }
 }

@@ -1,6 +1,6 @@
 // Estado del editor de artículos como funciones puras (spec 003, research D12 y D13). El componente
 // `EditorArticulo` lo usa con `useReducer`; vive aparte para probarlo sin React.
-import type { Contenido, Imagen } from '@blog/bloques';
+import type { Documento, Imagen } from '@blog/bloques';
 
 export type DatosArticulo = {
   version: number;
@@ -11,7 +11,7 @@ export type DatosArticulo = {
   descripcion_seo: string | null;
   imagen_destacada: Imagen | null;
   categoria_id: string | null;
-  contenido: Contenido;
+  contenido: Documento;
   /** Ids de etiquetas. */
   etiquetas: string[];
 };
@@ -30,7 +30,7 @@ type CampoEditable =
 export type AccionEditor =
   | { tipo: 'campo'; campo: CampoEditable; valor: unknown }
   | { tipo: 'sugerir_slug'; slug: string }
-  | { tipo: 'contenido'; valor: Contenido }
+  | { tipo: 'contenido'; valor: Documento }
   | { tipo: 'guardado'; articulo: DatosArticulo }
   | { tipo: 'adoptar_vigente'; articulo: DatosArticulo };
 

@@ -3,12 +3,12 @@
 // Propiedades del elemento seleccionado (contracts/componentes.md): un solo componente para la pestaña «Elemento» de
 // la columna lateral (desde 1280 px) y para la hoja inferior (por debajo). Muestra el editor de campos del tipo del
 // elemento; el texto de los elementos de texto se escribe en el lienzo.
-import type { ErrorBloque } from '@blog/bloques';
+import type { ErrorElemento } from '@blog/bloques';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../ui/button';
-import { nombreDeTipo } from '../anuncios';
+import { nombreDeTipo, tipoVisibleDe } from '../anuncios';
 import { EditorDeBloque } from '../bloques/EditorDeBloque';
-import type { CambiosDeBloque } from '../bloques/tipos';
+import type { CambiosDeElemento } from '../bloques/tipos';
 import type { SeleccionDelDocumento } from './tipos';
 
 type Props = {
@@ -16,23 +16,25 @@ type Props = {
   seleccion: SeleccionDelDocumento;
   /** Posición del elemento en el documento (desde 1). */
   posicion: number;
-  /** Índice del bloque en la lista convertida: forma los ids de los campos (`bloque-<indice>-<campo>`). */
+  /** Índice del elemento en el documento: forma los ids de los campos (`bloque-<indice>-<campo>`). */
   indice: number;
-  errores: ErrorBloque[];
-  alCambiar: (cambios: CambiosDeBloque) => void;
+  errores: ErrorElemento[];
+  alCambiar: (cambios: CambiosDeElemento) => void;
   /** Solo en la hoja. */
   alCerrar?: () => void;
 };
 
 export function PropiedadesDelElemento({ variante, seleccion, posicion, indice, errores, alCambiar, alCerrar }: Props) {
-  const bloques = seleccion.tipo === 'elementos' ? seleccion.bloques : [];
-  const bloque = bloques.length === 1 ? bloques[0] : undefined;
-  const sinPropiedades = bloque?.tipo === 'parrafo' || bloque?.tipo === 'separador';
+  const elementos = seleccion.tipo === 'elementos' ? seleccion.elementos : [];
+  const elemento = elementos.length === 1 ? elementos[0] : undefined;
+  const sinPropiedades = elemento?.type === 'paragraph' || elemento?.type === 'horizontalRule';
 
   return (
     <aside
       aria-label={
-        bloque ? `Propiedades del elemento ${posicion}, ${nombreDeTipo(bloque.tipo)}` : 'Propiedades del elemento'
+        elemento
+          ? `Propiedades del elemento ${posicion}, ${nombreDeTipo(tipoVisibleDe(elemento.type))}`
+          : 'Propiedades del elemento'
       }
       data-variante={variante}
       className={cn(
@@ -48,13 +50,13 @@ export function PropiedadesDelElemento({ variante, seleccion, posicion, indice, 
           </Button>
         </div>
       )}
-      {bloques.length === 0 && <p className="text-texto-suave">Selecciona un elemento para editar sus propiedades</p>}
-      {bloques.length > 1 && <p className="font-semibold">{bloques.length} elementos seleccionados</p>}
-      {bloque && sinPropiedades && (
+      {elementos.length === 0 && <p className="text-texto-suave">Selecciona un elemento para editar sus propiedades</p>}
+      {elementos.length > 1 && <p className="font-semibold">{elementos.length} elementos seleccionados</p>}
+      {elemento && sinPropiedades && (
         <p className="text-texto-suave">Este elemento no tiene propiedades. Escribe en el documento.</p>
       )}
-      {bloque && !sinPropiedades && (
-        <EditorDeBloque bloque={bloque} indice={indice} errores={errores} cambiar={alCambiar} soloPropiedades />
+      {elemento && !sinPropiedades && (
+        <EditorDeBloque elemento={elemento} indice={indice} errores={errores} cambiar={alCambiar} />
       )}
     </aside>
   );

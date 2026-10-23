@@ -1,8 +1,8 @@
 ---
 // Artículo publicado (H1; contracts/rutas.md): entidad → 301 por slug anterior → 404.
 // HTML cacheado en el CDN e invalidado por tags (research D1–D3).
-import type { Contenido, Imagen } from '@blog/bloques';
-import { Bloques } from '@blog/bloques/render';
+import type { Documento as TipoDocumento, Imagen } from '@blog/bloques';
+import { Documento } from '@blog/bloques/render';
 import { listarRelacionados, obtenerArticuloPublicado, resolverRedireccion, urlImagen } from '@blog/db';
 import { Image } from 'astro:assets';
 import { PUBLIC_SUPABASE_URL } from 'astro:env/server';
@@ -45,9 +45,9 @@ const relacionados = await listarRelacionados(datos, { id: articulo.id, categori
 Astro.cache.set(cacheArticulo(articulo, relacionados));
 
 /** Imágenes del cuerpo, para precalcular sus variantes (research D7). */
-const imagenesDe = (contenido: Contenido): Imagen[] =>
-  contenido.flatMap((bloque) =>
-    bloque.tipo === 'imagen' ? [bloque.imagen] : bloque.tipo === 'galeria' ? bloque.imagenes : [],
+const imagenesDe = (contenido: TipoDocumento): Imagen[] =>
+  contenido.content.flatMap((elemento) =>
+    elemento.type === 'imagen' ? [elemento.attrs.imagen] : elemento.type === 'galeria' ? elemento.attrs.imagenes : [],
   );
 const variantes = await precalcularVariantes(imagenesDe(articulo.contenido), PUBLIC_SUPABASE_URL);
 
@@ -131,7 +131,7 @@ const migas: Miga[] = migasDelBlog(
     }
 
     <Contenedor ancho="lectura" class="pb-4">
-      <Bloques contenido={articulo.contenido} componentes={{ Imagen: crearImagenWeb(variantes) }} />
+      <Documento contenido={articulo.contenido} componentes={{ Imagen: crearImagenWeb(variantes) }} />
 
       {
         articulo.etiquetas.length > 0 && (

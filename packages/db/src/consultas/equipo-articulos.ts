@@ -1,5 +1,5 @@
 // Operaciones del equipo sobre artículos (contracts/db.md, "Operaciones del equipo").
-import { validarContenido, type Contenido, type ErrorBloque } from '@blog/bloques';
+import { esquemaDocumento, validarDocumento, type ErrorElemento } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
 import { ErrorDominio, traducirError } from '../errores';
 import type { Database, Json } from '../tipos';
@@ -48,13 +48,13 @@ type CamposValidables = Pick<CambiosArticulo, 'contenido' | 'imagen_destacada'>;
  * Los errores de la imagen destacada usan `indice: -1` y `campo: 'imagen_destacada.…'`.
  */
 function validarCampos(datos: CamposValidables): CamposValidables {
-  const errores: ErrorBloque[] = [];
+  const errores: ErrorElemento[] = [];
   const validados: CamposValidables = {};
 
   if (datos.contenido !== undefined) {
-    const validacion = validarContenido(datos.contenido);
-    if (validacion.ok) validados.contenido = validacion.contenido satisfies Contenido as NonNullable<Json>;
-    else errores.push(...validacion.errores);
+    const erroresDelDocumento = validarDocumento(datos.contenido);
+    if (erroresDelDocumento.length === 0) validados.contenido = esquemaDocumento.parse(datos.contenido) as NonNullable<Json>;
+    else errores.push(...erroresDelDocumento);
   }
 
   if (datos.imagen_destacada !== undefined && datos.imagen_destacada !== null) {

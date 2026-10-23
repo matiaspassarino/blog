@@ -8,7 +8,7 @@
 //     seleccion: SeleccionDelDocumento;       // `{ tipo: 'elementos', desde, hasta, bloques }` o `{ tipo: 'texto' }`
 //     posicion: number;                       // posición del elemento seleccionado en el documento (desde 1)
 //     indice: number;                         // índice del bloque en la lista convertida (ids de campo `bloque-<indice>-<campo>`)
-//     errores: ErrorBloque[];                 // los errores de ese bloque (ya filtrados; `indice` el de la lista)
+//     errores: ErrorElemento[];                 // los errores de ese bloque (ya filtrados; `indice` el de la lista)
 //     alCambiar: (cambios: CambiosDeBloque) => void;   // forma funcional de `bloques/tipos`
 //     alCerrar?: () => void;                  // solo la variante `hoja`
 //   })

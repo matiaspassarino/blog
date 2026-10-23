@@ -1,6 +1,6 @@
-import { Bloques } from '@blog/bloques/render';
+import { Documento } from '@blog/bloques/render';
 import { obtenerArticuloParaEditar } from '@blog/db';
-import type { Contenido, Imagen } from '@blog/bloques';
+import type { Documento as TipoDocumento, Imagen } from '@blog/bloques';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ImagenAdmin } from '../../../../../componentes/ImagenAdmin';
@@ -37,7 +37,7 @@ export default async function PaginaVistaPrevia({ params }: PageProps<'/articulo
           </div>
         )}
         <div className="mt-6">
-          <Bloques contenido={articulo.contenido as Contenido} componentes={{ Imagen: ImagenAdmin }} />
+          <Documento contenido={articulo.contenido as TipoDocumento} componentes={{ Imagen: ImagenAdmin }} />
         </div>
       </article>
     </div>

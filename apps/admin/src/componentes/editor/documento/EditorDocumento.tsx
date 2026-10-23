@@ -2,8 +2,8 @@
 
 // El lienzo del artículo: un documento continuo que se escribe como en un procesador de texto (spec 005). La
 // librería vive en este módulo, que se carga bajo demanda (`CargadorDeEditorDocumento`). Cada transacción que
-// cambia el documento se convierte a la lista de bloques con `documentoABloques` y sube por `alCambiar`.
-import type { Bloque, Contenido, ErrorBloque } from '@blog/bloques';
+// cambia el documento sube por `alCambiar` en forma canónica (`normalizarDocumento`, research D24).
+import { normalizarDocumento, type Documento, type Elemento, type ErrorElemento } from '@blog/bloques';
 import type { Editor } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
@@ -12,25 +12,24 @@ import { ConfirmarAccion } from '../../ConfirmarAccion';
 import { anuncioConvertido, anuncioModoElementos } from '../anuncios';
 import { useContextoEditor } from '../ContextoEditor';
 import { BarraHerramientas } from './BarraHerramientas';
-import { bloquesADocumento, documentoABloques } from './conversion';
-import type { CambiosDeBloque } from '../bloques/tipos';
+import type { CambiosDeElemento } from '../bloques/tipos';
 import type { ContextoDeAcciones } from './acciones-elemento';
 import { AsaDeElemento } from './AsaDeElemento';
 import { AyudaAtajos } from './AyudaAtajos';
-import { actualizarBloque, bloqueDeElemento, buscarElemento, SeleccionDeElementos } from './comandos';
+import { actualizarElemento, buscarElemento, elementoDeNodo, SeleccionDeElementos } from './comandos';
 import { claveErrores, claveModo, claveSubidas } from './claves';
 import { crearExtensiones, type DevolucionesDelEditor, type EstadoMenu } from './extensiones';
-import { erroresPorBloqueId } from './mapa-errores';
+import { erroresPorId } from './mapa-errores';
 import { filtrarItems } from './menu-insercion';
 import { MenuInsertar } from './MenuInsertar';
 import type { ElementoActivo, SeleccionDelDocumento } from './tipos';
 
 export type PropsEditorDocumento = {
   /** Lo guardado o lo adoptado: se vuelve a crear el documento (y su historial) cuando cambia `reinicio`. */
-  contenido: Contenido;
+  contenido: Documento;
   reinicio: number;
-  errores: ErrorBloque[];
-  alCambiar: (contenido: Contenido) => void;
+  errores: ErrorElemento[];
+  alCambiar: (contenido: Documento) => void;
   alSeleccionar: (seleccion: SeleccionDelDocumento, elemento: ElementoActivo | null) => void;
   /** «Propiedades» (barra), `Enter` en el modo elementos o «Subir imagen»: abrir y enfocar el panel. */
   alPropiedades: () => void;
@@ -38,7 +37,7 @@ export type PropsEditorDocumento = {
   acciones: Ref<AccionesDelLienzo>;
   /** Anuncios para la región de estado persistente del editor. */
   anunciar: (mensaje: string) => void;
-  /** `bloqueId` de los elementos con una subida de imagen en curso: no se pueden mover ni quitar. */
+  /** `id` de los elementos con una subida de imagen en curso: no se pueden mover ni quitar. */
   subidasEnCurso: ReadonlySet<string>;
   /** La hoja de propiedades está abierta; `Esc` la cierra al final del orden de `Esc`. */
   hojaAbierta: boolean;
@@ -48,26 +47,26 @@ export type PropsEditorDocumento = {
 };
 
 export type AccionesDelLienzo = {
-  /** Mezcla campos en el elemento con ese `bloqueId` (se busca al aplicar, no por la selección). */
-  actualizarBloque: (bloqueId: string, cambios: CambiosDeBloque) => void;
+  /** Mezcla campos en el elemento con ese `id` (se busca al aplicar, no por la selección). */
+  actualizarElemento: (id: string, cambios: CambiosDeElemento) => void;
   /** Selecciona el elemento entero y lo deja a la vista. */
-  seleccionarBloque: (bloqueId: string) => void;
+  seleccionarElemento: (id: string) => void;
   /** Devuelve el foco al lienzo conservando la selección. */
   enfocar: () => void;
   /** Reemplaza el documento por lo que devolvió el servidor, en el mismo historial y con el cursor donde estaba. */
-  adoptarContenido: (contenido: Contenido) => void;
+  adoptarContenido: (contenido: Documento) => void;
 };
 
 const ALTO_DEL_MENU_PX = 320;
 
-/** Mensajes de error de cada elemento, por `bloqueId`. */
-function mensajesPorBloque(editor: Editor, errores: ErrorBloque[]): Map<string, string[]> {
-  try {
-    const porId = erroresPorBloqueId(documentoABloques(editor.getJSON()), errores);
-    return new Map([...porId].map(([id, lista]) => [id, lista.map((error) => error.mensaje)]));
-  } catch {
-    return new Map(); // sin ids todavía: no hay nada que marcar
-  }
+/** El documento como lo abre el editor: el esquema exige al menos un elemento, así que uno vacío lleva un párrafo. */
+const paraElEditor = (documento: Documento) =>
+  documento.content.length > 0 ? documento : { type: 'doc', content: [{ type: 'paragraph' }] };
+
+/** Mensajes de error de cada elemento, por `id`. */
+function mensajesPorElemento(editor: Editor, errores: ErrorElemento[]): Map<string, string[]> {
+  const porId = erroresPorId(normalizarDocumento(editor.getJSON()), errores);
+  return new Map([...porId].map(([id, lista]) => [id, lista.map((error) => error.mensaje)]));
 }
 
 /**
@@ -81,19 +80,15 @@ function leerSeleccion(
   const { selection, doc } = editor.state;
   const modo = Boolean(claveModo.getState(editor.state));
   if (selection instanceof SeleccionDeElementos) {
-    const bloques: Bloque[] = [];
+    const elementos: Elemento[] = [];
     doc.nodesBetween(selection.from, selection.to, (nodo) => {
-      try {
-        const bloque = bloqueDeElemento(nodo);
-        if (bloque) bloques.push(bloque);
-      } catch {
-        // un elemento sin identidad todavía
-      }
+      const elemento = elementoDeNodo(nodo);
+      if (elemento) elementos.push(elemento);
       return false;
     });
     const desde = doc.resolve(selection.from).index(0);
     const hasta = doc.resolve(selection.to).index(0);
-    return [{ tipo: 'elementos', desde, hasta, bloques, modo }, null];
+    return [{ tipo: 'elementos', desde, hasta, elementos, modo }, null];
   }
   const entero = selection instanceof NodeSelection && selection.$from.depth === 0;
   if (
@@ -105,19 +100,16 @@ function leerSeleccion(
   }
   const nodo = entero ? selection.node : selection.$from.node(1);
   if (!entero && nodo.type.name === 'paragraph') return [{ tipo: 'texto' }, null];
-  const bloqueId = String(nodo.attrs.bloqueId ?? '');
-  try {
-    const bloque = bloqueId ? bloqueDeElemento(nodo) : undefined;
-    if (!bloque) return [{ tipo: 'texto' }, null];
-    const posicion = selection.$from.index(0) + 1;
-    const indice = documentoABloques(doc.toJSON()).findIndex((otro) => otro.id === bloqueId);
-    return [
-      { tipo: 'elementos', desde: posicion - 1, hasta: posicion, bloques: [bloque], modo },
-      { bloqueId, posicion, indice, origen },
-    ];
-  } catch {
-    return [{ tipo: 'texto' }, null];
-  }
+  const id = String(nodo.attrs.id ?? '');
+  const elemento = id ? elementoDeNodo(nodo) : undefined;
+  if (!elemento) return [{ tipo: 'texto' }, null];
+  const posicion = selection.$from.index(0) + 1;
+  // Los errores llegan con el índice del documento guardado (sin los párrafos vacíos): los ids de los campos también.
+  const indice = normalizarDocumento(doc.toJSON()).content.findIndex((otro) => otro.attrs.id === id);
+  return [
+    { tipo: 'elementos', desde: posicion - 1, hasta: posicion, elementos: [elemento], modo },
+    { id, posicion, indice, origen },
+  ];
 }
 
 export default function EditorDocumento({
@@ -236,7 +228,7 @@ export default function EditorDocumento({
     // La barra se actualiza sola (useEditorState): volver a dibujar el lienzo en cada transacción le pisa el cursor.
     shouldRerenderOnTransaction: false,
     extensions: extensiones,
-    content: bloquesADocumento(contenido),
+    content: paraElEditor(contenido),
     editable: !bloqueado,
     editorProps: {
       attributes: {
@@ -246,11 +238,7 @@ export default function EditorDocumento({
       },
     },
     onUpdate: ({ editor: actual }) => {
-      try {
-        ultimo.current.alCambiar(documentoABloques(actual.getJSON()));
-      } catch {
-        // Un elemento sin identidad todavía: el plugin de ids lo completa en la siguiente transacción.
-      }
+      ultimo.current.alCambiar(normalizarDocumento(actual.getJSON()));
       // Si un elemento especial está seleccionado, el panel sigue mostrando sus datos al día.
       publicarSeleccion(actual, 'puntero');
     },
@@ -274,11 +262,11 @@ export default function EditorDocumento({
   useImperativeHandle(
     acciones,
     () => ({
-      actualizarBloque: (bloqueId, cambios) => {
-        if (editor) actualizarBloque(editor, bloqueId, cambios);
+      actualizarElemento: (id, cambios) => {
+        if (editor) actualizarElemento(editor, id, cambios);
       },
-      seleccionarBloque: (bloqueId) => {
-        const elemento = editor && buscarElemento(editor, bloqueId);
+      seleccionarElemento: (id) => {
+        const elemento = editor && buscarElemento(editor, id);
         if (!editor || !elemento) return;
         editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, elemento.pos)));
         (editor.view.nodeDOM(elemento.pos) as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
@@ -292,7 +280,7 @@ export default function EditorDocumento({
         // Sin `emitUpdate`: el reductor ya tiene lo del servidor. `setTextSelection` acota al nuevo largo.
         editor
           .chain()
-          .setContent(bloquesADocumento(nuevo), { emitUpdate: false })
+          .setContent(paraElEditor(nuevo), { emitUpdate: false })
           .setTextSelection({ from, to })
           .run();
       },
@@ -309,10 +297,10 @@ export default function EditorDocumento({
     return () => lienzo.removeEventListener('abrir-propiedades', abrir);
   }, [editor]);
 
-  // Los errores de validación marcan los elementos por `bloqueId` (el índice del bloque no es la posición).
+  // Los errores de validación marcan los elementos por `id` (el índice del error no es la posición en el lienzo).
   useEffect(() => {
     if (!editor) return;
-    const mapa = mensajesPorBloque(editor, errores);
+    const mapa = mensajesPorElemento(editor, errores);
     editor.view.dispatch(editor.state.tr.setMeta(claveErrores, mapa).setMeta('addToHistory', false));
   }, [editor, errores]);
 

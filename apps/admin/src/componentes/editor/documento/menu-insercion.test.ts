@@ -7,21 +7,20 @@
 //     sin tildes ni mayúsculas, por nombre y descripción; consulta vacía = todos; los que coinciden por nombre van
 //     antes que los que coinciden solo por descripción; ignora una «/» inicial (la consulta de `@tiptap/suggestion`
 //     no la trae, pero escribir «/tit» a mano debe dar lo mismo que «tit»).
-// Ids supuestos (el prefijo es el `TipoBloque` de @blog/bloques, para no repetir los nombres en una tabla paralela):
+// Ids supuestos (el prefijo es el `TipoVisible` de ../anuncios, para no repetir los nombres en una tabla paralela):
 //   parrafo · titulo-2 · titulo-3 · titulo-4 · cita · lista-vinietas · lista-numerada · imagen · galeria · cta · video ·
 //   codigo · separador
 // Los nombres salen de `nombreDeTipo` (../anuncios): el nombre de cada item empieza con el nombre del tipo (con
 // mayúscula inicial), sin una tabla de nombres propia.
-import type { TipoBloque } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
-import { nombreDeTipo } from '../anuncios';
+import { nombreDeTipo, type TipoVisible } from '../anuncios';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { estadoDe, imagen, parrafo, posDe } from './esquema-prueba';
 import { elementoDeLaSeleccion, filtrarItems, ITEMS } from './menu-insercion';
 
 const sinTildes = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const ids = (items: { id: string }[]) => items.map((item) => item.id);
-const tipoDe = (id: string) => id.split('-')[0] as TipoBloque;
+const tipoDe = (id: string) => id.split('-')[0] as TipoVisible;
 
 describe('ITEMS: la lista única de elementos insertables (RF-005)', () => {
   it('tiene los trece elementos del contrato', () => {
@@ -130,7 +129,7 @@ describe('elementoDeLaSeleccion: después de qué elemento se inserta', () => {
     const estado = base();
     const conCursor = estado.apply(estado.tr.setSelection(TextSelection.create(estado.doc, posDe(estado, 2) + 2)));
     const { actual, inicio } = elementoDeLaSeleccion(conCursor);
-    expect(actual.attrs.bloqueId).toBe('c');
+    expect(actual.attrs.id).toBe('c');
     expect(inicio).toBe(posDe(estado, 2));
   });
 
@@ -138,7 +137,7 @@ describe('elementoDeLaSeleccion: después de qué elemento se inserta', () => {
     const estado = base();
     const conIsla = estado.apply(estado.tr.setSelection(NodeSelection.create(estado.doc, posDe(estado, 1))));
     const { actual, inicio } = elementoDeLaSeleccion(conIsla);
-    expect(actual.attrs.bloqueId).toBe('b');
+    expect(actual.attrs.id).toBe('b');
     expect(inicio).toBe(posDe(estado, 1));
   });
 });

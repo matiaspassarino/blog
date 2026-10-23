@@ -2,7 +2,7 @@
 
 // Perfil propio (Historia 6, RF-025): nombre, biografía y foto con texto alternativo. No ofrece rol ni estado.
 // Reutiliza `ImagenEditable` del editor, que necesita su contexto (anuncios, subidas en curso, imagen ya guardada).
-import type { ErrorBloque, Imagen } from '@blog/bloques';
+import type { ErrorElemento, Imagen } from '@blog/bloques';
 import type { Perfil } from '@blog/db';
 import { useMemo, useState } from 'react';
 import { guardarPerfil } from '../../acciones/perfil';
@@ -18,7 +18,7 @@ import { Textarea } from '../ui/textarea';
 
 type Props = { perfil: Pick<Perfil, 'nombre' | 'biografia' | 'avatar'> };
 
-const ID_AVATAR = idDeCampo({ indice: -1, campo: 'avatar.alt', mensaje: '' });
+const ID_AVATAR = idDeCampo({ indice: -1, id: '', campo: 'avatar.alt', mensaje: '' });
 
 export function FormularioPerfil({ perfil }: Props) {
   const hidratado = useHidratado();
@@ -30,7 +30,7 @@ export function FormularioPerfil({ perfil }: Props) {
   const [anuncio, setAnuncio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ id: number; tipo: 'exito' | 'error'; texto: string } | null>(null);
-  const [errores, setErrores] = useState<ErrorBloque[]>([]);
+  const [errores, setErrores] = useState<ErrorElemento[]>([]);
   const [errorNombre, setErrorNombre] = useState<string>();
 
   const contexto = useMemo<ContextoDelEditor>(

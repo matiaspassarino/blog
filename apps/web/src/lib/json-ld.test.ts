@@ -51,7 +51,7 @@ function articuloDe(cambios: Partial<ArticuloPublico> = {}): ArticuloPublico {
       alt: 'Mesa de trabajo con bocetos',
       decorativa: false,
     },
-    contenido: [],
+    contenido: { type: 'doc', content: [] },
     publicado_en: '2026-10-01T12:00:00+00:00',
     actualizado_en: '2026-10-05T09:30:00+00:00',
     categoria: { id: 'c1', nombre: 'Diseño', slug: 'diseno' },

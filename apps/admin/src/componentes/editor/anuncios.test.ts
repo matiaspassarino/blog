@@ -1,11 +1,11 @@
 // T059 y T061 (spec 003, H2-E2, E3, CE-006): textos accesibles del editor, como funciones puras.
 // FASE ROJA: `./anuncios` no existe. Propuesta de firmas para T059/T061 (los textos salen de tasks.md):
-//   nombreDeTipo(tipo: TipoBloque): string                         'parrafo' -> 'párrafo', 'cta' -> 'llamada a la acción'
+//   nombreDeTipo(tipo: TipoVisible): string                         'parrafo' -> 'párrafo', 'cta' -> 'llamada a la acción'
 //   nombreDeCampo(campo: string): string                            'imagen.alt' -> 'Texto alternativo'
-//   resumenDeErrores(errores: ErrorBloque[]): string                "Hay 3 errores. Revisa el elemento 2, campo Texto alternativo"
+//   resumenDeErrores(errores: ErrorElemento[]): string                "Hay 3 errores. Revisa el elemento 2, campo Texto alternativo"
 //     (el "primer" error es el primero por orden de pantalla: la imagen destacada, indice -1, va antes que los bloques;
-//      los índices de `ErrorBloque` son 0-based y se muestran 1-based)
-import { TIPOS_BLOQUE, type ErrorBloque } from '@blog/bloques';
+//      los índices de `ErrorElemento` son 0-based y se muestran 1-based)
+import type { ErrorElemento } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
 import {
   anuncioConvertido,
@@ -23,14 +23,15 @@ import {
   nombreDeCampo,
   nombreDeTipo,
   resumenDeErrores,
+  TIPOS_VISIBLES,
 } from './anuncios';
 
-const error = (indice: number, campo: string): ErrorBloque => ({ indice, campo, mensaje: 'mensaje' });
+const error = (indice: number, campo: string): ErrorElemento => ({ indice, id: '', campo, mensaje: 'mensaje' });
 
 describe('textos accesibles del editor (H2)', () => {
   describe('nombreDeTipo', () => {
     it('da un nombre en español, con tildes, para cada uno de los 10 tipos', () => {
-      expect(TIPOS_BLOQUE.map((tipo) => nombreDeTipo(tipo))).toEqual([
+      expect(TIPOS_VISIBLES.map((tipo) => nombreDeTipo(tipo))).toEqual([
         'párrafo',
         'título',
         'imagen',
@@ -76,7 +77,7 @@ describe('textos accesibles del editor (H2)', () => {
 // estilo documento. Se usa siempre «elemento» (o el tipo: «párrafo», «imagen»), nunca «bloque». Las funciones
 // viejas (`etiquetaDeBloque`, `nombreDeBoton`, `anuncioDeMovimiento`, `anuncioDeQuitado`) siguen hasta T078.
 // FASE ROJA: las funciones nuevas no existen en `./anuncios`. Firmas supuestas (posiciones desde 1):
-//   anuncioInsertado(tipo: TipoBloque, posicion, total)      "Se insertó una imagen en la posición 3 de 8"
+//   anuncioInsertado(tipo: TipoVisible, posicion, total)      "Se insertó una imagen en la posición 3 de 8"
 //   anuncioMovido(posicion, total)                           "Elemento movido a la posición 2 de 8"
 //   anuncioDuplicado(posicion, total)                        "Elemento duplicado, posición 4 de 9"
 //   anuncioQuitado(cantidad)                                 "Elemento quitado. Pulsa Ctrl+Z para deshacer" / "3 elementos quitados. …"
@@ -168,7 +169,7 @@ describe('anuncios del editor estilo documento (spec 005)', () => {
   describe('vocabulario: nunca «bloque»', () => {
     it('ninguna cadena nueva contiene la palabra «bloque»', () => {
       const mensajes = [
-        ...TIPOS_BLOQUE.map((tipo) => anuncioInsertado(tipo, 1, 2)),
+        ...TIPOS_VISIBLES.map((tipo) => anuncioInsertado(tipo, 1, 2)),
         anuncioMovido(1, 2),
         anuncioDuplicado(1, 2),
         anuncioQuitado(1),
@@ -195,7 +196,7 @@ describe('anuncios del editor estilo documento (spec 005)', () => {
     });
 
     it('los nombres de tipo reutilizados no contienen «bloque»', () => {
-      for (const tipo of TIPOS_BLOQUE) expect(nombreDeTipo(tipo).toLowerCase()).not.toContain('bloque');
+      for (const tipo of TIPOS_VISIBLES) expect(nombreDeTipo(tipo).toLowerCase()).not.toContain('bloque');
     });
   });
 });

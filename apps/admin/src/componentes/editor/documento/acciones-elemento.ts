@@ -58,7 +58,7 @@ function conSubidaEnCurso(editor: Editor, subidas: ReadonlySet<string>): boolean
   const hasta = rango?.hasta ?? (activo ? activo.pos + activo.nodo.nodeSize : 0);
   let con = false;
   doc.nodesBetween(desde, hasta, (nodo, _pos, padre) => {
-    if (padre === doc && subidas.has(String(nodo.attrs.bloqueId ?? ''))) con = true;
+    if (padre === doc && subidas.has(String(nodo.attrs.id ?? ''))) con = true;
     return false;
   });
   return con;

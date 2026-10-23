@@ -1,10 +1,10 @@
 // Lista única de elementos que se pueden insertar (contracts/componentes.md): la usan el menú «/», el botón
 // «Insertar» de la barra y el botón de cada línea vacía. Los nombres salen de `nombreDeTipo`.
-import { crearBloque, type TipoBloque } from '@blog/bloques';
+import { crearElemento } from '@blog/bloques';
 import type { Editor, JSONContent } from '@tiptap/core';
 import type { Node as NodoPm } from '@tiptap/pm/model';
 import type { EditorState } from '@tiptap/pm/state';
-import { nombreDeTipo } from '../anuncios';
+import { nombreDeTipo, type TipoVisible } from '../anuncios';
 
 export type ItemDeInsercion = {
   id: string;
@@ -15,7 +15,7 @@ export type ItemDeInsercion = {
 };
 
 const conMayuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
-const nombreDe = (tipo: TipoBloque, sufijo = '') => `${conMayuscula(nombreDeTipo(tipo))}${sufijo}`;
+const nombreDe = (tipo: TipoVisible, sufijo = '') => `${conMayuscula(nombreDeTipo(tipo))}${sufijo}`;
 
 const MAXIMO_DE_ELEMENTOS = 200;
 
@@ -43,7 +43,7 @@ function insertarElemento(editor: Editor, nodo: JSONContent) {
     return;
   }
   const desde = vacia ? inicio : inicio + actual.nodeSize;
-  const especial = nodo.type?.endsWith('Bloque') ?? false;
+  const especial = ['imagen', 'galeria', 'cta', 'video'].includes(nodo.type ?? '');
   if (especial) editor.storage.atributosDelDocumento.abrirPanel = 'foco';
   else if (nodo.type === 'codeBlock') editor.storage.atributosDelDocumento.abrirPanel = 'pestana';
   // Un elemento especial no lleva el foco al lienzo: el foco es del primer campo de su panel.
@@ -60,9 +60,8 @@ const lista = (type: 'bulletList' | 'orderedList'): JSONContent => ({
   content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }],
 });
 
-const especial = (tipo: 'imagen' | 'galeria' | 'cta' | 'video', type: string) => (editor: Editor) => {
-  const bloque = crearBloque(tipo);
-  insertarElemento(editor, { type, attrs: { bloqueId: bloque.id, bloque } });
+const especial = (tipo: 'imagen' | 'galeria' | 'cta' | 'video') => (editor: Editor) => {
+  insertarElemento(editor, crearElemento(tipo) as JSONContent);
 };
 
 const texto = (id: string, nombre: string, descripcion: string, nodo: JSONContent): ItemDeInsercion => ({
@@ -92,28 +91,28 @@ export const ITEMS: ItemDeInsercion[] = [
     nombre: nombreDe('imagen'),
     descripcion: 'Una foto con su texto alternativo',
     grupo: 'especial',
-    insertar: especial('imagen', 'imagenBloque'),
+    insertar: especial('imagen'),
   },
   {
     id: 'galeria',
     nombre: nombreDe('galeria'),
     descripcion: 'Varias imágenes en columnas',
     grupo: 'especial',
-    insertar: especial('galeria', 'galeriaBloque'),
+    insertar: especial('galeria'),
   },
   {
     id: 'cta',
     nombre: nombreDe('cta'),
     descripcion: 'Un título y un botón que lleva a otra página',
     grupo: 'especial',
-    insertar: especial('cta', 'ctaBloque'),
+    insertar: especial('cta'),
   },
   {
     id: 'video',
     nombre: nombreDe('video'),
     descripcion: 'Un video de YouTube o Vimeo',
     grupo: 'especial',
-    insertar: especial('video', 'videoBloque'),
+    insertar: especial('video'),
   },
   texto('codigo', nombreDe('codigo'), 'Un fragmento de código sin formato', { type: 'codeBlock' }),
   texto('separador', nombreDe('separador'), 'Una línea que divide el artículo', { type: 'horizontalRule' }),

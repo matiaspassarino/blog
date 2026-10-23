@@ -58,10 +58,10 @@ trailingSlash: 'never',
 - Solo `@blog/db`, con la instancia única de `src/lib/datos.ts` (clave anon). Nada de `createClient` en `apps/web`.
 - Una página fuera de rango no lanza: `paginaDeArticulos` devuelve vacía con el total real.
 
-## 6. Bloques
+## 6. Contenido del artículo (documento)
 
-- Los renderers son React **sin hidratar** en `@blog/bloques/render` (compartidos con el admin). En Astro: `<Bloques contenido componentes={{ Imagen: crearImagenWeb(variantes) }} />`, **sin** directiva `client:`.
-- Párrafos, citas y listas interpretan el Markdown inline de la 001 (`**`, `_`, `` ` ``, `[texto](url)`) con `TextoEnLinea`: nunca HTML crudo. `dangerouslySetInnerHTML` está prohibido por ESLint.
+- El contenido es el documento de la spec 005 (`contracts/documento.md`). Los renderers son React **sin hidratar** en `@blog/bloques/render` (compartidos con el admin). En Astro: `<Documento contenido componentes={{ Imagen: crearImagenWeb(variantes) }} />`, **sin** directiva `client:`.
+- El texto en línea lo dibuja `EnLinea` desde las marcas del documento (`bold`, `italic`, `code`, `link`) y los `hardBreak`: nunca HTML crudo. `dangerouslySetInnerHTML` está prohibido por ESLint.
 - Enlaces: solo `/…`, `http(s):` y `mailto:` (`hrefSeguro`); los externos con `rel="noopener noreferrer"`.
 - Video: `iframe srcdoc` con miniatura y enlace al reproductor; cero JS (research D6).
 - Los títulos del cuerpo empiezan en `h2`.

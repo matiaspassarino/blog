@@ -1,7 +1,7 @@
 // Del artículo de la base a los datos que edita el formulario (y de vuelta). Puro: lo usan las páginas del
 // servidor y el editor del cliente.
-import type { Contenido, ErrorBloque, Imagen } from '@blog/bloques';
-import { esquemaImagen, validarContenido } from '@blog/bloques';
+import type { Documento, ErrorElemento, Imagen } from '@blog/bloques';
+import { esquemaImagen, validarDocumento } from '@blog/bloques';
 import type { ArticuloParaEditar } from '@blog/db';
 import type { DatosArticulo } from './reductor';
 
@@ -27,7 +27,7 @@ export const DATOS_NUEVO: DatosArticulo = {
   descripcion_seo: null,
   imagen_destacada: null,
   categoria_id: null,
-  contenido: [],
+  contenido: { type: 'doc', content: [] },
   etiquetas: [],
 };
 
@@ -41,17 +41,17 @@ export function aDatosArticulo(articulo: ConEtiquetas, etiquetas: string[]): Dat
     descripcion_seo: articulo.descripcion_seo,
     imagen_destacada: articulo.imagen_destacada as Imagen | null,
     categoria_id: articulo.categoria_id,
-    contenido: articulo.contenido as Contenido,
+    contenido: articulo.contenido as Documento,
     etiquetas,
   };
 }
 
 /**
- * Valida en el navegador con el mismo esquema que usa el servidor (RF-006): los bloques y la imagen
+ * Valida en el navegador con el mismo esquema que usa el servidor (RF-006): el documento y la imagen
  * destacada. Los errores de la destacada llevan `indice: -1`, como los de @blog/db.
  */
-export function validarEditor(datos: Pick<DatosArticulo, 'contenido' | 'imagen_destacada'>): ErrorBloque[] {
-  const errores: ErrorBloque[] = [];
+export function validarEditor(datos: Pick<DatosArticulo, 'contenido' | 'imagen_destacada'>): ErrorElemento[] {
+  const errores: ErrorElemento[] = [];
 
   if (datos.imagen_destacada) {
     const imagen = esquemaImagen.safeParse(datos.imagen_destacada);
@@ -59,6 +59,7 @@ export function validarEditor(datos: Pick<DatosArticulo, 'contenido' | 'imagen_d
       for (const problema of imagen.error.issues) {
         errores.push({
           indice: -1,
+          id: '',
           campo: ['imagen_destacada', ...problema.path.map(String)].join('.'),
           mensaje: problema.message,
         });
@@ -66,7 +67,6 @@ export function validarEditor(datos: Pick<DatosArticulo, 'contenido' | 'imagen_d
     }
   }
 
-  const contenido = validarContenido(datos.contenido);
-  if (!contenido.ok) errores.push(...contenido.errores);
+  errores.push(...validarDocumento(datos.contenido));
   return errores;
 }

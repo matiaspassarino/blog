@@ -1,6 +1,6 @@
 // Una sola ruta para quitar y mover elementos (contracts/atajos.md): toda transacción que quite o mueva elementos
 // de primer nivel (menú, atajo, `Supr`, cortar, escribir sobre la selección, arrastrar, `Mod+A` y borrar) pasa por
-// `decidirBorrado`. Compara los elementos (por `bloqueId`) antes y después de aplicar la transacción.
+// `decidirBorrado`. Compara los elementos (por `id`) antes y después de aplicar la transacción.
 import type { Node as NodoPm } from '@tiptap/pm/model';
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
@@ -14,7 +14,7 @@ export type Decision =
 
 type Contexto = {
   transaccion: Transaction;
-  /** `bloqueId` de los elementos con una subida en curso. */
+  /** `id` de los elementos con una subida en curso. */
   subidasEnCurso: ReadonlySet<string>;
   /** La misma función de `ContextoEditor`: la imagen ya está guardada en el artículo. */
   imagenGuardada: (ruta: string) => boolean;
@@ -22,12 +22,12 @@ type Contexto = {
   confirmado?: boolean;
 };
 
-/** Los elementos con identidad, en orden (un tramo con `continuacion` repite el id del anterior y no cuenta). */
+/** Los elementos con identidad, en orden (un id repetido, hasta que el plugin lo corrija, cuenta una vez). */
 function elementosConId(doc: NodoPm): { id: string; nodo: NodoPm; posicion: number }[] {
   const vistos = new Set<string>();
   const elementos: { id: string; nodo: NodoPm; posicion: number }[] = [];
   doc.forEach((nodo, _pos, indice) => {
-    const id = String(nodo.attrs.bloqueId ?? '');
+    const id = String(nodo.attrs.id ?? '');
     if (id && !vistos.has(id)) {
       vistos.add(id);
       elementos.push({ id, nodo, posicion: indice + 1 });
@@ -60,8 +60,8 @@ function idsMovidos(antes: string[], despues: string[]): Set<string> {
 }
 
 const rutasDe = (nodo: NodoPm): string[] => {
-  const bloque = nodo.attrs.bloque as { imagen?: { ruta?: string }; imagenes?: { ruta?: string }[] } | null;
-  return [bloque?.imagen?.ruta, ...(bloque?.imagenes?.map((imagen) => imagen.ruta) ?? [])].filter(
+  const { imagen, imagenes } = nodo.attrs as { imagen?: { ruta?: string } | null; imagenes?: { ruta?: string }[] | null };
+  return [imagen?.ruta, ...(imagenes?.map((actual) => actual.ruta) ?? [])].filter(
     (ruta): ruta is string => Boolean(ruta),
   );
 };
@@ -78,7 +78,7 @@ export function decidirBorrado(estado: EditorState, contexto: Contexto): Decisio
   const { selection } = contexto.transaccion;
   if (selection.$from.depth === 0 && selection.from !== selection.to) {
     contexto.transaccion.doc.nodesBetween(selection.from, selection.to, (nodo, _pos, padre) => {
-      if (padre === contexto.transaccion.doc) seleccionados.add(String(nodo.attrs.bloqueId ?? ''));
+      if (padre === contexto.transaccion.doc) seleccionados.add(String(nodo.attrs.id ?? ''));
       return false;
     });
   }

@@ -211,9 +211,18 @@ importers:
       '@tiptap/core':
         specifier: 3.31.4
         version: 3.31.4(@tiptap/pm@3.31.4)
+      '@tiptap/extension-code-block':
+        specifier: 3.31.4
+        version: 3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4)
       '@tiptap/extension-highlight':
         specifier: 3.31.4
         version: 3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))
+      '@tiptap/extension-link':
+        specifier: 3.31.4
+        version: 3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4)
+      '@tiptap/extension-list':
+        specifier: 3.31.4
+        version: 3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4)
       '@tiptap/extension-subscript':
         specifier: 3.31.4
         version: 3.31.4(@tiptap/core@3.31.4(@tiptap/pm@3.31.4))(@tiptap/pm@3.31.4)

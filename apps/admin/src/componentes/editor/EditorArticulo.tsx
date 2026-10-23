@@ -4,7 +4,7 @@
 // bloques. El estado vive en un reductor puro (reductor.ts). Valida en el navegador con el mismo esquema que
 // el servidor, enfoca el primer campo inválido, detecta ediciones concurrentes sin perder lo escrito (D13) y
 // avisa antes de salir con cambios sin guardar (RF-010).
-import type { Contenido, ErrorBloque } from '@blog/bloques';
+import type { Documento, ErrorElemento } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
 import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
@@ -40,7 +40,7 @@ import { CargadorDeEditorDocumento } from './documento/CargadorDeEditorDocumento
 import type { AccionesDelLienzo } from './documento/EditorDocumento';
 import { primerErrorDelDocumento } from './documento/mapa-errores';
 import { PropiedadesDelElemento } from './documento/PropiedadesDelElemento';
-import type { CambiosDeBloque } from './bloques/tipos';
+import type { CambiosDeElemento } from './bloques/tipos';
 import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
 import { estaSucio, estadoInicial, iguales, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
@@ -72,7 +72,7 @@ type Props = {
 };
 
 /** Enfoca el primer campo con error que exista en pantalla (algunos errores no tienen control visible). */
-function enfocarPrimerCampo(errores: ErrorBloque[]) {
+function enfocarPrimerCampo(errores: ErrorElemento[]) {
   for (const error of [...errores].sort((a, b) => a.indice - b.indice)) {
     const elemento = document.getElementById(idDeCampo(error));
     if (elemento) {
@@ -100,7 +100,7 @@ export function EditorArticulo({
   const [publicacion, setPublicacion] = useState<Publicacion>(
     publicacionInicial ?? { estado: 'borrador', programado_para: null, publicado_en: null },
   );
-  const [errores, setErrores] = useState<ErrorBloque[]>([]);
+  const [errores, setErrores] = useState<ErrorElemento[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const [anuncio, setAnuncio] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -118,7 +118,7 @@ export function EditorArticulo({
   const titulo = useRef<HTMLHeadingElement>(null);
   // El lienzo no se vuelve a dibujar en cada tecla: estas props tienen que ser estables.
   const erroresDeElementos = useMemo(() => errores.filter((error) => error.indice >= 0), [errores]);
-  const alCambiarContenido = useCallback((valor: Contenido) => despachar({ tipo: 'contenido', valor }), []);
+  const alCambiarContenido = useCallback((valor: Documento) => despachar({ tipo: 'contenido', valor }), []);
   const acciones = useRef<AccionesDelLienzo>(null);
   const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
   const [elemento, setElemento] = useState<ElementoActivo | null>(null);
@@ -133,10 +133,10 @@ export function EditorArticulo({
     setSeleccion(nueva);
     setElemento(activo);
     const especial =
-      nueva.tipo === 'elementos' && ['imagen', 'galeria', 'cta', 'video'].includes(nueva.bloques[0]?.tipo ?? '');
+      nueva.tipo === 'elementos' && ['imagen', 'galeria', 'cta', 'video'].includes(nueva.elementos[0]?.type ?? '');
     // La pestaña cambia sola solo al seleccionar un elemento especial distinto del anterior (no al mover el cursor).
-    if (activo && especial && activo.bloqueId !== ultimoId.current) setPestania('elemento');
-    ultimoId.current = activo?.bloqueId ?? null;
+    if (activo && especial && activo.id !== ultimoId.current) setPestania('elemento');
+    ultimoId.current = activo?.id ?? null;
     if (activo?.origen === 'insertar-texto') setPestania('elemento');
     if (activo?.origen === 'insertar') {
       setHojaAbierta(true);
@@ -144,8 +144,8 @@ export function EditorArticulo({
     }
   }, []);
   const alCambiarElemento = useCallback(
-    (cambios: CambiosDeBloque) => {
-      if (elemento) acciones.current?.actualizarBloque(elemento.bloqueId, cambios);
+    (cambios: CambiosDeElemento) => {
+      if (elemento) acciones.current?.actualizarElemento(elemento.id, cambios);
     },
     [elemento],
   );
@@ -212,25 +212,25 @@ export function EditorArticulo({
       ...contexto,
       subiendo: (delta: 1 | -1) => {
         contexto.subiendo(delta);
-        const id = elemento?.bloqueId;
+        const id = elemento?.id;
         if (!id) return;
         setSubidasPorId((previas) => new Map(previas).set(id, (previas.get(id) ?? 0) + delta));
       },
     }),
-    [contexto, elemento?.bloqueId],
+    [contexto, elemento?.id],
   );
 
   function irASalir(motivo: MotivoSesion | undefined) {
     router.push(urlDeSalida(motivo));
   }
 
-  function mostrarErrores(lista: ErrorBloque[]) {
+  function mostrarErrores(lista: ErrorElemento[]) {
     setErrores(lista);
     setAnuncio(resumenDeErrores(lista));
     const primero = lista.some((error) => error.indice < 0) ? null : primerErrorDelDocumento(actual.contenido, lista);
     if (!primero) return void setTimeout(() => enfocarPrimerCampo(lista), 0);
     // Un error en un elemento: se selecciona, se abre su panel y el foco va al campo con el error.
-    acciones.current?.seleccionarBloque(primero.bloqueId);
+    acciones.current?.seleccionarElemento(primero.id);
     setPestania('elemento');
     setHojaAbierta(true);
     setTimeout(() => enfocarPrimerCampo([primero.error]), 120);

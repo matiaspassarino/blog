@@ -3,7 +3,7 @@
 import { CampoTexto } from '../CampoBloque';
 import type { PropsEditorBloque } from './tipos';
 
-export function EditorCta({ bloque, indice, errores, cambiar }: PropsEditorBloque<'cta'>) {
+export function EditorCta({ datos, indice, errores, cambiar }: PropsEditorBloque<'cta'>) {
   return (
     <>
       <CampoTexto
@@ -11,7 +11,7 @@ export function EditorCta({ bloque, indice, errores, cambiar }: PropsEditorBloqu
         campo="titulo"
         etiqueta="Título"
         errores={errores}
-        valor={bloque.titulo}
+        valor={datos.titulo}
         alCambiar={(titulo) => cambiar({ titulo })}
       />
       <CampoTexto
@@ -19,7 +19,7 @@ export function EditorCta({ bloque, indice, errores, cambiar }: PropsEditorBloqu
         campo="texto"
         etiqueta="Texto"
         errores={errores}
-        valor={bloque.texto ?? ''}
+        valor={datos.texto ?? ''}
         alCambiar={(texto) => cambiar({ texto: texto === '' ? undefined : texto })}
       />
       <CampoTexto
@@ -27,7 +27,7 @@ export function EditorCta({ bloque, indice, errores, cambiar }: PropsEditorBloqu
         campo="etiquetaBoton"
         etiqueta="Texto del botón"
         errores={errores}
-        valor={bloque.etiquetaBoton}
+        valor={datos.etiquetaBoton}
         alCambiar={(etiquetaBoton) => cambiar({ etiquetaBoton })}
       />
       <CampoTexto
@@ -36,7 +36,7 @@ export function EditorCta({ bloque, indice, errores, cambiar }: PropsEditorBloqu
         etiqueta="URL"
         ayuda="Una dirección interna (/blog) o una que empiece con https://"
         errores={errores}
-        valor={bloque.url}
+        valor={datos.url}
         alCambiar={(url) => cambiar({ url })}
       />
     </>

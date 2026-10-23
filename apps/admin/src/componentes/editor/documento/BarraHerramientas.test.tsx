@@ -15,7 +15,7 @@
 //   - Todos los botones son de la primitiva `Button`: `data-nivel="terciaria"` y `data-tamanio="compacto"`.
 //   - Con `seleccion = { tipo: 'elementos', ... }` muestra el texto fijo «N elementos seleccionados» y el botón «Salir de
 //     la selección»; con `{ tipo: 'texto' }` no.
-import type { Bloque } from '@blog/bloques';
+import type { Elemento } from '@blog/bloques';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ancestrosEn, clasesDeEtiqueta, etiquetasDe } from '../../../pruebas/html-estatico';
@@ -23,11 +23,11 @@ import { BarraHerramientas } from './BarraHerramientas';
 
 type Props = Parameters<typeof BarraHerramientas>[0];
 
-const parrafos = (cantidad: number): Bloque[] =>
+const parrafos = (cantidad: number): Elemento[] =>
   Array.from({ length: cantidad }, (_, i) => ({
-    id: `00000000-0000-4000-8000-00000000000${i}`,
-    tipo: 'parrafo',
-    texto: `P${i}`,
+    type: 'paragraph',
+    attrs: { id: `00000000-0000-4000-8000-00000000000${i}` },
+    content: [{ type: 'text', text: `P${i}` }],
   }));
 
 const dibujar = (cambios: Partial<Props> = {}) =>
@@ -203,7 +203,7 @@ describe('BarraHerramientas: botones de la primitiva (RF-003, spec 004)', () => 
 
 describe('BarraHerramientas: modo elementos (atajos.md "Dos modos de selección")', () => {
   it('muestra "3 elementos seleccionados" y «Salir de la selección»', () => {
-    const html = dibujar({ seleccion: { tipo: 'elementos', desde: 0, hasta: 3, bloques: parrafos(3) } });
+    const html = dibujar({ seleccion: { tipo: 'elementos', desde: 0, hasta: 3, elementos: parrafos(3) } });
 
     expect(html).toContain('3 elementos seleccionados');
     expect(botonLlamado(html, 'Salir de la selección'), html).toBeDefined();

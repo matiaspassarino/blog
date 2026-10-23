@@ -2,20 +2,23 @@
 
 // Vista de los elementos especiales (imagen, galería, llamada a la acción y video) dentro del lienzo: la misma
 // que usa la vista previa del artículo, así el lienzo muestra lo que verá el lector (contracts/componentes.md).
-import type { Bloque } from '@blog/bloques';
-import { Bloques } from '@blog/bloques/render';
+import { normalizarDocumento, type ElementoDe } from '@blog/bloques';
+import { Documento } from '@blog/bloques/render';
 import { NodeViewWrapper, useEditorState, type NodeViewProps } from '@tiptap/react';
 import { claveErrores, claveSubidas } from '../claves';
 import { cn } from '../../../../lib/cn';
 import { ImagenAdmin } from '../../../ImagenAdmin';
-import { nombreDeTipo } from '../../anuncios';
+import { nombreDeTipo, tipoVisibleDe } from '../../anuncios';
 
 const conMayuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
 
 const SIN_ERRORES: string[] = [];
 
 export function NodoBloque({ node, selected, editor, getPos }: NodeViewProps) {
-  const bloque = node.attrs.bloque as Bloque;
+  // El elemento en forma canónica (sin los atributos vacíos del esquema del editor).
+  const documento = normalizarDocumento({ type: 'doc', content: [node.toJSON()] });
+  const elemento = documento.content[0] as ElementoDe<'imagen' | 'galeria' | 'cta' | 'video'>;
+  const { type: tipo, attrs } = elemento;
   // Posición y total se calculan al dibujar y cada vez que cambia el documento (mover o quitar otro elemento).
   const { indice, total } = useEditorState({
     editor,
@@ -32,21 +35,22 @@ export function NodoBloque({ node, selected, editor, getPos }: NodeViewProps) {
   const errores = useEditorState({
     editor,
     selector: ({ editor: actual }) =>
-      (actual ? claveErrores.getState(actual.state)?.get(String(node.attrs.bloqueId)) : undefined) ?? SIN_ERRORES,
+      (actual ? claveErrores.getState(actual.state)?.get(String(node.attrs.id)) : undefined) ?? SIN_ERRORES,
   });
   const subiendo = useEditorState({
     editor,
     selector: ({ editor: actual }) =>
-      actual ? (claveSubidas.getState(actual.state)?.has(String(node.attrs.bloqueId)) ?? false) : false,
+      actual ? (claveSubidas.getState(actual.state)?.has(String(node.attrs.id)) ?? false) : false,
   });
   const vacio =
-    (bloque.tipo === 'imagen' && !bloque.imagen.ruta) || (bloque.tipo === 'galeria' && bloque.imagenes.length === 0);
+    (tipo === 'imagen' && !('imagen' in attrs && attrs.imagen?.ruta)) ||
+    (tipo === 'galeria' && !('imagenes' in attrs && attrs.imagenes?.length));
   return (
     <NodeViewWrapper
       contentEditable={false}
       role="group"
-      aria-label={`${conMayuscula(nombreDeTipo(bloque.tipo))}, ${indice} de ${total}`}
-      data-elemento={bloque.tipo}
+      aria-label={`${conMayuscula(nombreDeTipo(tipoVisibleDe(tipo)))}, ${indice} de ${total}`}
+      data-elemento={tipo}
       data-seleccionado={selected ? 'si' : undefined}
       className={cn('my-4 scroll-mt-24 rounded-md outline-offset-4', selected && 'outline-2 outline-marca')}
     >
@@ -57,18 +61,18 @@ export function NodoBloque({ node, selected, editor, getPos }: NodeViewProps) {
         </div>
       ) : vacio ? (
         <div className="flex min-h-32 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-borde bg-superficie p-4 text-texto-suave">
-          <p>{bloque.tipo === 'imagen' ? 'Todavía no elegiste una imagen' : 'Todavía no agregaste imágenes'}</p>
+          <p>{tipo === 'imagen' ? 'Todavía no elegiste una imagen' : 'Todavía no agregaste imágenes'}</p>
           <button
             type="button"
             tabIndex={-1}
             className="min-h-(--tactil-min) rounded-md border border-borde bg-fondo px-4 font-semibold text-texto"
             onClick={() => editor.view.dom.dispatchEvent(new CustomEvent('abrir-propiedades'))}
           >
-            {bloque.tipo === 'imagen' ? 'Subir imagen' : 'Agregar imágenes'}
+            {tipo === 'imagen' ? 'Subir imagen' : 'Agregar imágenes'}
           </button>
         </div>
       ) : (
-        <Bloques contenido={[bloque]} componentes={{ Imagen: ImagenAdmin }} />
+        <Documento contenido={documento} componentes={{ Imagen: ImagenAdmin }} />
       )}
       {errores.length > 0 && <p className="mt-2 text-sm font-semibold text-error">Error: {errores.join('. ')}</p>}
     </NodeViewWrapper>

@@ -1,6 +1,6 @@
 // Resultado tipado de las Server Actions (contracts/acciones.md, "Reglas comunes").
 import { ErrorDominio } from '@blog/db';
-import type { ErrorBloque } from '@blog/bloques';
+import type { ErrorElemento } from '@blog/bloques';
 import { unstable_rethrow } from 'next/navigation';
 import type { MotivoSesion } from './sesion';
 import { mensajeDeError, type CodigoMensaje } from './mensajes';
@@ -11,7 +11,7 @@ export type ResultadoAccion<T = void> =
       ok: false;
       codigo: CodigoMensaje;
       mensaje: string;
-      errores?: ErrorBloque[];
+      errores?: ErrorElemento[];
       detalle?: string;
       /** Solo con `no_autenticado`: la interfaz navega a `/salir` si es `desactivada`. */
       motivo?: MotivoSesion;
@@ -26,7 +26,7 @@ export function exito<T>(datos: T): ResultadoAccion<T> {
 
 export function fallo(
   codigo: CodigoMensaje,
-  extra: { detalle?: string; errores?: ErrorBloque[]; motivo?: MotivoSesion } = {},
+  extra: { detalle?: string; errores?: ErrorElemento[]; motivo?: MotivoSesion } = {},
 ): ResultadoAccion<never> {
   return { ok: false, codigo, mensaje: mensajeDeError(codigo, extra.detalle), ...extra };
 }

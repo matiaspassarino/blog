@@ -12,7 +12,7 @@
 //   guardarArticulo({ id, version, cambios: CambiosArticulo, etiquetas?: string[] }): Promise<ResultadoAccion<Articulo>>
 //     `datos` es el artículo actualizado, con `version` nueva y `slug` definitivo. Con `etiquetas` reemplaza el conjunto.
 //   Errores: sin sesión -> { ok: false, codigo: 'no_autenticado', motivo: 'sin_sesion' };
-//     contenido o imagen destacada inválidos -> 'contenido_invalido' con `errores: ErrorBloque[]` (indice -1 = destacada);
+//     contenido o imagen destacada inválidos -> 'contenido_invalido' con `errores: ErrorElemento[]` (indice -1 = destacada);
 //     versión vieja -> 'conflicto_version'.
 // La sesión del miembro se abre con la acción `ingresar` de H1 (cookies simuladas, ver ../test/next-simulado).
 //
@@ -25,7 +25,7 @@
 //   eliminarArticuloAccion({ id }): Promise<ResultadoAccion<void>>  (solo admin: 'sin_permiso' para el editor)
 //     Lee las rutas de imagen antes de borrar y después las borra del bucket si ningún otro contenido las usa (D11).
 //     Ambas llaman a revalidatePath('/articulos') cuando cambian algo.
-import { crearBloque } from '@blog/bloques';
+import { crearElemento } from '@blog/bloques';
 import { crearArticulo, previsualizarSlug, type ClienteBlog } from '@blog/db';
 import { clienteComo, pngMinimo, registroDePrueba, sesionesDemo, sinSupabase } from '@blog/db/pruebas';
 import type {} from '@blog/db/pruebas/entorno'; // declara el contexto `supabase` que provee globalSetup
@@ -49,14 +49,19 @@ const sufijo = crypto.randomUUID().slice(0, 8);
 const PREFIJO_TITULO = `t048 ${sufijo}`;
 const carpetaMedios = `pruebas-t048/${sufijo}`;
 
-const parrafo = (texto: string) => ({ ...crearBloque('parrafo'), texto });
+const parrafo = (texto: string) => ({ ...crearElemento('paragraph'), content: [{ type: 'text', text: texto }] });
+const doc = (...elementos: object[]) => ({ type: 'doc', content: elementos });
 const imagenValida = (ruta: string) => ({ ruta, ancho: 1, alto: 1, alt: 'Imagen de prueba', decorativa: false });
-const bloqueImagen = (ruta: string) => ({ ...crearBloque('imagen'), imagen: imagenValida(ruta) });
+const bloqueImagen = (ruta: string) => {
+  const elemento = crearElemento('imagen');
+  return { ...elemento, attrs: { ...elemento.attrs, imagen: imagenValida(ruta) } };
+};
 // Una imagen sin `alt` y sin marca decorativa: el caso típico de H2-E3.
-const bloqueImagenSinAlt = () => ({
-  ...crearBloque('imagen'),
-  imagen: { ruta: 'articulos/2026/10/sin-alt.png', ancho: 1, alto: 1, decorativa: false },
-});
+const bloqueImagenSinAlt = () => {
+  const elemento = crearElemento('imagen');
+  const imagen = { ruta: 'articulos/2026/10/sin-alt.png', ancho: 1, alto: 1, decorativa: false };
+  return { ...elemento, attrs: { ...elemento.attrs, imagen } };
+};
 
 describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
   let editor: ClienteBlog;
@@ -112,12 +117,12 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
   /** Crea un artículo directo en la base (no por la acción bajo prueba), de la persona cuyo cliente se pasa. */
   async function sembrar(
     cliente: ClienteBlog,
-    campos: { titulo: string; slug?: string; contenido?: object[]; imagen_destacada?: object },
+    campos: { titulo: string; slug?: string; contenido?: object; imagen_destacada?: object },
   ) {
     const creado = await crearArticulo(cliente, {
       ...campos,
       categoria_id: categoriaId,
-      contenido: (campos.contenido ?? [parrafo('Texto inicial')]) as never,
+      contenido: (campos.contenido ?? doc(parrafo('Texto inicial'))) as never,
       imagen_destacada: campos.imagen_destacada as never,
     });
     registro.articulos.push(creado.id);
@@ -233,7 +238,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
         crearArticuloAccion({
           titulo: titulo('completo'),
           categoria_id: categoriaId,
-          contenido: [parrafo('Primer párrafo')],
+          contenido: doc(parrafo('Primer párrafo')),
           etiquetas: [etiqueta!.id],
         }),
       );
@@ -252,7 +257,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const salida = await correr(() =>
         crearArticuloAccion({
           titulo: tituloInvalido,
-          contenido: [parrafo('ok'), bloqueImagenSinAlt()],
+          contenido: doc(parrafo('ok'), bloqueImagenSinAlt()),
           etiquetas: [],
         }),
       );
@@ -285,7 +290,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const { guardarArticulo } = await import('./articulos');
       const articulo = await sembrar(editor, { titulo: titulo('guardar') });
       await comoMiembro('editor');
-      const contenido = [parrafo('Uno'), parrafo('Dos'), parrafo('Tres')];
+      const contenido = doc(parrafo('Uno'), parrafo('Dos'), parrafo('Tres'));
 
       const resultado = await guardarArticulo({
         id: articulo.id,
@@ -298,7 +303,8 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       expect(resultado.datos.version).toBeGreaterThan(articulo.version);
       const guardado = await leer(articulo.id);
       expect(guardado.version).toBe(resultado.datos.version);
-      expect((guardado.contenido as { texto: string }[]).map((b) => b.texto)).toEqual(['Uno', 'Dos', 'Tres']);
+      const { content } = guardado.contenido as { content: { content: { text: string }[] }[] };
+      expect(content.map((elemento) => elemento.content[0]?.text)).toEqual(['Uno', 'Dos', 'Tres']);
       expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith('/articulos');
     });
 
@@ -362,7 +368,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const resultado = await guardarArticulo({
         id: articulo.id,
         version: articulo.version,
-        cambios: { titulo: 'No debe guardarse', contenido: [parrafo('ok'), bloqueImagenSinAlt()] as never },
+        cambios: { titulo: 'No debe guardarse', contenido: doc(parrafo('ok'), bloqueImagenSinAlt()) as never },
       });
 
       expect(resultado).toMatchObject({
@@ -463,13 +469,13 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
     it('al quitar una imagen que nadie más usa, se borra del bucket', async () => {
       const { guardarArticulo } = await import('./articulos');
       const ruta = await subirImagen('libre.png');
-      const articulo = await sembrar(editor, { titulo: titulo('imagen libre'), contenido: [bloqueImagen(ruta)] });
+      const articulo = await sembrar(editor, { titulo: titulo('imagen libre'), contenido: doc(bloqueImagen(ruta)) });
       await comoMiembro('editor');
 
       const resultado = await guardarArticulo({
         id: articulo.id,
         version: articulo.version,
-        cambios: { contenido: [parrafo('Sin imagen')] as never },
+        cambios: { contenido: doc(parrafo('Sin imagen')) as never },
       });
 
       expect(resultado.ok).toBe(true);
@@ -498,14 +504,14 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
     it('si otro artículo todavía usa la imagen, se conserva en el bucket', async () => {
       const { guardarArticulo } = await import('./articulos');
       const ruta = await subirImagen('compartida.png');
-      const quien = await sembrar(editor, { titulo: titulo('la quita'), contenido: [bloqueImagen(ruta)] });
-      await sembrar(editora, { titulo: titulo('la sigue usando'), contenido: [bloqueImagen(ruta)] });
+      const quien = await sembrar(editor, { titulo: titulo('la quita'), contenido: doc(bloqueImagen(ruta)) });
+      await sembrar(editora, { titulo: titulo('la sigue usando'), contenido: doc(bloqueImagen(ruta)) });
       await comoMiembro('editor');
 
       const resultado = await guardarArticulo({
         id: quien.id,
         version: quien.version,
-        cambios: { contenido: [parrafo('Sin imagen')] as never },
+        cambios: { contenido: doc(parrafo('Sin imagen')) as never },
       });
 
       expect(resultado.ok).toBe(true);
@@ -515,13 +521,13 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
     it('si la imagen sigue en el artículo, no se borra', async () => {
       const { guardarArticulo } = await import('./articulos');
       const ruta = await subirImagen('sigue.png');
-      const articulo = await sembrar(editor, { titulo: titulo('sigue'), contenido: [bloqueImagen(ruta)] });
+      const articulo = await sembrar(editor, { titulo: titulo('sigue'), contenido: doc(bloqueImagen(ruta)) });
       await comoMiembro('editor');
 
       const resultado = await guardarArticulo({
         id: articulo.id,
         version: articulo.version,
-        cambios: { contenido: [parrafo('Nuevo texto'), bloqueImagen(ruta)] as never },
+        cambios: { contenido: doc(parrafo('Nuevo texto'), bloqueImagen(ruta)) as never },
       });
 
       expect(resultado.ok).toBe(true);
@@ -531,20 +537,21 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
     it('un fallo del borrado no revierte el guardado (la ruta quitada ni siquiera existe en el bucket)', async () => {
       const { guardarArticulo } = await import('./articulos');
       const fantasma = `${carpetaMedios}/nunca-subida.png`;
-      const articulo = await sembrar(editor, { titulo: titulo('borrado falla'), contenido: [bloqueImagen(fantasma)] });
+      const articulo = await sembrar(editor, { titulo: titulo('borrado falla'), contenido: doc(bloqueImagen(fantasma)) });
       await comoMiembro('editor');
       const registrarError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const resultado = await guardarArticulo({
         id: articulo.id,
         version: articulo.version,
-        cambios: { contenido: [parrafo('Guardado igual')] as never },
+        cambios: { contenido: doc(parrafo('Guardado igual')) as never },
       });
 
       registrarError.mockRestore();
       expect(resultado.ok).toBe(true);
       const guardado = await leer(articulo.id);
-      expect((guardado.contenido as { texto: string }[])[0]?.texto).toBe('Guardado igual');
+      const { content } = guardado.contenido as { content: { content: { text: string }[] }[] };
+      expect(content[0]?.content[0]?.text).toBe('Guardado igual');
     });
   });
   describe('leerArticuloVigente (D13)', () => {
@@ -623,7 +630,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const { cambiarEstadoAccion } = await import('./articulos');
       const articulo = await crearArticulo(editor, {
         titulo: titulo('sin categoria'),
-        contenido: [parrafo('Hola')] as never,
+        contenido: doc(parrafo('Hola')) as never,
       });
       registro.articulos.push(articulo.id);
       await comoMiembro('editor');
@@ -636,7 +643,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
 
     it('H3-E2: sin bloques rechaza con requisitos_publicacion y el detalle "sin bloques"', async () => {
       const { cambiarEstadoAccion } = await import('./articulos');
-      const articulo = await sembrar(editor, { titulo: titulo('sin bloques'), contenido: [] });
+      const articulo = await sembrar(editor, { titulo: titulo('sin bloques'), contenido: doc() });
       await comoMiembro('editor');
 
       const resultado = await cambiarEstadoAccion({ id: articulo.id, version: articulo.version, destino: 'publicado' });
@@ -647,7 +654,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
 
     it('H3-E2: programar también exige los requisitos de publicación', async () => {
       const { cambiarEstadoAccion } = await import('./articulos');
-      const articulo = await sembrar(editor, { titulo: titulo('programar sin bloques'), contenido: [] });
+      const articulo = await sembrar(editor, { titulo: titulo('programar sin bloques'), contenido: doc() });
       await comoMiembro('editor');
 
       const resultado = await cambiarEstadoAccion({
@@ -822,7 +829,7 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const rutaDestacada = await subirImagen('eliminar-destacada.png');
       const articulo = await sembrar(editor, {
         titulo: titulo('elimina con imagenes'),
-        contenido: [bloqueImagen(rutaContenido)],
+        contenido: doc(bloqueImagen(rutaContenido)),
         imagen_destacada: imagenValida(rutaDestacada),
       });
       await comoMiembro('admin');
@@ -839,9 +846,9 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
       const ruta = await subirImagen('eliminar-compartida.png');
       const aEliminar = await sembrar(editor, {
         titulo: titulo('elimina y comparte'),
-        contenido: [bloqueImagen(ruta)],
+        contenido: doc(bloqueImagen(ruta)),
       });
-      await sembrar(editora, { titulo: titulo('sigue usando'), contenido: [bloqueImagen(ruta)] });
+      await sembrar(editora, { titulo: titulo('sigue usando'), contenido: doc(bloqueImagen(ruta)) });
       await comoMiembro('admin');
 
       const resultado = await eliminarArticuloAccion({ id: aEliminar.id });

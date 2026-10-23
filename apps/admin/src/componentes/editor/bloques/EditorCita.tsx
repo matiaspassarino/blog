@@ -3,25 +3,15 @@
 import { CampoTexto } from '../CampoBloque';
 import type { PropsEditorBloque } from './tipos';
 
-export function EditorCita({ bloque, indice, errores, cambiar, soloPropiedades }: PropsEditorBloque<'cita'>) {
+export function EditorCita({ datos, indice, errores, cambiar }: PropsEditorBloque<'blockquote'>) {
   return (
     <>
-      {!soloPropiedades && (
-        <CampoTexto
-          indice={indice}
-          campo="texto"
-          etiqueta="Texto"
-          errores={errores}
-          valor={bloque.texto}
-          alCambiar={(texto) => cambiar({ texto })}
-        />
-      )}
       <CampoTexto
         indice={indice}
         campo="autor"
         etiqueta="Autor"
         errores={errores}
-        valor={bloque.autor ?? ''}
+        valor={datos.autor ?? ''}
         alCambiar={(autor) => cambiar({ autor: autor === '' ? undefined : autor })}
       />
       <CampoTexto
@@ -29,7 +19,7 @@ export function EditorCita({ bloque, indice, errores, cambiar, soloPropiedades }
         campo="fuente"
         etiqueta="Fuente (dirección https)"
         errores={errores}
-        valor={bloque.fuente ?? ''}
+        valor={datos.fuente ?? ''}
         alCambiar={(fuente) => cambiar({ fuente: fuente === '' ? undefined : fuente })}
       />
     </>

@@ -449,9 +449,9 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           )}
         </div>
         {seleccion.tipo === 'elementos' &&
-          seleccion.bloques.length === 1 &&
-          seleccion.bloques[0]?.tipo !== 'parrafo' &&
-          seleccion.bloques[0]?.tipo !== 'separador' &&
+          seleccion.elementos.length === 1 &&
+          seleccion.elementos[0]?.type !== 'paragraph' &&
+          seleccion.elementos[0]?.type !== 'horizontalRule' &&
           alPropiedades && (
             <Button variante="terciaria" tamanio="compacto" onClick={alPropiedades} {...ctl('propiedades')}>
               <Icono nombre="propiedades" />

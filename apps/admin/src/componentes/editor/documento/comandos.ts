@@ -1,65 +1,68 @@
 // Comandos del documento que no son de la librería (contracts/componentes.md). Cada uno es una sola transacción:
-// un Deshacer la revierte. El nodo se busca por `bloqueId` al aplicar, no por la selección.
-import type { Bloque, TipoBloque } from '@blog/bloques';
+// un Deshacer la revierte. El nodo se busca por `id` al aplicar, no por la selección.
+import {
+  datosDeElemento,
+  elementoDesdeDatos,
+  normalizarDocumento,
+  type DatosDe,
+  type Elemento,
+  type TipoConDatos,
+} from '@blog/bloques';
 import type { Editor } from '@tiptap/core';
 import { Fragment, type Node as NodoPm } from '@tiptap/pm/model';
 import { NodeSelection, Selection, SelectionRange, type EditorState, type Transaction } from '@tiptap/pm/state';
 import type { Mappable } from '@tiptap/pm/transform';
-import type { CambiosDeBloque } from '../bloques/tipos';
+import { tipoVisibleDe, type TipoVisible } from '../anuncios';
+import type { CambiosDeElemento } from '../bloques/tipos';
 import { claveModo } from './claves';
-import { documentoABloques, type NodoDocumento } from './conversion';
 
 export type ElementoDelDocumento = { nodo: NodoPm; pos: number; posicion: number };
 
-/** El elemento de primer nivel con ese `bloqueId` (el primero: los tramos de un párrafo comparten id). */
-export function buscarElemento(editor: Editor, bloqueId: string): ElementoDelDocumento | null {
+/** El elemento de primer nivel con ese `id`. */
+export function buscarElemento(editor: Editor, id: string): ElementoDelDocumento | null {
   let encontrado: ElementoDelDocumento | null = null;
   editor.state.doc.forEach((nodo, pos, indice) => {
-    if (!encontrado && nodo.attrs.bloqueId === bloqueId) encontrado = { nodo, pos, posicion: indice + 1 };
+    if (!encontrado && nodo.attrs.id === id) encontrado = { nodo, pos, posicion: indice + 1 };
   });
   return encontrado;
 }
 
-/** El bloque que representa un elemento de primer nivel (sin id no se puede convertir). */
-export function bloqueDeElemento(nodo: NodoPm): Bloque | undefined {
-  return documentoABloques({ type: 'doc', content: [nodo.toJSON() as NodoDocumento] })[0];
+/** El elemento del documento (en forma canónica) que representa un nodo de primer nivel. */
+export function elementoDeNodo(nodo: NodoPm): Elemento | undefined {
+  return normalizarDocumento({ type: 'doc', content: [nodo.toJSON()] }).content[0];
 }
 
-/** Mezcla `cambios` en el bloque del elemento y vuelve a escribir sus atributos. Devuelve `false` si no lo encuentra. */
-export function actualizarBloque(editor: Editor, bloqueId: string, cambios: CambiosDeBloque): boolean {
-  const elemento = buscarElemento(editor, bloqueId);
-  const actual = elemento && bloqueDeElemento(elemento.nodo);
-  if (!elemento || !actual) return false;
-  const nuevo = { ...actual, ...(typeof cambios === 'function' ? cambios(actual) : cambios), id: actual.id } as Bloque;
-  const { nodo, pos } = elemento;
-  const { schema } = editor.state;
-  const tr = editor.state.tr;
+const TIPOS_CON_DATOS = new Set<string>([
+  'imagen',
+  'galeria',
+  'cta',
+  'video',
+  'heading',
+  'blockquote',
+  'bulletList',
+  'orderedList',
+  'codeBlock',
+]);
 
-  switch (nuevo.tipo) {
-    case 'imagen':
-    case 'galeria':
-    case 'cta':
-    case 'video':
-      tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, bloque: nuevo });
-      break;
-    case 'titulo':
-      tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, level: nuevo.nivel });
-      break;
-    case 'cita':
-      tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, autor: nuevo.autor ?? '', fuente: nuevo.fuente ?? '' });
-      break;
-    case 'codigo':
-      tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, lenguaje: nuevo.lenguaje ?? '' });
-      break;
-    case 'lista': {
-      const tipo = schema.nodes[nuevo.ordenada ? 'orderedList' : 'bulletList'];
-      if (tipo) tr.setNodeMarkup(pos, tipo, nodo.attrs);
-      break;
-    }
-    default:
-      return false;
-  }
-  editor.view.dispatch(tr);
+/**
+ * Mezcla `cambios` (con los nombres del panel) en el elemento y vuelve a escribir sus atributos con el adaptador
+ * de `@blog/bloques`. Devuelve `false` si no lo encuentra o si el elemento no tiene campos.
+ */
+export function actualizarElemento(editor: Editor, id: string, cambios: CambiosDeElemento): boolean {
+  const encontrado = buscarElemento(editor, id);
+  const actual = encontrado && elementoDeNodo(encontrado.nodo);
+  if (!encontrado || !actual || !TIPOS_CON_DATOS.has(actual.type)) return false;
+  const conDatos = actual as Extract<Elemento, { type: TipoConDatos }>;
+  const datos = datosDeElemento(conDatos) as DatosDe<TipoConDatos>;
+  const mezcla = typeof cambios === 'function' ? (cambios as (d: typeof datos) => object)(datos) : cambios;
+  const nuevo = elementoDesdeDatos(conDatos, mezcla as never) as Elemento;
+  const { nodo, pos } = encontrado;
+  const tipo = editor.state.schema.nodes[nuevo.type];
+  // Un campo que se quitó vuelve a `null` (la forma canónica no lo guarda).
+  const atributos = Object.fromEntries(
+    Object.keys(nodo.attrs).map((clave) => [clave, (nuevo.attrs as Record<string, unknown>)[clave] ?? null]),
+  );
+  editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, tipo, atributos));
   return true;
 }
 
@@ -167,11 +170,9 @@ export const moverRango =
     return true;
   };
 
-/** Una copia sin identidad: el `bloqueId` se completa al serializar (y `continuacion` no se hereda). */
+/** Una copia sin identidad: el plugin de ids le asigna una nueva. */
 function copiar(nodo: NodoPm): NodoPm {
-  const atributos: Record<string, unknown> = { ...nodo.attrs, bloqueId: '' };
-  if ('continuacion' in atributos) atributos.continuacion = '';
-  return nodo.type.create(atributos, nodo.content, nodo.marks);
+  return nodo.type.create({ ...nodo.attrs, id: null }, nodo.content, nodo.marks);
 }
 
 /** `Mod+D`: copia el conjunto justo debajo y deja la selección en las copias. */
@@ -193,7 +194,7 @@ export const quitarRango = (): Comando => (estado, despachar) => {
   if (!rango) return false;
   if (despachar) {
     const tr = estado.tr.delete(rango.desde, rango.hasta);
-    if (tr.doc.childCount === 0) tr.insert(0, estado.schema.nodes.paragraph!.create({ bloqueId: '' }));
+    if (tr.doc.childCount === 0) tr.insert(0, estado.schema.nodes.paragraph!.create());
     const destino = Math.min(rango.desde, tr.doc.content.size);
     const siguiente = Selection.near(tr.doc.resolve(destino), 1);
     const contiguo = destino < tr.doc.content.size ? siguiente : Selection.near(tr.doc.resolve(destino), -1);
@@ -249,7 +250,8 @@ export function pierdeAlConvertir(
     if (nodo.attrs.autor) pierde.push('el autor de la cita');
     if (nodo.attrs.fuente) pierde.push('la fuente de la cita');
   }
-  if ((tipo === 'titulo' || tipo === 'codigo') && hayMarcas(contenidoEnLinea(nodo))) {
+  // RF-009: los títulos admiten formato; el código no.
+  if (tipo === 'codigo' && hayMarcas(contenidoEnLinea(nodo))) {
     pierde.push('el formato del texto (negrita, cursiva, código y enlaces)');
   }
   return { pierde };
@@ -267,18 +269,18 @@ export const convertirElemento =
       const enLinea = contenidoEnLinea(nodo);
       const plano = textoPlano(enLinea);
       const soloTexto = plano ? Fragment.from(text(plano)) : Fragment.empty;
-      const bloqueId = nodo.attrs.bloqueId ?? '';
+      const id = nodo.attrs.id ?? null;
       const interno = nodes.paragraph!.create({}, enLinea);
       const nuevo = {
-        parrafo: () => nodes.paragraph!.create({ bloqueId, continuacion: '' }, enLinea),
-        titulo: () => nodes.heading!.create({ bloqueId, level: opciones.nivel ?? 2 }, soloTexto),
+        parrafo: () => nodes.paragraph!.create({ id }, enLinea),
+        titulo: () => nodes.heading!.create({ id, level: opciones.nivel ?? 2 }, enLinea),
         cita: () =>
           nodes.blockquote!.create(
-            { bloqueId, autor: nodo.attrs.autor ?? '', fuente: nodo.attrs.fuente ?? '' },
+            { id, autor: nodo.attrs.autor ?? null, fuente: nodo.attrs.fuente ?? null },
             interno,
           ),
-        lista: () => nodes.bulletList!.create({ bloqueId }, nodes.listItem!.create(null, interno)),
-        codigo: () => nodes.codeBlock!.create({ bloqueId, lenguaje: '' }, soloTexto),
+        lista: () => nodes.bulletList!.create({ id }, nodes.listItem!.create(null, interno)),
+        codigo: () => nodes.codeBlock!.create({ id }, soloTexto),
       }[tipo]();
       const tr = estado.tr.replaceWith(pos, pos + nodo.nodeSize, nuevo);
       despachar(seleccionarRango(tr, pos, pos + nuevo.nodeSize));
@@ -289,24 +291,11 @@ export const convertirElemento =
 // ---------------------------------------------------------------------------------------------------------------
 // Elemento activo: el de primer nivel donde está el cursor o que está seleccionado entero
 
-const TIPO_DE_NODO: Record<string, TipoBloque> = {
-  paragraph: 'parrafo',
-  heading: 'titulo',
-  blockquote: 'cita',
-  bulletList: 'lista',
-  orderedList: 'lista',
-  codeBlock: 'codigo',
-  horizontalRule: 'separador',
-  imagenBloque: 'imagen',
-  galeriaBloque: 'galeria',
-  ctaBloque: 'cta',
-  videoBloque: 'video',
-};
+/** El tipo visible (el nombre que ve la persona) de un elemento de primer nivel. */
+export const tipoDeElemento = (nodo: NodoPm): TipoVisible | undefined =>
+  tipoVisibleDe(nodo.type.name as Elemento['type']);
 
-/** El tipo de bloque que representa un elemento de primer nivel. */
-export const tipoDeElemento = (nodo: NodoPm): TipoBloque | undefined => TIPO_DE_NODO[nodo.type.name];
-
-export type ElementoActivoDelEstado = { posicion: number; total: number; tipo: TipoBloque; pos: number; nodo: NodoPm };
+export type ElementoActivoDelEstado = { posicion: number; total: number; tipo: TipoVisible; pos: number; nodo: NodoPm };
 
 /** El elemento de primer nivel del cursor (o el primero de los seleccionados). El párrafo vacío final no cuenta en el total. */
 export function elementoActivo(estado: EditorState): ElementoActivoDelEstado | null {
@@ -319,7 +308,7 @@ export function elementoActivo(estado: EditorState): ElementoActivoDelEstado | n
       : -1;
   if (indice < 0 || indice >= doc.childCount) return null;
   const nodo = doc.child(indice);
-  const tipo = TIPO_DE_NODO[nodo.type.name];
+  const tipo = tipoDeElemento(nodo);
   if (!tipo) return null;
   const ultimo = doc.lastChild;
   const sobrante = doc.childCount > 1 && ultimo?.type.name === 'paragraph' && ultimo.content.size === 0 ? 1 : 0;

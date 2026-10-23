@@ -1,16 +1,10 @@
-// Esquema del documento y extensiones del editor (research D2 y D3 de la spec 005). El documento es una lista de
-// elementos de primer nivel: cada uno es un bloque del contenido guardado. Lo que el sitio no sabe leer no existe
-// en el esquema (sin tachado ni subrayado; títulos sin marcas; citas e ítems de un solo párrafo).
-import {
-  Extension,
-  Mark,
-  Node,
-  markInputRule,
-  mergeAttributes,
-  wrappingInputRule,
-  type AnyExtension,
-  type Editor,
-} from '@tiptap/core';
+// Esquema del documento y extensiones del editor (research D22, D23 y D31 C12 de la spec 005). El esquema de
+// ProseMirror es exactamente la lista permitida del documento guardado (contracts/documento.md): lo que el sitio no
+// sabe dibujar no existe en el editor, y los atributos de la librería que no se guardan se quitan.
+import { Extension, Node, mergeAttributes, wrappingInputRule, type AnyExtension, type Editor } from '@tiptap/core';
+import { CodeBlock } from '@tiptap/extension-code-block';
+import { Link } from '@tiptap/extension-link';
+import { OrderedList } from '@tiptap/extension-list';
 import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
@@ -60,11 +54,14 @@ const TIPOS_CON_ID = [
   'orderedList',
   'codeBlock',
   'horizontalRule',
-  'imagenBloque',
-  'galeriaBloque',
-  'ctaBloque',
-  'videoBloque',
+  'imagen',
+  'galeria',
+  'cta',
+  'video',
 ];
+
+/** Un atributo propio: sin valor es `null` (la normalización lo quita) y no sale en el HTML del portapapeles. */
+const propio = { default: null, rendered: false } as const;
 
 /** `https://…` o una ruta interna (`/…`, no `//…`): lo único que el sitio acepta como enlace. */
 export const esEnlacePermitido = (url: string) => /^https:\/\/[^\s/]+\.\S+$/.test(url) || /^\/(?!\/)\S*$/.test(url);
@@ -83,32 +80,31 @@ const atributosDelDocumento = (devoluciones: DevolucionesDelEditor) =>
     },
     addGlobalAttributes() {
       return [
-        { types: TIPOS_CON_ID, attributes: { bloqueId: { default: '', keepOnSplit: false, rendered: false } } },
-        { types: ['paragraph'], attributes: { continuacion: { default: '', keepOnSplit: false, rendered: false } } },
-        {
-          types: ['blockquote'],
-          attributes: { autor: { default: '', rendered: false }, fuente: { default: '', rendered: false } },
-        },
-        { types: ['codeBlock'], attributes: { lenguaje: { default: '', rendered: false } } },
+        { types: TIPOS_CON_ID, attributes: { id: { ...propio, keepOnSplit: false } } },
+        { types: ['blockquote'], attributes: { autor: propio, fuente: propio } },
+        { types: ['codeBlock'], attributes: { lenguaje: propio } },
       ];
     },
   });
 
-/** Código en línea que admite negrita, cursiva y enlace adentro, como el sitio (la marca de la librería las excluye). */
-const CodigoEnLinea = Mark.create({
-  name: 'code',
-  excludes: '',
-  code: true,
-  parseHTML: () => [{ tag: 'code' }],
-  renderHTML: ({ HTMLAttributes }) => ['code', mergeAttributes(HTMLAttributes), 0],
-  addCommands() {
+/** Enlace con solo `href`: `target`, `rel` y `class` los pone el sitio al dibujar (D31 C12). */
+const Enlace = Link.extend({
+  addAttributes() {
+    return { href: { default: null } };
+  },
+});
+
+/** Lista numerada sin `start` ni `type`: el sitio siempre numera desde 1. */
+const ListaNumerada = OrderedList.extend({
+  addAttributes() {
     return {};
   },
-  addKeyboardShortcuts() {
-    return { 'Mod-e': () => this.editor.commands.toggleMark(this.name) };
-  },
-  addInputRules() {
-    return [markInputRule({ find: /(^|[^`])`([^`]+)`(?!`)$/, type: this.type })];
+});
+
+/** Bloque de código sin el `language` de la librería: el lenguaje es el atributo propio `lenguaje`. */
+const BloqueDeCodigo = CodeBlock.extend({
+  addAttributes() {
+    return {};
   },
 });
 
@@ -152,12 +148,11 @@ const ItemDeLista = Node.create({
   },
 });
 
-/** Los títulos no llevan marcas ni saltos simples y las citas y los ítems no ofrecen saltos simples. */
+/** Los títulos no llevan saltos simples, las citas y los ítems no los ofrecen y el código no lleva marcas. */
 const ReglasDeTexto = Extension.create({
   name: 'reglasDeTexto',
   priority: 1000,
   addKeyboardShortcuts() {
-    const enTitulo = () => this.editor.state.selection.$from.parent.type.name === 'heading';
     const enCodigo = () => this.editor.state.selection.$from.parent.type.name === 'codeBlock';
     const sinSalto = () => {
       const { $from } = this.editor.state.selection;
@@ -165,7 +160,7 @@ const ReglasDeTexto = Extension.create({
         ['heading', 'blockquote', 'listItem'].includes($from.node(n).type.name),
       );
     };
-    const sinMarcas = () => enTitulo() || enCodigo();
+    const sinMarcas = enCodigo;
     return {
       'Shift-Enter': sinSalto,
       'Mod-Enter': sinSalto,
@@ -181,7 +176,7 @@ const ReglasDeTexto = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        key: new PluginKey('limpiarTitulos'),
+        key: new PluginKey('titulosSinSaltos'),
         appendTransaction: (_transacciones, _antes, despues) => {
           if (!_transacciones.some((tr) => tr.docChanged)) return null;
           const tr = despues.tr;
@@ -191,8 +186,6 @@ const ReglasDeTexto = Extension.create({
               const inicio = pos + 1 + relativa;
               if (hijo.type.name === 'hardBreak')
                 tr.delete(tr.mapping.map(inicio), tr.mapping.map(inicio + hijo.nodeSize));
-              else if (hijo.marks.length > 0)
-                tr.removeMark(tr.mapping.map(inicio), tr.mapping.map(inicio + hijo.nodeSize));
             });
           });
           return tr.docChanged ? tr.setMeta('addToHistory', false) : null;
@@ -246,7 +239,7 @@ const Tipografia = Extension.create({
   },
 });
 
-/** Asigna el `bloqueId` de los elementos nuevos una sola vez y deduplica los repetidos (research D6 y D21). */
+/** Asigna el `id` de los elementos nuevos una sola vez y deduplica los repetidos (research D6 y D21). */
 const AsignarIds = Extension.create({
   name: 'asignarIds',
   addProseMirrorPlugins() {
@@ -265,10 +258,7 @@ const AsignarIds = Extension.create({
           let pos = 0;
           elementos.forEach((nodo, i) => {
             const atributos = asegurado.content?.[i]?.attrs;
-            if (
-              atributos &&
-              (atributos.bloqueId !== nodo.attrs.bloqueId || atributos.continuacion !== nodo.attrs.continuacion)
-            ) {
+            if (atributos && atributos.id !== nodo.attrs.id) {
               tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, ...atributos });
             }
             pos += nodo.nodeSize;
@@ -288,7 +278,7 @@ const AsignarIds = Extension.create({
   },
 });
 
-/** Errores de validación por `bloqueId`: marcan el elemento en el lienzo, con texto, no solo con color. */
+/** Errores de validación por `id`: marcan el elemento en el lienzo, con texto, no solo con color. */
 
 const MarcasDeError = Extension.create({
   name: 'marcasDeError',
@@ -313,9 +303,9 @@ const MarcasDeError = Extension.create({
             if (!errores || errores.size === 0) return DecorationSet.empty;
             const decoraciones: Decoration[] = [];
             estado.doc.forEach((nodo, desplazamiento) => {
-              const mensajes = errores.get(String(nodo.attrs.bloqueId));
+              const mensajes = errores.get(String(nodo.attrs.id));
               if (!mensajes) return;
-              const idMensaje = `error-${String(nodo.attrs.bloqueId)}`;
+              const idMensaje = `error-${String(nodo.attrs.id)}`;
               decoraciones.push(
                 Decoration.node(
                   desplazamiento,
@@ -465,7 +455,15 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
   });
 }
 
-function nodoEspecial(name: string) {
+/** Los campos de cada elemento especial: se editan en el panel y se guardan como `attrs` planos (D22). */
+const CAMPOS_ESPECIALES = {
+  imagen: ['imagen', 'leyenda'],
+  galeria: ['imagenes', 'columnas'],
+  cta: ['titulo', 'texto', 'etiquetaBoton', 'url', 'variante'],
+  video: ['proveedor', 'idVideo', 'titulo'],
+} as const;
+
+function nodoEspecial(name: keyof typeof CAMPOS_ESPECIALES) {
   return Node.create({
     name,
     group: 'block',
@@ -473,7 +471,7 @@ function nodoEspecial(name: string) {
     selectable: true,
     draggable: false,
     addAttributes() {
-      return { bloque: { default: null, rendered: false } };
+      return Object.fromEntries(CAMPOS_ESPECIALES[name].map((campo) => [campo, propio]));
     },
     parseHTML: () => [],
     renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-elemento': name })],
@@ -588,22 +586,25 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
       heading: { levels: [2, 3, 4] },
       blockquote: false,
       listItem: false,
-      code: false,
+      orderedList: false,
+      codeBlock: false,
       strike: false,
       underline: false,
-      link: { openOnClick: false, autolink: false, linkOnPaste: false, isAllowedUri: esEnlacePermitido },
+      link: false,
     }),
+    Enlace.configure({ openOnClick: false, autolink: false, linkOnPaste: false, isAllowedUri: esEnlacePermitido }),
+    ListaNumerada,
+    BloqueDeCodigo,
     Cita,
     ItemDeLista,
-    CodigoEnLinea,
     atributosDelDocumento(devoluciones),
     Tipografia,
     ReglasDeTexto,
     AsignarIds,
-    nodoEspecial('imagenBloque'),
-    nodoEspecial('galeriaBloque'),
-    nodoEspecial('ctaBloque'),
-    nodoEspecial('videoBloque'),
+    nodoEspecial('imagen'),
+    nodoEspecial('galeria'),
+    nodoEspecial('cta'),
+    nodoEspecial('video'),
     Placeholder.configure({
       placeholder: ({ node, editor }: { node: { type: { name: string } }; editor: Editor }) =>
         node.type.name === 'paragraph' && editor.state.doc.childCount > 0 ? textoDeLineaVacia() : '',
