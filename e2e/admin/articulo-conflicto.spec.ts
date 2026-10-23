@@ -12,7 +12,7 @@
 //   - Spec 005: «Reemplazar con la vigente» vuelve a crear el documento con lo vigente y con el historial vacío:
 //     «Deshacer» queda con `aria-disabled="true"` y Mod+Z no trae de vuelta lo descartado.
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { articuloPorId, limpiarArticulosE2E, parrafo, sembrarArticulo } from './ayudas/articulos';
+import { articuloPorId, limpiarArticulosE2E, parrafo, sembrarArticulo, elementosDe, textoDe } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
 import {
   botonDeshacer,
@@ -81,7 +81,7 @@ test.describe('Edición concurrente (H2-E5, H5-E4, CE-005)', () => {
     await expect(parrafoDelLienzo(segunda.page)).toHaveText('Lo que escribió la segunda');
     const enBase = await articuloPorId(articulo.id);
     expect(enBase.titulo).toBe(tituloPrimera);
-    expect(enBase.contenido).toMatchObject([{ texto: 'Texto original' }]);
+    expect(elementosDe(enBase).map(textoDe)).toEqual(['Texto original']);
 
     await primera.contexto.close();
     await segunda.contexto.close();
@@ -185,7 +185,7 @@ test.describe('Edición concurrente (H2-E5, H5-E4, CE-005)', () => {
 
     const guardado = await articuloPorId(articulo.id);
     expect(guardado.titulo).toBe(tituloNuevo);
-    expect(guardado.contenido).toMatchObject([{ texto: 'Escrito después de reemplazar' }]);
+    expect(elementosDe(guardado).map(textoDe)).toEqual(['Escrito después de reemplazar']);
 
     await primera.contexto.close();
     await segunda.contexto.close();

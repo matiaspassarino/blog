@@ -13,7 +13,7 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import {
   imagenSemilla,
-  diezBloques,
+  diezElementos,
   limpiarArticulosE2E,
   parrafo,
   pasarAComoServicio,
@@ -65,7 +65,7 @@ let nombreInvitado = '';
 test.beforeAll(async () => {
   const ruta = `pruebas-e2e/${crypto.randomUUID()}.png`;
   await subirObjeto(ruta, pngDecodificable(4, 3));
-  const diez = await sembrarArticulo({ titulo: titulo('diez'), contenido: diezBloques(imagenSemilla(ruta)) });
+  const diez = await sembrarArticulo({ titulo: titulo('diez'), contenido: diezElementos(imagenSemilla(ruta)) });
   datosDePantallas.prefijoLista = PREFIJO;
   datosDePantallas.idArticulo = diez.id;
   idConImagen = (await sembrarArticulo({ titulo: titulo('con imagen'), imagen_destacada: imagenSemilla(ruta) })).id;

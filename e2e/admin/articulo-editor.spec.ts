@@ -19,12 +19,15 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   articuloPorId,
   articuloPorTitulo,
-  diezBloques,
+  diezElementos,
+  elementosDe,
   ID_EDITORA,
   imagenSemilla,
   limpiarArticulosE2E,
   parrafo,
   sembrarArticulo,
+  textoDe,
+  tipoVisible,
 } from './ayudas/articulos';
 import {
   accionDelMenu,
@@ -77,8 +80,6 @@ async function idDeLaUrl(page: Page) {
   await expect(page).toHaveURL(URL_ARTICULO);
   return page.url().split('/').pop()!;
 }
-
-const contenidoDe = (articulo: { contenido: unknown }) => articulo.contenido as Record<string, unknown>[];
 
 test.describe('Slug sugerido (H2-E1)', () => {
   test('H2-E1: al escribir el título aparece el slug normalizado, y se puede reemplazar', async ({ page }) => {
@@ -138,16 +139,18 @@ test.describe('Elementos (H2-E2, H5-E1)', () => {
     const cita = await camposDe(page, grupoDeBloque(page, 4, 'cita'));
     await expect(cita.getByLabel('Autor', { exact: true })).toHaveValue('Alguien');
 
-    const guardado = contenidoDe(await articuloPorId(id));
-    expect(guardado.map((b) => b.tipo)).toEqual(TIPOS);
-    // Lo mismo que `diezBloques`, salvo los ids y la imagen subida (ruta, ancho y alto nuevos).
-    const esperado = diezBloques(imagenSemilla('')) as Record<string, unknown>[];
-    for (const [i, bloque] of guardado.entries()) {
-      const { id: _id, imagen, imagenes, ...resto } = esperado[i]!;
-      expect(bloque, TIPOS[i]).toMatchObject(resto);
-      if (imagen) expect(bloque.imagen).toMatchObject({ alt: 'Imagen de prueba', decorativa: false });
+    const guardado = elementosDe(await articuloPorId(id));
+    expect(guardado.map(tipoVisible)).toEqual(TIPOS);
+    // Lo mismo que `diezElementos`, salvo los ids y la imagen subida (ruta, ancho y alto nuevos).
+    const esperado = diezElementos(imagenSemilla(''));
+    for (const [i, elemento] of guardado.entries()) {
+      const { id: _id, imagen, imagenes, ...resto } = esperado[i]!.attrs;
+      expect(elemento, TIPOS[i]).toMatchObject({ type: esperado[i]!.type, attrs: resto });
+      expect(textoDe(elemento), TIPOS[i]).toBe(textoDe(esperado[i]));
+      if (imagen) expect(elemento.attrs.imagen).toMatchObject({ alt: 'Imagen de prueba', decorativa: false });
       if (imagenes) {
-        expect((bloque.imagenes as { alt: string }[]).map((img) => img.alt)).toEqual(['Imagen de prueba', 'Otra imagen']);
+        const alts = (elemento.attrs.imagenes as { alt: string }[]).map((img) => img.alt);
+        expect(alts).toEqual(['Imagen de prueba', 'Otra imagen']);
       }
     }
   });
@@ -171,7 +174,7 @@ test.describe('Elementos (H2-E2, H5-E1)', () => {
 
     await abrirArticulo(page, articulo.id);
     expect(await textosDelLienzo(page)).toEqual(['Dos', 'Dos', 'Uno']);
-    expect(contenidoDe(await articuloPorId(articulo.id)).map((b) => b.texto)).toEqual(['Dos', 'Dos', 'Uno']);
+    expect(elementosDe(await articuloPorId(articulo.id)).map(textoDe)).toEqual(['Dos', 'Dos', 'Uno']);
   });
 
   test('CE-006 / H5: en los extremos, subir el primero y bajar el último no hacen nada, con el teclado', async ({
@@ -229,7 +232,7 @@ test.describe('Errores por elemento y campo (H2-E3, H5-E3, CE-004)', () => {
     await expect(primero).toHaveText('Texto nuevo que no debe perderse');
     const enBase = await articuloPorId(articulo.id);
     expect(enBase.version).toBe(articulo.version);
-    expect(contenidoDe(enBase)[0]?.texto).toBe('Original');
+    expect(textoDe(elementosDe(enBase)[0])).toBe('Original');
   });
 
   test('H2-E3: marcar la imagen como decorativa resuelve el error y deja guardar', async ({ page }) => {
@@ -300,7 +303,7 @@ test.describe('Errores por elemento y campo (H2-E3, H5-E3, CE-004)', () => {
 
     await guardarYEsperar(page);
 
-    expect(contenidoDe((await articuloPorTitulo(nombre))!).map((b) => b.tipo)).toEqual(['separador']);
+    expect(elementosDe(await articuloPorTitulo(nombre)).map(tipoVisible)).toEqual(['separador']);
   });
 
   test('CE-004 / H5-E3: el foco va al primer campo inválido cuando hay varios elementos con error', async ({ page }) => {
@@ -316,7 +319,7 @@ test.describe('Errores por elemento y campo (H2-E3, H5-E3, CE-004)', () => {
 });
 
 test.describe('Formato del texto (H2-E2, RF-003)', () => {
-  test('la barra aplica negrita, cursiva, código y enlace; se guardan con la sintaxis de siempre y no hay subrayado', async ({
+  test('la barra aplica negrita, cursiva, código y enlace; se guardan como marcas del documento y no hay subrayado', async ({
     page,
   }) => {
     const nombre = titulo('formato');
@@ -340,11 +343,11 @@ test.describe('Formato del texto (H2-E2, RF-003)', () => {
     }
     await guardarYEsperar(page);
 
-    expect(contenidoDe((await articuloPorTitulo(nombre))!).map((b) => b.texto)).toEqual([
-      '**hola**',
-      '_hola_',
-      '`hola`',
-      '[hola](https://example.com/destino)',
+    expect(elementosDe(await articuloPorTitulo(nombre)).map((elemento) => elemento.content)).toEqual([
+      [{ type: 'text', text: 'hola', marks: [{ type: 'bold' }] }],
+      [{ type: 'text', text: 'hola', marks: [{ type: 'italic' }] }],
+      [{ type: 'text', text: 'hola', marks: [{ type: 'code' }] }],
+      [{ type: 'text', text: 'hola', marks: [{ type: 'link', attrs: { href: 'https://example.com/destino' } }] }],
     ]);
   });
 });

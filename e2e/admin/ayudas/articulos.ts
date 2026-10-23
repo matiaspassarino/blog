@@ -18,40 +18,113 @@ export const imagenSemilla = (ruta: string): ImagenSemilla => ({
   decorativa: false,
 });
 
-export const parrafo = (texto: string) => ({ id: nuevoId(), tipo: 'parrafo', texto });
+type Marca = { type: string; attrs?: Record<string, unknown> };
+type NodoEnLinea = { type: 'text'; text: string; marks?: Marca[] } | { type: 'hardBreak' };
+/** Un elemento del documento guardado (contracts/documento.md de la spec 005). */
+export type Elemento = { type: string; attrs: Record<string, unknown>; content?: Elemento[] | NodoEnLinea[] };
 
-/** Los 10 tipos de bloque, completos y válidos (`imagen` va en el bloque de imagen y en la galería). */
-export function diezBloques(imagen: ImagenSemilla) {
+const negrita: Marca = { type: 'bold' };
+const cursiva: Marca = { type: 'italic' };
+export const salto: NodoEnLinea = { type: 'hardBreak' };
+
+/** Un tramo de texto con sus marcas. */
+const texto = (contenido: string, ...marcas: Marca[]): NodoEnLinea =>
+  marcas.length > 0 ? { type: 'text', text: contenido, marks: marcas } : { type: 'text', text: contenido };
+const enLinea = (partes: (string | NodoEnLinea)[]) => partes.map((parte) => (typeof parte === 'string' ? texto(parte) : parte));
+const interno = (contenido: string) => ({ type: 'paragraph', content: [texto(contenido)] }) as unknown as Elemento;
+
+export const parrafo = (...partes: (string | NodoEnLinea)[]): Elemento => ({
+  type: 'paragraph',
+  attrs: { id: nuevoId() },
+  content: enLinea(partes),
+});
+export const titulo = (nivel: 2 | 3 | 4, contenido: string): Elemento => ({
+  type: 'heading',
+  attrs: { id: nuevoId(), level: nivel },
+  content: [texto(contenido)],
+});
+export const imagenElemento = (imagen: ImagenSemilla, leyenda?: string): Elemento => ({
+  type: 'imagen',
+  attrs: { id: nuevoId(), imagen, ...(leyenda ? { leyenda } : {}) },
+});
+export const cita = (contenido: string, campos: { autor?: string; fuente?: string } = {}): Elemento => ({
+  type: 'blockquote',
+  attrs: { id: nuevoId(), ...campos },
+  content: [interno(contenido)],
+});
+export const lista = (items: string[], ordenada = false): Elemento => ({
+  type: ordenada ? 'orderedList' : 'bulletList',
+  attrs: { id: nuevoId() },
+  content: items.map((item) => ({ type: 'listItem', content: [interno(item)] }) as unknown as Elemento),
+});
+const galeria = (imagenes: ImagenSemilla[], columnas: 2 | 3 | 4 = 3): Elemento => ({
+  type: 'galeria',
+  attrs: { id: nuevoId(), imagenes, columnas },
+});
+export const cta = (campos: { titulo: string; texto?: string; etiquetaBoton: string; url: string }): Elemento => ({
+  type: 'cta',
+  attrs: { id: nuevoId(), ...campos },
+});
+export const separador = (): Elemento => ({ type: 'horizontalRule', attrs: { id: nuevoId() } });
+export const codigo = (contenido: string, lenguaje?: string): Elemento => ({
+  type: 'codeBlock',
+  attrs: { id: nuevoId(), ...(lenguaje ? { lenguaje } : {}) },
+  ...(contenido ? { content: [texto(contenido)] } : {}),
+});
+const video = (idVideo: string, tituloDelVideo: string): Elemento => ({
+  type: 'video',
+  attrs: { id: nuevoId(), proveedor: 'youtube', idVideo, titulo: tituloDelVideo },
+});
+
+/** Los 10 tipos de elemento del editor, completos y válidos (`imagen` va en el elemento de imagen y en la galería). */
+export function diezElementos(imagen: ImagenSemilla): Elemento[] {
   return [
-    parrafo('Primer párrafo con **negrita** y _cursiva_.'),
-    { id: nuevoId(), tipo: 'titulo', nivel: 2, texto: 'Un subtítulo de nivel dos' },
-    { id: nuevoId(), tipo: 'imagen', imagen, leyenda: 'Leyenda de la imagen' },
-    {
-      id: nuevoId(),
-      tipo: 'cita',
-      texto: 'Una cita memorable',
-      autor: 'Alguien',
-      fuente: 'https://example.com/fuente',
-    },
-    { id: nuevoId(), tipo: 'lista', ordenada: true, items: ['Primero', 'Segundo', 'Tercero'] },
-    { id: nuevoId(), tipo: 'galeria', imagenes: [imagen, { ...imagen, alt: 'Otra imagen' }], columnas: 2 },
-    {
-      id: nuevoId(),
-      tipo: 'cta',
-      titulo: 'Llamada a la acción',
-      texto: 'Un texto de apoyo',
-      etiquetaBoton: 'Ir al sitio',
-      url: 'https://example.com/destino',
-    },
-    { id: nuevoId(), tipo: 'separador' },
-    { id: nuevoId(), tipo: 'codigo', codigo: 'const x = 1;', lenguaje: 'ts' },
-    { id: nuevoId(), tipo: 'video', proveedor: 'youtube', idVideo: 'dQw4w9WgXcQ', titulo: 'Un video de prueba' },
+    parrafo('Primer párrafo con ', texto('negrita', negrita), ' y ', texto('cursiva', cursiva), '.'),
+    titulo(2, 'Un subtítulo de nivel dos'),
+    imagenElemento(imagen, 'Leyenda de la imagen'),
+    cita('Una cita memorable', { autor: 'Alguien', fuente: 'https://example.com/fuente' }),
+    lista(['Primero', 'Segundo', 'Tercero'], true),
+    galeria([imagen, { ...imagen, alt: 'Otra imagen' }], 2),
+    cta({ titulo: 'Llamada a la acción', texto: 'Un texto de apoyo', etiquetaBoton: 'Ir al sitio', url: 'https://example.com/destino' }),
+    separador(),
+    codigo('const x = 1;', 'ts'),
+    video('dQw4w9WgXcQ', 'Un video de prueba'),
   ];
+}
+
+const TIPO_VISIBLE: Record<string, string> = {
+  paragraph: 'parrafo',
+  heading: 'titulo',
+  bulletList: 'lista',
+  orderedList: 'lista',
+  blockquote: 'cita',
+  codeBlock: 'codigo',
+  horizontalRule: 'separador',
+};
+
+/** El nombre del tipo como lo usa la interfaz (`parrafo`, `titulo`, `lista`…), el de `TIPOS` en `ayudas/editor.ts`. */
+export const tipoVisible = (elemento: Elemento | undefined) =>
+  TIPO_VISIBLE[elemento?.type ?? ''] ?? elemento?.type ?? '';
+
+/** Los elementos del documento guardado de un artículo. */
+export const elementosDe = (articulo: { contenido: unknown } | null | undefined) =>
+  ((articulo?.contenido as { content?: Elemento[] } | undefined)?.content ?? []) as Elemento[];
+
+/** El texto visible de un elemento, sin marcas: un salto de línea o cada ítem de una lista, en otra línea. */
+export function textoDe(elemento: Elemento | undefined): string {
+  const hijos = (elemento?.content ?? []) as (Elemento | NodoEnLinea)[];
+  return hijos
+    .map((hijo) => {
+      if (hijo.type === 'text') return (hijo as { text: string }).text;
+      if (hijo.type === 'hardBreak') return '\n';
+      return textoDe(hijo as Elemento);
+    })
+    .join(['bulletList', 'orderedList'].includes(elemento?.type ?? '') ? '\n' : '');
 }
 
 type CamposSemilla = {
   titulo: string;
-  contenido?: object[];
+  contenido?: Elemento[];
   imagen_destacada?: ImagenSemilla | null;
   autorId?: string;
   slug?: string;
@@ -66,7 +139,7 @@ export async function sembrarArticulo({ autorId = ID_EDITOR, contenido, ...campo
     .insert({
       slug: '',
       ...campos,
-      contenido: (contenido ?? [parrafo('Texto inicial')]) as never,
+      contenido: { type: 'doc', content: contenido ?? [parrafo('Texto inicial')] } as never,
       imagen_destacada: campos.imagen_destacada as never,
       categoria_id: categoria?.id,
       autor_id: autorId,

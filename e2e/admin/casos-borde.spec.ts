@@ -11,7 +11,7 @@
 //   - Un publicado al que se le quitan todos los bloques no puede quedar publicado: o se rechaza el guardado, o hay que
 //     volver a borrador antes; en ningún caso la base queda con un publicado sin bloques.
 //   - Spec 005 (T058): el contenido es el lienzo del editor de documento. Vaciarlo es Mod+A y Supr (un documento vacío
-//     se guarda como contenido `[]`); la imagen de un elemento se sube desde su panel de propiedades, que explica una
+//     se guarda como el documento vacío); la imagen de un elemento se sube desde su panel de propiedades, que explica una
 //     subida fallida en un `role="alert"` y deja el elemento sin imagen.
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -20,6 +20,8 @@ import {
   pasarAComoServicio,
   publicarComoServicio,
   sembrarArticulo,
+  elementosDe,
+  textoDe,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
 import {
@@ -300,7 +302,7 @@ test.describe('Casos borde: un slug manual que ya existe (RF-008)', () => {
 
     const { data } = await servicio().from('articulos').select('slug, contenido').eq('titulo', nombre).single();
     expect(data?.slug).toMatch(new RegExp(`^${ocupado}-\\d+$`));
-    expect(data?.contenido).toMatchObject([{ texto: 'El contenido del lienzo se guarda con el slug ajustado' }]);
+    expect(elementosDe(data).map(textoDe)).toEqual(['El contenido del lienzo se guarda con el slug ajustado']);
     await expect(page.getByLabel('Slug', { exact: true })).toHaveValue(data!.slug);
     await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText('El contenido del lienzo se guarda con el slug ajustado');
   });
@@ -339,7 +341,7 @@ test.describe('Casos borde: un publicado sin bloques', () => {
 
     await expect(errorDelPanel(page)).toContainText(/sin bloques/i);
     await esperarEstado(page, 'borrador');
-    expect(await articuloPorId(articulo.id)).toMatchObject({ estado: 'borrador', contenido: [] });
+    expect(await articuloPorId(articulo.id)).toMatchObject({ estado: 'borrador', contenido: { type: 'doc', content: [] } });
   });
 
   test('CB-sin-bloques: quitar todos los bloques de un publicado nunca deja la base con un publicado vacío', async ({
@@ -357,7 +359,7 @@ test.describe('Casos borde: un publicado sin bloques', () => {
     await expect(page.getByRole('alert').or(page.getByRole('status').filter({ hasText: /guardad/i }))).toBeVisible();
 
     const guardado = await articuloPorId(articulo.id);
-    const vacio = (guardado.contenido as unknown[]).length === 0;
+    const vacio = elementosDe(guardado).length === 0;
     expect(guardado.estado === 'publicado' && vacio, 'un publicado no puede quedar sin bloques').toBe(false);
   });
 });

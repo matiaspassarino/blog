@@ -15,13 +15,24 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   articuloPorId,
   articuloPorTitulo,
-  diezBloques,
+  cita,
+  cta,
+  codigo,
+  diezElementos,
+  elementosDe,
+  imagenElemento,
   imagenSemilla,
   limpiarArticulosE2E,
+  lista,
   parrafo,
   pasarAComoServicio,
   publicarComoServicio,
+  salto,
   sembrarArticulo,
+  separador,
+  textoDe,
+  titulo,
+  type Elemento,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
 import {
@@ -448,10 +459,10 @@ test.describe('Escribir como documento', () => {
       titulo: nombreDePrueba('doc-tipografia'),
       contenido: [
         parrafo('Texto de un párrafo'),
-        { id: crypto.randomUUID(), tipo: 'titulo', nivel: 2, texto: 'Titulo dos' },
-        { id: crypto.randomUUID(), tipo: 'titulo', nivel: 3, texto: 'Titulo tres' },
-        { id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['Ítem de lista'] },
-        { id: crypto.randomUUID(), tipo: 'cita', texto: 'Texto de una cita' },
+        titulo(2, 'Titulo dos'),
+        titulo(3, 'Titulo tres'),
+        lista(['Ítem de lista']),
+        cita('Texto de una cita'),
       ],
     });
     const casos = [
@@ -502,14 +513,21 @@ test.describe('Escribir como documento', () => {
     await elegirEstilo(page, 'Cita');
     await guardarYEsperar(page);
 
-    const guardado = await articuloPorTitulo(nombre);
-    const bloques = guardado!.contenido as Record<string, unknown>[];
-    expect(bloques.map((b) => b.tipo)).toEqual(['titulo', 'parrafo', 'parrafo', 'lista', 'cita']);
-    expect(bloques[0]).toMatchObject({ nivel: 2, texto: 'Un título' });
-    expect(bloques[1]).toMatchObject({ texto: 'Primer párrafo con **negrita** fin' });
-    expect(bloques[2]).toMatchObject({ texto: 'Segundo párrafo' });
-    expect(bloques[3]).toMatchObject({ ordenada: false, items: ['uno', 'dos'] });
-    expect(bloques[4]).toMatchObject({ texto: 'Una cita' });
+    const elementos = elementosDe(await articuloPorTitulo(nombre));
+    expect(elementos.map((elemento) => elemento.type)).toEqual([
+      'heading',
+      'paragraph',
+      'paragraph',
+      'bulletList',
+      'blockquote',
+    ]);
+    expect(elementos[0]?.attrs).toMatchObject({ level: 2 });
+    expect(elementos.map(textoDe)).toEqual(['Un título', 'Primer párrafo con negrita fin', 'Segundo párrafo', 'uno\ndos', 'Una cita']);
+    expect(elementos[1]?.content).toEqual([
+      { type: 'text', text: 'Primer párrafo con ' },
+      { type: 'text', text: 'negrita', marks: [{ type: 'bold' }] },
+      { type: 'text', text: ' fin' },
+    ]);
   });
 });
 
@@ -536,19 +554,12 @@ const sembrarOchoElementos = (titulo: string) =>
     contenido: [
       parrafo('Uno'),
       parrafo('Dos'),
-      { id: crypto.randomUUID(), tipo: 'imagen', imagen: imagenSemilla('articulos/e2e-inexistente.png') },
-      { id: crypto.randomUUID(), tipo: 'cita', texto: 'Una cita', autor: 'Alguien' },
-      { id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['a', 'b'] },
+      imagenElemento(imagenSemilla('articulos/e2e-inexistente.png')),
+      cita('Una cita', { autor: 'Alguien' }),
+      lista(['a', 'b']),
       parrafo('Seis'),
-      {
-        id: crypto.randomUUID(),
-        tipo: 'cta',
-        titulo: 'Llamada',
-        texto: 'Texto de apoyo',
-        etiquetaBoton: 'Ir al sitio',
-        url: 'https://example.com/destino',
-      },
-      { id: crypto.randomUUID(), tipo: 'separador' },
+      cta({ titulo: 'Llamada', texto: 'Texto de apoyo', etiquetaBoton: 'Ir al sitio', url: 'https://example.com/destino' }),
+      separador(),
     ],
   });
 
@@ -577,8 +588,9 @@ const ELEMENTOS_DEL_MENU = [
 ];
 
 const IMAGEN = /^Imagen, \d+ de \d+$/;
-const contenidoDe = (guardado: { contenido: unknown } | null | undefined) =>
-  (guardado?.contenido ?? []) as Record<string, unknown>[];
+/** El primer elemento guardado de ese tipo del documento. */
+const guardadoDeTipo = (guardado: { contenido: unknown } | null | undefined, tipo: string) =>
+  elementosDe(guardado).find((elemento) => elemento.type === tipo);
 
 test.describe('Elementos especiales y panel', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
@@ -665,8 +677,8 @@ test.describe('Elementos especiales y panel', () => {
 
     await panel.getByLabel('Imagen decorativa').check();
     await guardarYEsperar(page);
-    const imagen = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'imagen');
-    expect(imagen).toMatchObject({ imagen: { decorativa: true } });
+    const imagen = guardadoDeTipo(await articuloPorTitulo(nombre), 'imagen');
+    expect(imagen?.attrs).toMatchObject({ imagen: { decorativa: true } });
   });
 
   test('H2-E2: una imagen con texto alternativo y leyenda se guarda como en el editor de hoy', async ({ page }) => {
@@ -680,8 +692,8 @@ test.describe('Elementos especiales y panel', () => {
     await panel.getByLabel('Leyenda', { exact: true }).fill('Leyenda de la foto');
     await guardarYEsperar(page);
 
-    const imagen = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'imagen');
-    expect(imagen).toMatchObject({
+    const imagen = guardadoDeTipo(await articuloPorTitulo(nombre), 'imagen');
+    expect(imagen?.attrs).toMatchObject({
       imagen: { alt: 'Una foto de prueba', decorativa: false },
       leyenda: 'Leyenda de la foto',
     });
@@ -703,9 +715,9 @@ test.describe('Elementos especiales y panel', () => {
 
     await expect(isla(page, /^Galería, \d+ de \d+$/).locator('img')).toHaveCount(2);
     await guardarYEsperar(page);
-    const galeria = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'galeria');
-    expect(galeria).toMatchObject({ columnas: 2 });
-    expect((galeria as { imagenes: unknown[] }).imagenes).toHaveLength(2);
+    const galeria = guardadoDeTipo(await articuloPorTitulo(nombre), 'galeria');
+    expect(galeria?.attrs).toMatchObject({ columnas: 2 });
+    expect(galeria?.attrs.imagenes).toHaveLength(2);
   });
 
   test('H2-E3: llamada a la acción: el foco entra al panel, el botón se ve con su etiqueta y se guarda', async ({
@@ -727,8 +739,8 @@ test.describe('Elementos especiales y panel', () => {
     await expect(elemento).toContainText('Suscríbete');
     await expect(elemento.getByText('Suscribirme')).toBeVisible();
     await guardarYEsperar(page);
-    const cta = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'cta');
-    expect(cta).toMatchObject({
+    const llamada = guardadoDeTipo(await articuloPorTitulo(nombre), 'cta');
+    expect(llamada?.attrs).toMatchObject({
       titulo: 'Suscríbete',
       texto: 'Recibe las novedades',
       etiquetaBoton: 'Suscribirme',
@@ -750,8 +762,8 @@ test.describe('Elementos especiales y panel', () => {
 
     await expect(isla(page, /^Video, \d+ de \d+$/)).toContainText('Un video de prueba');
     await guardarYEsperar(page);
-    const video = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'video');
-    expect(video).toMatchObject({ proveedor: 'youtube', idVideo: 'dQw4w9WgXcQ', titulo: 'Un video de prueba' });
+    const video = guardadoDeTipo(await articuloPorTitulo(nombre), 'video');
+    expect(video?.attrs).toMatchObject({ proveedor: 'youtube', idVideo: 'dQw4w9WgXcQ', titulo: 'Un video de prueba' });
   });
 
   test('H2-E3: código: el foco queda en el bloque, el texto se escribe en el lienzo y el lenguaje en el panel', async ({
@@ -774,8 +786,9 @@ test.describe('Elementos especiales y panel', () => {
 
     await panelDePropiedades(page).getByLabel('Lenguaje', { exact: true }).fill('ts');
     await guardarYEsperar(page);
-    const codigo = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'codigo');
-    expect(codigo).toMatchObject({ codigo: 'const x = 1;', lenguaje: 'ts' });
+    const bloqueDeCodigo = guardadoDeTipo(await articuloPorTitulo(nombre), 'codeBlock');
+    expect(textoDe(bloqueDeCodigo)).toBe('const x = 1;');
+    expect(bloqueDeCodigo?.attrs).toMatchObject({ lenguaje: 'ts' });
   });
 
   test('H2-E3: separador: el foco pasa al párrafo siguiente', async ({ page }) => {
@@ -803,8 +816,9 @@ test.describe('Elementos especiales y panel', () => {
     await panel.getByLabel(/^Fuente/).fill('https://example.com/fuente');
     await guardarYEsperar(page);
 
-    const cita = contenidoDe(await articuloPorTitulo(nombre)).find((b) => b.tipo === 'cita');
-    expect(cita).toMatchObject({ texto: 'Una cita memorable', autor: 'Alguien', fuente: 'https://example.com/fuente' });
+    const guardada = guardadoDeTipo(await articuloPorTitulo(nombre), 'blockquote');
+    expect(textoDe(guardada)).toBe('Una cita memorable');
+    expect(guardada?.attrs).toMatchObject({ autor: 'Alguien', fuente: 'https://example.com/fuente' });
   });
 
   test('H2-E4: al cambiar un campo en el panel, el lienzo se actualiza al instante', async ({ page }) => {
@@ -1022,13 +1036,13 @@ test.describe('Elementos especiales y panel: hoja por debajo de 1280 px (H2-E6)'
 // ---------------------------------------------------------------------------------------------------------------------
 
 const CINCO = ['Uno', 'Dos', 'Tres', 'Cuatro', 'Cinco'];
-const sembrarCinco = (titulo: string) => sembrarArticulo({ titulo, contenido: CINCO.map(parrafo) });
+const sembrarCinco = (titulo: string) => sembrarArticulo({ titulo, contenido: CINCO.map((texto) => parrafo(texto)) });
 const sembrarConImagenGuardada = (titulo: string) =>
   sembrarArticulo({
     titulo,
     contenido: [
       parrafo('Uno'),
-      { id: crypto.randomUUID(), tipo: 'imagen', imagen: imagenSemilla('articulos/e2e-inexistente.png') },
+      imagenElemento(imagenSemilla('articulos/e2e-inexistente.png')),
       parrafo('Tres'),
     ],
   });
@@ -1162,7 +1176,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
       await expect(anuncio(page, 'Elemento duplicado, posición 3 de 6')).toBeVisible();
       await expect(botonAcciones(page)).toHaveAccessibleName('Acciones del elemento 3, párrafo');
       await guardarYEsperar(page);
-      const ids = contenidoDe(await articuloPorId(articulo.id)).map((b) => b.id);
+      const ids = elementosDe(await articuloPorId(articulo.id)).map((elemento) => elemento.attrs.id);
       expect(ids).toHaveLength(6);
       expect(new Set(ids).size).toBe(6);
     });
@@ -1178,11 +1192,9 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
       await expect(lienzo(page).locator('h2')).toHaveText('Tres');
       await expect(anuncio(page, /Se convirtió en/)).toBeVisible();
       await guardarYEsperar(page);
-      expect(contenidoDe(await articuloPorId(articulo.id))[2]).toMatchObject({
-        tipo: 'titulo',
-        nivel: 2,
-        texto: 'Tres',
-      });
+      const convertido = elementosDe(await articuloPorId(articulo.id))[2];
+      expect(convertido).toMatchObject({ type: 'heading', attrs: { level: 2 } });
+      expect(textoDe(convertido)).toBe('Tres');
     });
 
     test('H3-E6: convertir una lista de varios ítems en párrafo avisa antes; cancelar no cambia nada', async ({
@@ -1190,7 +1202,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
     }) => {
       const articulo = await sembrarArticulo({
         titulo: nombreDePrueba('doc-acc-convertir-lista'),
-        contenido: [{ id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['a', 'b', 'c'] }],
+        contenido: [lista(['a', 'b', 'c'])],
       });
       await abrirArticulo(page, articulo.id);
       await lienzo(page).getByText('b', { exact: true }).click();
@@ -1212,7 +1224,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
     test('H3-E6: convertir una cita con autor en párrafo avisa de que se pierde el autor', async ({ page }) => {
       const articulo = await sembrarArticulo({
         titulo: nombreDePrueba('doc-acc-convertir-cita'),
-        contenido: [{ id: crypto.randomUUID(), tipo: 'cita', texto: 'Una cita', autor: 'Alguien' }],
+        contenido: [cita('Una cita', { autor: 'Alguien' })],
       });
       await abrirArticulo(page, articulo.id);
       await lienzo(page).getByText('Una cita', { exact: true }).click();
@@ -1824,7 +1836,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
   test('CE-003: con solo el teclado se seleccionan los diez tipos y se reordenan cinco elementos', async ({ page }) => {
     const diez = await sembrarArticulo({
       titulo: nombreDePrueba('doc-ce003-diez'),
-      contenido: diezBloques(imagenSemilla('articulos/e2e-inexistente.png')),
+      contenido: diezElementos(imagenSemilla('articulos/e2e-inexistente.png')),
     });
     await abrirArticulo(page, diez.id);
     await lienzo(page).focus();
@@ -1843,7 +1855,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
     await botonGuardar(page).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status').filter({ hasText: /guardad/i })).toBeVisible();
-    const textos = contenidoDe(await articuloPorId(cinco.id)).map((b) => b.texto);
+    const textos = elementosDe(await articuloPorId(cinco.id)).map(textoDe);
     expect(textos).toEqual(['Cinco', 'Uno', 'Dos', 'Tres', 'Cuatro']);
   });
 });
@@ -1904,7 +1916,7 @@ async function guardarSinTocarElContenido(page: Page, id: string) {
 }
 
 /** CE-002 sobre un contenido: abrir sin cambios y guardar con el contenido idéntico (mismo orden, ids y campos). */
-async function comprobarIdaYVuelta(page: Page, etiqueta: string, contenido: object[]) {
+async function comprobarIdaYVuelta(page: Page, etiqueta: string, contenido: Elemento[]) {
   const articulo = await sembrarArticulo({ titulo: nombreDePrueba(`doc-ce002-${etiqueta}`), contenido });
   await comprobarAbiertoSinCambios(page, articulo);
   const guardado = await guardarSinTocarElContenido(page, articulo.id);
@@ -1915,10 +1927,10 @@ const CON_CARACTERES_PROPIOS = () => [
   parrafo('Cuesta 2 * 3 pesos, el archivo mi_archivo_final.txt, la nota [1] y la tecla ` sola.'),
   parrafo('Dos asteriscos ** sueltos, un guion bajo _ suelto, [corchetes sin enlace] (aparte) y `` dobles.'),
   parrafo('Un _guion_bajo_ en medio, un *asterisco* simple y una [etiqueta]sin(url).'),
-  { id: crypto.randomUUID(), tipo: 'titulo', nivel: 3, texto: 'Un título con *asterisco*, _guion_ y `comilla`' },
-  { id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['Con * asterisco', 'Con [corchetes]', 'Con ` sola'] },
-  { id: crypto.randomUUID(), tipo: 'cita', texto: 'Una cita con _guiones_bajos_ y ** sueltos', autor: 'A_lguien' },
-  { id: crypto.randomUUID(), tipo: 'codigo', codigo: 'const a = b * c; // [x] `y` _z_ **w**', lenguaje: 'ts' },
+  titulo(3, 'Un título con *asterisco*, _guion_ y `comilla`'),
+  lista(['Con * asterisco', 'Con [corchetes]', 'Con ` sola']),
+  cita('Una cita con _guiones_bajos_ y ** sueltos', { autor: 'A_lguien' }),
+  codigo('const a = b * c; // [x] `y` _z_ **w**', 'ts'),
 ];
 
 test.describe('Nada se pierde', () => {
@@ -1943,18 +1955,19 @@ test.describe('Nada se pierde', () => {
       for (const real of await articulosDelSeed()) {
         // Sobre una copia: guardar el original cambiaría su versión y el resto de las pruebas lo usa.
         await test.step(real.titulo, () =>
-          comprobarIdaYVuelta(page, 'seed', real.contenido as unknown as object[]),
+          comprobarIdaYVuelta(page, 'seed', elementosDe(real)),
         );
       }
     });
 
-    test('H5-E1 / CE-002: un artículo con los diez tipos y párrafos con líneas en blanco se guarda idéntico', async ({
+    test('H5-E1 / CE-002: un artículo con los diez tipos, varios párrafos y un salto de línea se guarda idéntico', async ({
       page,
     }) => {
       await comprobarIdaYVuelta(page, 'diez', [
-        ...diezBloques(imagenSemilla('articulos/e2e-inexistente.png')),
-        parrafo('Primer tramo\n\n\nSegundo tramo tras dos líneas en blanco'),
-        parrafo('Una línea\ny otra con salto simple'),
+        ...diezElementos(imagenSemilla('articulos/e2e-inexistente.png')),
+        parrafo('Primer tramo'),
+        parrafo('Segundo tramo tras dos líneas en blanco'),
+        parrafo('Una línea', salto, 'y otra con salto simple'),
       ]);
     });
 
@@ -1976,7 +1989,7 @@ test.describe('Nada se pierde', () => {
       await abrirArticulo(page, articulo.id);
       await escribirEnElemento(page, primerParrafo(page), ' uno');
       await guardarYEsperar(page);
-      expect(contenidoDe(await articuloPorId(articulo.id))[0]).toMatchObject({ texto: 'Texto inicial uno' });
+      expect(textoDe(elementosDe(await articuloPorId(articulo.id))[0])).toBe('Texto inicial uno');
 
       await lienzo(page).focus();
       // Más que el agrupamiento del historial (500 ms): lo escrito después de guardar es otro paso de Deshacer.
@@ -2037,7 +2050,7 @@ test.describe('Nada se pierde', () => {
       // Otra persona guarda antes (como servicio): cambia el contenido y sube la versión.
       const { error } = await servicio()
         .from('articulos')
-        .update({ contenido: [parrafo('Texto vigente')] as never, version: articulo.version })
+        .update({ contenido: { type: 'doc', content: [parrafo('Texto vigente')] } as never, version: articulo.version })
         .eq('id', articulo.id);
       expect(error).toBeNull();
 

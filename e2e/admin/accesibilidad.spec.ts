@@ -20,7 +20,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pngDecodificable } from '../../packages/db/src/pruebas/imagenes';
 import {
-  diezBloques,
+  diezElementos,
   imagenSemilla,
   limpiarArticulosE2E,
   parrafo,
@@ -67,7 +67,7 @@ let correoDesactivado = '';
 test.beforeAll(async () => {
   const ruta = `pruebas-e2e/${crypto.randomUUID()}.png`;
   await subirObjeto(ruta, pngDecodificable(4, 3));
-  idDiezBloques = (await sembrarArticulo({ titulo: titulo('diez'), contenido: diezBloques(imagenSemilla(ruta)) })).id;
+  idDiezBloques = (await sembrarArticulo({ titulo: titulo('diez'), contenido: diezElementos(imagenSemilla(ruta)) })).id;
   datosDePantallas.prefijoLista = PREFIJO;
   datosDePantallas.idArticulo = idDiezBloques;
   idTresParrafos = (

@@ -261,6 +261,11 @@ const AsignarIds = Extension.create({
             if (atributos && atributos.id !== nodo.attrs.id) {
               tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, ...atributos });
             }
+            // Solo los elementos de primer nivel tienen identidad: un párrafo que pasa a una cita o a una lista
+            // (`wrapIn`, `toggleBulletList`) deja su `id`, que la lista permitida no admite adentro.
+            nodo.descendants((hijo, relativa) => {
+              if (hijo.attrs.id != null) tr.setNodeMarkup(pos + 1 + relativa, undefined, { ...hijo.attrs, id: null });
+            });
             pos += nodo.nodeSize;
           });
           if (!tr.docChanged) return null;

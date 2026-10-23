@@ -12,7 +12,7 @@ export const texto = (campo: string, min: number, max: number) =>
     .min(min, `${campo} no puede estar vacío`)
     .max(max, `${campo} admite hasta ${max} caracteres`);
 
-export const urlHttps = (campo: string) =>
+const urlHttps = (campo: string) =>
   z.string({ error: `${campo} debe ser texto` }).regex(/^https:\/\/[^\s/]+\.\S+$/, `${campo} debe ser una URL https`);
 
 export const nivelTitulo = z.union([z.literal(2), z.literal(3), z.literal(4)], {

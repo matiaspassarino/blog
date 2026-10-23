@@ -409,7 +409,10 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
         .eq('titulo', nombre)
         .single();
       expect(data?.imagen_destacada).toMatchObject({ ancho: 4, alto: 3 });
-      expect(data?.contenido).toMatchObject([{ tipo: 'imagen', imagen: { ancho: 4, alto: 3, alt: 'Imagen del elemento' } }]);
+      expect(data?.contenido).toMatchObject({
+        type: 'doc',
+        content: [{ type: 'imagen', attrs: { imagen: { ancho: 4, alto: 3, alt: 'Imagen del elemento' } } }],
+      });
     });
   }
 });
@@ -654,7 +657,7 @@ const FILAS_API: FilaApi[] = [
     ejecutar: async (actor) => {
       const titulo = tituloT099('crear');
       await llamarApi(actor.token, 'POST', '/rest/v1/articulos', {
-        cuerpo: { titulo, slug: '', autor_id: idDe(actor), contenido: [] },
+        cuerpo: { titulo, slug: '', autor_id: idDe(actor), contenido: { type: 'doc', content: [] } },
         prefer: 'return=minimal',
       });
       const { data } = await servicio().from('articulos').select('id').eq('titulo', titulo);

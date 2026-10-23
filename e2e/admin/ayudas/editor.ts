@@ -43,7 +43,7 @@ const NOMBRE_DE_TIPO = {
 export type TipoDeBloque = keyof typeof NOMBRE_DE_TIPO;
 export const TIPOS: TipoDeBloque[] = Object.keys(NOMBRE_DE_TIPO) as TipoDeBloque[];
 
-/** La opción de «Insertar» que crea cada tipo (la lista de `diezBloques` es numerada y el título, de nivel 2). */
+/** La opción de «Insertar» que crea cada tipo (la lista de `diezElementos` es numerada y el título, de nivel 2). */
 const OPCION_DE_INSERCION: Record<TipoDeBloque, string> = {
   parrafo: 'Párrafo',
   titulo: 'Título 2',
@@ -217,7 +217,7 @@ export async function subirImagenConAlt(page: Page, ambito: Locator, alt: string
 }
 
 /**
- * Completa un elemento recién agregado con los mismos valores que `diezBloques` de ayudas/articulos.ts: el texto en
+ * Completa un elemento recién agregado con los mismos valores que `diezElementos` de ayudas/articulos.ts: el texto en
  * el lienzo y el resto de los campos en el panel de propiedades.
  */
 export async function completarBloque(page: Page, grupo: Locator, tipo: TipoDeBloque) {
