@@ -89,7 +89,7 @@ convertirElemento(tipo: TipoDeTexto, opciones?: { nivel?: 2 | 3 | 4 }): Command 
 ```
 
 - Cada comando es **una transacción**: un Deshacer la revierte. Los extremos devuelven `false` sin cambiar nada. Los ids de los duplicados salen vacíos (se completan al serializar).
-- `convertirElemento` avisa antes si pierde datos (lista con varios ítems a párrafo; cita con autor): devuelve `{ pierde: string[] }` para que la interfaz confirme (RF-016).
+- `convertirElemento` avisa antes si pierde datos, según research D20 (actualizada): alineación al pasar a cita o lista, marcas al pasar a código, autor y fuente de una cita, ítems de una lista de varios; devuelve `{ pierde: string[] }` para que la interfaz confirme (RF-016).
 - `proteger.ts` es un *plugin* con `filterTransaction`/`handleKeyDown`/`handleDrop`: **toda** vía que quite o mueva elementos (menú, atajo, `Supr`, cortar, escribir sobre la selección, arrastrar, `Mod+A` y borrar) pasa por el mismo control: bloquea quitar o mover un elemento con subida en curso, exige la confirmación de una imagen ya guardada y anuncia "Elemento quitado. Pulsa Ctrl+Z para deshacer".
 
 ## `PanelPropiedades` y `HojaPropiedades` — nuevos

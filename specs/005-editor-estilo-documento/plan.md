@@ -114,6 +114,7 @@ Primero se escriben las pruebas de la lógica pura (rojo), como en la 004. La in
 | H7 esc. 9 y 10, RF-026: tabla en el sitio sin desbordar a 360 px, región con nombre y teclado, encabezados asociados | Playwright (sitio) y axe | `e2e/web/articulo.spec.ts`, `e2e/web/accesibilidad.spec.ts` |
 | RF-027 (H7 esc. 11): la búsqueda encuentra palabras de una celda y de la descripción | pgTAP y Vitest de integración (`buscar_articulos`; el sitio aún no tiene página de búsqueda) | `busqueda.test.sql`, `packages/db/src/consultas/busqueda.test.ts` |
 | CE-009: Lighthouse del sitio con el artículo del seed que tiene tablas y formatos | Lighthouse | según [quickstart.md](quickstart.md) |
+| RF-016 (D20 actualizada): conversión con pérdida de alineación, marcas, autor y fuente, e ítems | Vitest y Playwright | `documento/comandos.test.ts`, `e2e/admin/editor-documento.spec.ts` |
 | D31 U5 y U10: controles no aplicables en una celda y en código, menús de alineación y de formato | Vitest (render estático) y Playwright, con axe con una tabla, la selección de celdas y los menús abiertos | `documento/BarraHerramientas.test.tsx`, `e2e/admin/accesibilidad.spec.ts` |
 | Adaptador y texto visible | Vitest | `packages/bloques/src/elementos.test.ts` |
 | RF-030: no queda código del formato anterior | grep de cierre | `validacion.md` |
@@ -216,3 +217,4 @@ e2e/admin/editor-tablas.spec.ts (nuevo), editor-documento.spec.ts, ayudas/*; e2e
 | Excepción | Por qué | Alternativa más simple descartada |
 |---|---|---|
 | Código de un solo uso (`conversion-anterior/` y el script) que lee el formato anterior | La conversión necesita el analizador en línea del sitio; se elimina en el último commit antes del merge (RF-030) | Conversor en PL/pgSQL: duplicaría la gramática (§VIII.3) y arriesgaría pérdidas |
+| DDL transitorio fuera de una migración (§V.1): el SQL de la conversión hace `disable`/`enable trigger` y `validate constraint` | Los datos de cada base se convierten con el script (D25), así que ese SQL no puede ser una migración versionada. El esquema final es el que define la migración: los triggers vuelven a su estado y los checks quedan validados como en local. Todo corre en la misma transacción que la migración en la nube y se registra en `validacion.md` (fecha, filas y `convalidated`, D31 A11) | Poner la conversión en la migración: imposible sin la gramática en TypeScript; dejar los checks `not valid` para siempre: deja la base sin garantizar el formato |
