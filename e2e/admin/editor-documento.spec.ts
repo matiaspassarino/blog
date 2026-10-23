@@ -2102,6 +2102,52 @@ test.describe('Nada se pierde', () => {
     });
   });
 
+  test.describe('el servidor valida el documento (RF-022)', () => {
+    /**
+     * Agrega una marca que la lista permitida no admite al texto que termina en `marca`, dentro del cuerpo JSON del
+     * pedido de la acción (con o sin comillas escapadas, por si el documento viaja como texto).
+     */
+    const conMarcaInventada = (cuerpo: string, marca: string) =>
+      cuerpo.includes(`${marca}\\"`)
+        ? cuerpo.replace(`${marca}\\"`, `${marca}\\",\\"marks\\":[{\\"type\\":\\"marca-inventada\\"}]`)
+        : cuerpo.replace(`${marca}"`, `${marca}","marks":[{"type":"marca-inventada"}]`);
+
+    test('H5-E1 / RF-022: un documento inválido que llega al servidor se rechaza sin guardarse y lo escrito se conserva', async ({
+      page,
+    }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-servidor-rechaza'),
+        contenido: [parrafo('Texto inicial')],
+      });
+      await abrirArticulo(page, articulo.id);
+      // El navegador valida antes de enviar: el documento inválido se arma en el pedido de la acción de guardar, para
+      // comprobar que el servidor valida por su cuenta (no confía en el cliente).
+      let alterado = false;
+      await page.route(`**/articulos/${articulo.id}`, async (ruta) => {
+        const pedido = ruta.request();
+        const cuerpo = pedido.postData() ?? '';
+        if (pedido.method() !== 'POST' || !pedido.headers()['next-action'] || !cuerpo.includes('MARCA-INVALIDA')) {
+          return ruta.continue();
+        }
+        const nuevo = conMarcaInventada(cuerpo, 'MARCA-INVALIDA');
+        alterado = nuevo !== cuerpo;
+        await ruta.continue({ postData: nuevo });
+      });
+      await escribirEnElemento(page, primerParrafo(page), ' MARCA-INVALIDA');
+
+      await botonGuardar(page).click();
+
+      await expect(regionDeEstado(page).filter({ hasText: /Hay 1 error/ })).toHaveCount(1);
+      expect(alterado, 'el pedido de guardar tendría que llevar el documento como JSON').toBe(true);
+      const enBase = await articuloPorId(articulo.id);
+      expect(enBase.version).toBe(articulo.version);
+      expect(enBase.contenido).toEqual(articulo.contenido);
+      await expect(primerParrafo(page)).toHaveText('Texto inicial MARCA-INVALIDA');
+      await expect(avisoSinGuardar(page)).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: /guardad/i })).toHaveCount(0);
+    });
+  });
+
   test.describe('a 360 px (H5-E5)', () => {
     test.use({ viewport: { width: 360, height: 800 } });
 

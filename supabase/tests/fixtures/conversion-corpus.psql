@@ -1,0 +1,7 @@
+-- MARCADOR (fase roja de T113 y T114): la fixture real la genera T120 con
+--   ACTUALIZAR_FIXTURE=1 pnpm --filter @blog/bloques exec vitest run scripts/convertir-contenido.test.ts
+-- Mientras tanto, `sql_conversion` falla con un código que no es el de la conversión (P0001), así
+-- conversion.test.sql falla por aserciones y no aborta el archivo.
+select $fixture$
+do $$ begin raise exception using errcode = 'feature_not_supported', message = 'Falta generar la fixture de la conversión (T120)'; end $$;
+$fixture$ as sql_conversion \gset
