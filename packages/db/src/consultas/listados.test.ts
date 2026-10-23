@@ -9,7 +9,7 @@ import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
 import type { Taxonomia } from '../tipos-dominio';
 import { clienteAnon, clienteComo, crearMiembroDePrueba, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
-import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
+import { crearArticuloDePrueba, documentoDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
   listarArticulosPublicados,
   listarParaSitemap,
@@ -20,7 +20,7 @@ import {
 } from './listados';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
-const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo listado.' }];
+const contenido = documentoDePrueba('Cuerpo del artículo listado.');
 
 type TaxonomiaDePrueba = Pick<Taxonomia, 'id' | 'nombre' | 'slug' | 'descripcion'>;
 type Creado = Awaited<ReturnType<typeof crearArticuloDePrueba>>;

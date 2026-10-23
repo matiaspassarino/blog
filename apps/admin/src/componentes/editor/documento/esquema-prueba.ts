@@ -1,69 +1,44 @@
-// Ayudas compartidas por comandos.test.ts y proteger.test.ts (spec 005, T062 y T063): un esquema mínimo de
-// ProseMirror con la misma forma que el del editor (contracts/documento.md) y constructores de documentos.
-// No es código de producción: solo lo importan las pruebas.
+// Ayudas compartidas por comandos.test.ts y proteger.test.ts (spec 005, T062 y T063): constructores de documentos
+// sobre el esquema REAL del editor. No es código de producción: solo lo importan las pruebas.
 //
-// SUPUESTO (T065): `claveModo` se exporta desde `./claves` (hoy vive privada en extensiones.ts). Es la clave del
-// plugin del modo elementos: su estado es un booleano y los comandos que entran o salen del modo lo fijan con
-// `tr.setMeta(claveModo, true | false)`. Aquí se instala un plugin mínimo con esa clave para poder probar los
-// comandos sin React ni DOM.
+// T098 (ampliación, research D31 C7): ya no hay un esquema escrito a mano; el esquema sale de
+// `getSchema(crearExtensiones(…))`, así las pruebas usan exactamente los nodos, marcas y atributos de la lista
+// permitida (contracts/documento.md). Los constructores usan `id` (antes `bloqueId`) y los elementos especiales
+// llevan sus campos como attrs planos: `imagen` con `attrs.imagen` y `galeria` con `attrs.imagenes` (D22).
+//
+// `claveModo` sale de `./claves`: el plugin del modo elementos tiene un booleano por estado y los comandos que entran
+// o salen del modo lo fijan con `tr.setMeta(claveModo, true | false)`. Aquí se instala un plugin mínimo con esa clave
+// para probar los comandos sin React ni DOM.
+import { getSchema } from '@tiptap/core';
 import { history } from '@tiptap/pm/history';
-import { Schema, type Node as NodoPm } from '@tiptap/pm/model';
+import type { Node as NodoPm, NodeType } from '@tiptap/pm/model';
 import { EditorState, Plugin } from '@tiptap/pm/state';
 import { claveModo } from './claves';
+import { crearExtensiones, type DevolucionesDelEditor } from './extensiones';
 
-const esquema = new Schema({
-  nodes: {
-    doc: { content: 'block+' },
-    text: { group: 'inline' },
-    paragraph: {
-      group: 'block',
-      content: 'inline*',
-      marks: 'bold',
-      attrs: { bloqueId: { default: '' }, continuacion: { default: '' } },
-      toDOM: () => ['p', 0],
-    },
-    heading: {
-      group: 'block',
-      content: 'inline*',
-      marks: '',
-      attrs: { bloqueId: { default: '' }, level: { default: 2 } },
-      toDOM: (nodo) => [`h${nodo.attrs.level}`, 0],
-    },
-    blockquote: {
-      group: 'block',
-      content: 'paragraph',
-      attrs: { bloqueId: { default: '' }, autor: { default: '' }, fuente: { default: '' } },
-      toDOM: () => ['blockquote', 0],
-    },
-    bulletList: { group: 'block', content: 'listItem+', attrs: { bloqueId: { default: '' } }, toDOM: () => ['ul', 0] },
-    orderedList: { group: 'block', content: 'listItem+', attrs: { bloqueId: { default: '' } }, toDOM: () => ['ol', 0] },
-    listItem: { content: 'paragraph', toDOM: () => ['li', 0] },
-    codeBlock: {
-      group: 'block',
-      content: 'text*',
-      marks: '',
-      code: true,
-      attrs: { bloqueId: { default: '' }, lenguaje: { default: '' } },
-      toDOM: () => ['pre', ['code', 0]],
-    },
-    horizontalRule: { group: 'block', attrs: { bloqueId: { default: '' } }, toDOM: () => ['hr'] },
-    imagenBloque: {
-      group: 'block',
-      atom: true,
-      selectable: true,
-      attrs: { bloqueId: { default: '' }, bloque: { default: null } },
-      toDOM: () => ['div', { 'data-elemento': 'imagenBloque' }],
-    },
-    galeriaBloque: {
-      group: 'block',
-      atom: true,
-      selectable: true,
-      attrs: { bloqueId: { default: '' }, bloque: { default: null } },
-      toDOM: () => ['div', { 'data-elemento': 'galeriaBloque' }],
-    },
-  },
-  marks: { bold: { toDOM: () => ['strong', 0] } },
-});
+const sinEfecto = () => undefined;
+/** Devoluciones que el esquema no usa: alcanzan para armarlo sin interfaz. */
+const devolucionesDePrueba = {
+  salioDelModo: sinEfecto,
+  cerrarHojaPendiente: () => false,
+  proteccion: {},
+  anunciar: sinEfecto,
+  menuAbierto: () => false,
+  alPropiedades: sinEfecto,
+  alMenu: sinEfecto,
+  alTeclearMenu: () => false,
+  alConvertir: sinEfecto,
+} as unknown as DevolucionesDelEditor;
+
+/** El esquema de ProseMirror del editor. */
+const esquema = getSchema(crearExtensiones(devolucionesDePrueba));
+
+/** El tipo de nodo, o un error claro si el esquema todavía no lo tiene (fase roja). */
+function tipo(nombre: string): NodeType {
+  const encontrado = esquema.nodes[nombre];
+  if (!encontrado) throw new Error(`El esquema del editor no tiene el nodo "${nombre}"`);
+  return encontrado;
+}
 
 type Hijos = string | NodoPm | (string | NodoPm)[];
 const contenido = (hijos: Hijos | undefined): NodoPm[] =>
@@ -72,41 +47,29 @@ const contenido = (hijos: Hijos | undefined): NodoPm[] =>
     .map((h) => (typeof h === 'string' ? (h ? esquema.text(h) : []) : h))
     .flat() as NodoPm[];
 
-export const parrafo = (bloqueId: string, texto: Hijos = '') =>
-  esquema.nodes.paragraph!.create({ bloqueId }, contenido(texto));
-export const parrafoConNegrita = (bloqueId: string, texto: string) =>
-  esquema.nodes.paragraph!.create({ bloqueId }, esquema.text(texto, [esquema.marks.bold!.create()]));
-export const titulo = (bloqueId: string, texto: string, level = 2) =>
-  esquema.nodes.heading!.create({ bloqueId, level }, contenido(texto));
-export const cita = (bloqueId: string, texto: string, autor = '', fuente = '') =>
-  esquema.nodes.blockquote!.create({ bloqueId, autor, fuente }, parrafo('', texto));
-export const lista = (bloqueId: string, items: string[], ordenada = false) =>
-  esquema.nodes[ordenada ? 'orderedList' : 'bulletList']!.create(
-    { bloqueId },
-    items.map((item) => esquema.nodes.listItem!.create(null, parrafo('', item))),
-  );
-export const separador = (bloqueId: string) => esquema.nodes.horizontalRule!.create({ bloqueId });
-export const imagen = (bloqueId: string, ruta: string) =>
-  esquema.nodes.imagenBloque!.create({
-    bloqueId,
-    bloque: {
-      id: bloqueId,
-      tipo: 'imagen',
-      imagen: { ruta, ancho: 4, alto: 3, alt: 'Imagen de prueba', decorativa: false },
-    },
-  });
-export const galeria = (bloqueId: string, rutas: string[]) =>
-  esquema.nodes.galeriaBloque!.create({
-    bloqueId,
-    bloque: {
-      id: bloqueId,
-      tipo: 'galeria',
-      columnas: 2,
-      imagenes: rutas.map((ruta) => ({ ruta, ancho: 4, alto: 3, alt: 'Imagen de prueba', decorativa: false })),
-    },
-  });
+const imagenDePrueba = (ruta: string) => ({ ruta, ancho: 4, alto: 3, alt: 'Imagen de prueba', decorativa: false });
 
-/** Plugin mínimo con la clave del modo elementos (ver el supuesto de arriba). */
+export const parrafo = (id: string, texto: Hijos = '') => tipo('paragraph').create({ id }, contenido(texto));
+export const parrafoConNegrita = (id: string, texto: string) =>
+  tipo('paragraph').create({ id }, esquema.text(texto, [esquema.marks.bold!.create()]));
+export const titulo = (id: string, texto: string, level = 2) => tipo('heading').create({ id, level }, contenido(texto));
+/** Un autor o una fuente vacíos son la ausencia del atributo (forma canónica, D24). */
+export const cita = (id: string, texto: string, autor = '', fuente = '') =>
+  tipo('blockquote').create(
+    { id, ...(autor ? { autor } : {}), ...(fuente ? { fuente } : {}) },
+    tipo('paragraph').create(null, contenido(texto)),
+  );
+export const lista = (id: string, items: string[], ordenada = false) =>
+  tipo(ordenada ? 'orderedList' : 'bulletList').create(
+    { id },
+    items.map((item) => tipo('listItem').create(null, tipo('paragraph').create(null, contenido(item)))),
+  );
+export const separador = (id: string) => tipo('horizontalRule').create({ id });
+export const imagen = (id: string, ruta: string) => tipo('imagen').create({ id, imagen: imagenDePrueba(ruta) });
+export const galeria = (id: string, rutas: string[]) =>
+  tipo('galeria').create({ id, columnas: 2, imagenes: rutas.map(imagenDePrueba) });
+
+/** Plugin mínimo con la clave del modo elementos (ver arriba). */
 const pluginDeModo = () =>
   new Plugin({
     key: claveModo,
@@ -115,7 +78,7 @@ const pluginDeModo = () =>
 
 /** Estado con el modo elementos instalado y el historial (para comprobar que un Deshacer revierte una acción). */
 export const estadoDe = (...elementos: NodoPm[]) =>
-  EditorState.create({ doc: esquema.node('doc', null, elementos), plugins: [pluginDeModo(), history()] });
+  EditorState.create({ doc: tipo('doc').create(null, elementos), plugins: [pluginDeModo(), history()] });
 
 /** Posición (antes del nodo) del elemento de primer nivel `indice` (desde 0). */
 export function posDe(estado: EditorState, indice: number) {
@@ -126,4 +89,4 @@ export function posDe(estado: EditorState, indice: number) {
 
 /** Ids de los elementos de primer nivel, en orden (`''` para los que todavía no tienen). */
 export const idsDe = (estado: EditorState) =>
-  Array.from({ length: estado.doc.childCount }, (_, i) => String(estado.doc.child(i).attrs.bloqueId ?? ''));
+  Array.from({ length: estado.doc.childCount }, (_, i) => String(estado.doc.child(i).attrs.id ?? ''));

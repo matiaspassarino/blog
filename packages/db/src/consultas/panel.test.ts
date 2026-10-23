@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import { rechazoDe } from '../pruebas/afirmaciones';
 import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
-import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
+import { crearArticuloDePrueba, documentoDePrueba, registroDePrueba } from '../pruebas/datos';
 import { crearTaxonomia } from './equipo-taxonomias';
 import {
   listarArticulosPanel,
@@ -26,7 +26,7 @@ import {
 
 const sufijo = crypto.randomUUID().slice(0, 8);
 const carpeta = `pruebas-t017/${sufijo}`;
-const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo de prueba.' }];
+const contenido = documentoDePrueba('Cuerpo del artículo de prueba.');
 
 describe.skipIf(sinSupabase)('lecturas del panel (integración)', () => {
   let editor: ClienteBlog;

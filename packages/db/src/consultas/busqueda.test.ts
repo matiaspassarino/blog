@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { ClienteBlog } from '../cliente';
 import type { Pagina } from '../paginacion';
 import { clienteAnon, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
-import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
+import { crearArticuloDePrueba, documentoDePrueba, registroDePrueba } from '../pruebas/datos';
 import { buscarArticulos } from './busqueda';
 import type { ResumenArticulo } from './tipos-publicos';
 
@@ -49,19 +49,19 @@ describe.skipIf(sinSupabase)('buscarArticulos (integración, anon)', () => {
       titulo: `H5 búsqueda: ${palabraUnica} en el título`,
       slug: `h5-busqueda-titulo-${sufijo}`,
       extracto: 'Extracto del artículo con la palabra en el título.',
-      contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo sin la palabra.' }],
+      contenido: documentoDePrueba('Cuerpo sin la palabra.'),
       categoriaId: categoria.id,
     });
     enCuerpo = await crearArticuloDePrueba(admin, creados, {
       titulo: `H5 búsqueda: solo en el cuerpo ${sufijo}`,
       slug: `h5-busqueda-cuerpo-${sufijo}`,
-      contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: `El cuerpo menciona ${palabraUnica}.` }],
+      contenido: documentoDePrueba(`El cuerpo menciona ${palabraUnica}.`),
       categoriaId: categoria.id,
     });
     borrador = await crearArticuloDePrueba(admin, creados, {
       titulo: `H5 búsqueda: ${palabraUnica} en un borrador`,
       slug: `h5-busqueda-borrador-${sufijo}`,
-      contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del borrador.' }],
+      contenido: documentoDePrueba('Cuerpo del borrador.'),
       categoriaId: categoria.id,
       publicar: false,
     });

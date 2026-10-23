@@ -12,16 +12,17 @@ select is(privado.imagen_valida('{"ruta":"a.jpg","alto":1,"alt":"x"}'), false,
   'imagen_valida es false si falta ancho');
 select is(privado.imagen_valida('{"ruta":"a.jpg","ancho":1,"alto":1,"decorativa":true}'), true,
   'imagen_valida acepta una imagen decorativa sin alt');
-select is(privado.contenido_valido('[{"tipo":"parrafo"}]'), false,
-  'contenido_valido es false si un bloque no tiene id');
-select is(privado.contenido_valido('[{"id":"x"}]'), false,
-  'contenido_valido es false si un bloque no tiene tipo');
-select is(privado.contenido_valido('[1]'), false,
-  'contenido_valido es false si un bloque no es un objeto');
-select is(privado.contenido_valido('{}'), false,
-  'contenido_valido es false si el contenido no es un arreglo');
-select is(privado.contenido_valido('[{"id":"x","tipo":"parrafo"}]'), true,
-  'contenido_valido acepta un bloque con id y tipo conocido');
+-- Spec 005 (T096): contenido_valido comprueba la forma mínima del documento.
+select is(privado.contenido_valido('{"type":"doc","content":[{"type":"paragraph"}]}'), false,
+  'contenido_valido es false (no NULL) si un elemento no tiene attrs.id');
+select is(privado.contenido_valido('{"type":"doc","content":[{"attrs":{"id":"x"}}]}'), false,
+  'contenido_valido es false si un elemento no tiene type');
+select is(privado.contenido_valido('{"type":"doc","content":[1]}'), false,
+  'contenido_valido es false si un elemento no es un objeto');
+select is(privado.contenido_valido('[{"id":"x","tipo":"parrafo"}]'), false,
+  'contenido_valido es false con el formato anterior (un arreglo de bloques)');
+select is(privado.contenido_valido('{"type":"doc","content":[{"type":"paragraph","attrs":{"id":"x"}}]}'), true,
+  'contenido_valido acepta un documento con un elemento de tipo conocido y attrs.id');
 
 select pruebas.crear_usuario('avatar@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Avatar Prueba"}');
 select throws_ok(
@@ -43,7 +44,7 @@ select lives_ok(
   'A-M7: service_role actualiza perfiles');
 select lives_ok(
   $$insert into public.articulos (titulo, autor_id, contenido)
-    values ('Servidor', (select id from id_avatar), '[{"id":"x","tipo":"separador"}]')$$,
+    values ('Servidor', (select id from id_avatar), '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}')$$,
   'A-M7: service_role crea artículos (pasa el check de contenido)');
 reset role;
 

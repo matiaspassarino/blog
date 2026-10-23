@@ -1,12 +1,14 @@
 // T026: operaciones del equipo sobre artículos (contracts/db.md, "Operaciones del equipo"; H1-E2; RF-008).
 // Integración contra Supabase local con la sesión de un editor demo del seed (research D18).
-import type { ErrorBloque } from '@blog/bloques';
+// T098 (spec 005, ampliación): el contenido es el documento (contracts/documento.md) y los errores de validación son
+// `ErrorElemento[]` = { indice, id, campo, mensaje } (T102). Usa `documentoDePrueba` de pruebas/datos.ts.
+import type { ErrorElemento } from '@blog/bloques';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import type { ErrorDominio } from '../errores';
 import { rechazoDe } from '../pruebas/afirmaciones';
 import { clienteAnon, sesionesDemo, sinSupabase } from '../pruebas/clientes';
-import { registroDePrueba } from '../pruebas/datos';
+import { documentoDePrueba, registroDePrueba } from '../pruebas/datos';
 import {
   actualizarArticulo,
   cambiarEstado,
@@ -19,12 +21,12 @@ type NuevoArticulo = Parameters<typeof crearArticulo>[1];
 type CambiosArticulo = Parameters<typeof actualizarArticulo>[3];
 
 /**
- * Los ErrorBloque[] de un error contenido_invalido. El contrato dice que se devuelven
- * "con ErrorBloque[]" pero no fija la propiedad: se aceptan `errores` o `cause`.
+ * Los ErrorElemento[] de un error contenido_invalido. El contrato dice que se devuelven
+ * "con ErrorElemento[]" pero no fija la propiedad: se aceptan `errores` o `cause`.
  */
-function erroresDeBloque(error: ErrorDominio): ErrorBloque[] | undefined {
+function erroresDeElemento(error: ErrorDominio): ErrorElemento[] | undefined {
   const candidato = (error as ErrorDominio & { errores?: unknown }).errores ?? error.cause;
-  return Array.isArray(candidato) ? (candidato as ErrorBloque[]) : undefined;
+  return Array.isArray(candidato) ? (candidato as ErrorElemento[]) : undefined;
 }
 
 type Peticion = { url: URL; metodo: string };
@@ -70,33 +72,48 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
   }
 
   describe('crearArticulo', () => {
-    it('H1-E2: con contenido inválido rechaza con contenido_invalido y ErrorBloque[], sin llamar a la base', async () => {
+    it('H1-E2: con contenido inválido rechaza con contenido_invalido y ErrorElemento[], sin llamar a la base', async () => {
       const espiaFrom = vi.spyOn(editor, 'from');
       const espiaRpc = vi.spyOn(editor, 'rpc');
       const espiaFetch = vi.spyOn(globalThis, 'fetch');
+      const idImagen = crypto.randomUUID();
       const datos = {
         titulo: 'H1 integración: contenido inválido',
-        contenido: [
-          {
-            id: crypto.randomUUID(),
-            tipo: 'imagen',
-            imagen: { ruta: 'medios/sin-alt.jpg', ancho: 800, alto: 600 },
-          },
-          { id: crypto.randomUUID(), tipo: 'tabla' },
-        ],
+        contenido: {
+          type: 'doc',
+          content: [
+            { type: 'imagen', attrs: { id: idImagen, imagen: { ruta: 'medios/sin-alt.jpg', ancho: 800, alto: 600 } } },
+            { type: 'tabla', attrs: { id: crypto.randomUUID() } },
+          ],
+        },
       } as unknown as NuevoArticulo;
 
       const error = await rechazoDe(crearArticulo(editor, datos));
 
       expect(error.codigo).toBe('contenido_invalido');
-      expect(erroresDeBloque(error)).toEqual(
+      expect(erroresDeElemento(error)).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ indice: 0, campo: 'imagen.alt' }),
+          expect.objectContaining({ indice: 0, id: idImagen, campo: 'imagen.alt' }),
           expect.objectContaining({ indice: 1, campo: 'tipo' }),
         ]),
       );
       expect(espiaFrom).not.toHaveBeenCalled();
       expect(espiaRpc).not.toHaveBeenCalled();
+      expect(espiaFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('crearArticulo con el formato anterior', () => {
+    it('spec 005: una lista de bloques (formato anterior) se rechaza con contenido_invalido, sin llamar a la base', async () => {
+      const espiaFetch = vi.spyOn(globalThis, 'fetch');
+      const datos = {
+        titulo: 'H1 integración: formato anterior',
+        contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Un bloque de antes.' }],
+      } as unknown as NuevoArticulo;
+
+      const error = await rechazoDe(crearArticulo(editor, datos));
+
+      expect(error.codigo).toBe('contenido_invalido');
       expect(espiaFetch).not.toHaveBeenCalled();
     });
   });
@@ -153,16 +170,28 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
   });
 
   describe('crearArticulo (camino feliz y validación de imagen)', () => {
-    it('crea un borrador del usuario actual y persiste el contenido parseado (con valores por defecto)', async () => {
-      const imagen = (n: number) => ({ ruta: `medios/g${n}.jpg`, ancho: 800, alto: 600, alt: `Foto ${n}` });
-      const articulo = await crearArticulo(editor, {
-        titulo: 'H1 integración: camino feliz',
-        contenido: [{ id: crypto.randomUUID(), tipo: 'galeria', imagenes: [imagen(1), imagen(2)] }],
+    it('crea un borrador del usuario actual y persiste el documento tal como se envió (forma canónica)', async () => {
+      const imagen = (n: number) => ({
+        ruta: `medios/g${n}.jpg`,
+        ancho: 800,
+        alto: 600,
+        alt: `Foto ${n}`,
+        decorativa: false,
       });
+      const contenido = {
+        type: 'doc' as const,
+        content: [
+          {
+            type: 'galeria' as const,
+            attrs: { id: crypto.randomUUID(), imagenes: [imagen(1), imagen(2)], columnas: 3 as const },
+          },
+        ],
+      };
+      const articulo = await crearArticulo(editor, { titulo: 'H1 integración: camino feliz', contenido });
       creados.articulos.push(articulo.id);
 
       expect(articulo).toMatchObject({ estado: 'borrador', autor_id: idEditor, version: 1 });
-      expect(articulo.contenido).toEqual([expect.objectContaining({ tipo: 'galeria', columnas: 3 })]);
+      expect(articulo.contenido).toEqual(contenido);
       // A7-M3: el tsvector interno no sale de packages/db.
       expect(articulo).not.toHaveProperty('busqueda');
     });
@@ -202,7 +231,7 @@ describe.skipIf(sinSupabase)('operaciones del equipo sobre artículos (integraci
       const articulo = await crearArticulo(editor, {
         titulo,
         categoria_id: categoria.id,
-        contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo programable.' }],
+        contenido: documentoDePrueba('Cuerpo programable.'),
       });
       creados.articulos.push(articulo.id);
       return articulo;

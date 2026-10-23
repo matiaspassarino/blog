@@ -1,12 +1,13 @@
 // T017 (spec 005, RF-012; research D6, D12, D21; data-model "Atributos de los nodos"): identidad estable de los
-// elementos del documento.
-// FASE ROJA: `./ids` no existe. API supuesta:
+// elementos del documento. Adaptado al documento en T098 (ampliación, research D22 y D30): el atributo pasa de
+// `bloqueId` a `id` y desaparece `continuacion` (un párrafo con líneas en blanco ya son varios `paragraph`, cada
+// uno con su id).
+// Firma propuesta (T109), exportada desde './ids':
 //   asegurarIds(doc: JSONContent): JSONContent    pura; devuelve un documento nuevo (no muta el recibido)
-// Reglas: un elemento de primer nivel con bloqueId vacío recibe un uuid (una sola vez); los ids existentes se
-// conservan; un id repetido se deduplica (queda el primero); los párrafos con `continuacion` comparten, a propósito,
-// el id del párrafo anterior y no se tocan; un elemento nuevo no recibe `continuacion`; es idempotente.
-// Pendiente fuera de esta tarea: que `bloqueId` y `continuacion` no salgan en el HTML del portapapeles es un atributo
-// de la extensión de Tiptap (`rendered: false`, T040 en adelante) y se prueba allí y en E2E (editor-documento.spec.ts).
+// Reglas: un elemento de primer nivel con `id` vacío recibe un uuid (una sola vez); los ids existentes se conservan;
+// un id repetido se deduplica (queda el primero); solo mira el primer nivel; es idempotente.
+// Que `id` no salga en el HTML del portapapeles es un atributo de la extensión (`rendered: false`) y se prueba en
+// extensiones.test.ts y en E2E.
 import { describe, expect, it } from 'vitest';
 import { asegurarIds } from './ids';
 
@@ -16,18 +17,18 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const ID_A = '11111111-1111-4111-8111-111111111111';
 const ID_B = '22222222-2222-4222-8222-222222222222';
 
-const parrafo = (bloqueId: string | null | undefined, extra: Record<string, unknown> = {}): Nodo => ({
+const parrafo = (id: string | null | undefined): Nodo => ({
   type: 'paragraph',
-  attrs: { ...(bloqueId === undefined ? {} : { bloqueId }), ...extra },
+  attrs: { ...(id === undefined ? {} : { id }) },
   content: [{ type: 'text', text: 'x' }],
 });
 const documento = (...content: Nodo[]): Nodo => ({ type: 'doc', content });
 
 const asegurar = (doc: Nodo) => asegurarIds(doc as Parameters<typeof asegurarIds>[0]) as Nodo;
-const ids = (doc: Nodo) => (doc.content ?? []).map((nodo) => nodo.attrs?.bloqueId);
+const ids = (doc: Nodo) => (doc.content ?? []).map((nodo) => nodo.attrs?.id);
 
 describe('asegurarIds: asignación (RF-012, D21)', () => {
-  it('asigna un uuid a un elemento con bloqueId vacío', () => {
+  it('asigna un uuid a un elemento con id vacío', () => {
     const resultado = asegurar(documento(parrafo('')));
 
     expect(ids(resultado)[0]).toMatch(UUID);
@@ -43,8 +44,8 @@ describe('asegurarIds: asignación (RF-012, D21)', () => {
     const resultado = asegurar(
       documento(
         parrafo(''),
-        { type: 'heading', attrs: { level: 2, bloqueId: '' } },
-        { type: 'horizontalRule', attrs: { bloqueId: '' } },
+        { type: 'heading', attrs: { level: 2, id: '' } },
+        { type: 'horizontalRule', attrs: { id: '' } },
       ),
     );
 
@@ -69,30 +70,23 @@ describe('asegurarIds: asignación (RF-012, D21)', () => {
   it('solo mira el primer nivel: los párrafos dentro de ítems de lista y citas no reciben id', () => {
     const lista: Nodo = {
       type: 'bulletList',
-      attrs: { bloqueId: '' },
+      attrs: { id: '' },
       content: [{ type: 'listItem', content: [parrafo(undefined)] }],
     };
-    const cita: Nodo = { type: 'blockquote', attrs: { bloqueId: '' }, content: [parrafo(undefined)] };
+    const cita: Nodo = { type: 'blockquote', attrs: { id: '' }, content: [parrafo(undefined)] };
 
     const resultado = asegurar(documento(lista, cita));
 
-    expect(resultado.content?.[0]?.content?.[0]?.content?.[0]?.attrs?.bloqueId).toBeUndefined();
-    expect(resultado.content?.[1]?.content?.[0]?.attrs?.bloqueId).toBeUndefined();
+    expect(resultado.content?.[0]?.content?.[0]?.content?.[0]?.attrs?.id).toBeUndefined();
+    expect(resultado.content?.[1]?.content?.[0]?.attrs?.id).toBeUndefined();
     expect(ids(resultado)[0]).toMatch(UUID);
     expect(ids(resultado)[1]).toMatch(UUID);
   });
 
-  it('un elemento nuevo no recibe continuacion', () => {
-    const resultado = asegurar(documento(parrafo('')));
+  it('no agrega atributos que no son el id (ni continuacion ni bloqueId)', () => {
+    const resultado = asegurar(documento(parrafo(''), { type: 'horizontalRule', attrs: { id: '' } }));
 
-    const continuacion = resultado.content?.[0]?.attrs?.continuacion;
-    expect(continuacion === undefined || continuacion === null || continuacion === '').toBe(true);
-  });
-
-  it('no inventa continuacion en un elemento que no es párrafo', () => {
-    const resultado = asegurar(documento({ type: 'horizontalRule', attrs: { bloqueId: '' } }));
-
-    expect(resultado.content?.[0]?.attrs).not.toHaveProperty('continuacion');
+    for (const nodo of resultado.content ?? []) expect(Object.keys(nodo.attrs ?? {})).toEqual(['id']);
   });
 
   it('un documento sin elementos queda igual', () => {
@@ -118,30 +112,20 @@ describe('asegurarIds: duplicados (R10, regla 3 de la correspondencia)', () => {
   });
 
   it('el duplicado de un elemento especial conserva su contenido y cambia solo el id', () => {
-    const bloque = { id: ID_A, tipo: 'imagen', imagen: { ruta: 'r', ancho: 1, alto: 1, alt: 'a', decorativa: false } };
-    const nodo: Nodo = { type: 'imagenBloque', attrs: { bloqueId: ID_A, bloque } };
+    const imagen = { ruta: 'r', ancho: 1, alto: 1, alt: 'a', decorativa: false };
+    const nodo: Nodo = { type: 'imagen', attrs: { id: ID_A, imagen, leyenda: 'Leyenda' } };
 
     const resultado = asegurar(documento(nodo, structuredClone(nodo)));
 
-    expect(resultado.content?.[1]?.attrs?.bloque).toEqual(bloque);
+    expect(resultado.content?.[1]?.attrs).toMatchObject({ imagen, leyenda: 'Leyenda' });
     expect(ids(resultado)[1]).not.toBe(ID_A);
   });
 
-  it('los párrafos con continuacion comparten el id del anterior a propósito y no se deduplican', () => {
-    const resultado = asegurar(
-      documento(parrafo(ID_A), parrafo(ID_A, { continuacion: '\n\n' }), parrafo(ID_A, { continuacion: '\n\n\n' })),
-    );
-
-    expect(ids(resultado)).toEqual([ID_A, ID_A, ID_A]);
-    expect(resultado.content?.map((nodo) => nodo.attrs?.continuacion ?? '')).toEqual(['', '\n\n', '\n\n\n']);
-  });
-
-  it('un párrafo con continuacion cuyo id ya lo usa un elemento anterior que no es su par se deduplica', () => {
-    const resultado = asegurar(documento(parrafo(ID_A), parrafo(ID_B), parrafo(ID_A, { continuacion: '\n\n' })));
+  it('dos párrafos seguidos con el mismo id se deduplican (ya no hay continuacion, D30)', () => {
+    const resultado = asegurar(documento(parrafo(ID_A), parrafo(ID_A)));
 
     expect(ids(resultado)[0]).toBe(ID_A);
-    expect(ids(resultado)[2]).toMatch(UUID);
-    expect(ids(resultado)[2]).not.toBe(ID_A);
+    expect(ids(resultado)[1]).toMatch(UUID);
   });
 });
 
@@ -172,7 +156,7 @@ describe('asegurarIds: pureza e idempotencia (D6, D12)', () => {
   it('conserva el resto del documento (tipos, atributos y contenido)', () => {
     const heading: Nodo = {
       type: 'heading',
-      attrs: { level: 3, bloqueId: '' },
+      attrs: { level: 3, id: '' },
       content: [{ type: 'text', text: 'T' }],
     };
 

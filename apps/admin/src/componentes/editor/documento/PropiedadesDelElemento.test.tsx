@@ -22,7 +22,13 @@
 //   - Variante `hoja`: botón «Cerrar»; la `lateral` no lo tiene.
 // Los nombres de los campos se leen de los `<label>` (y los botones) del HTML, tal como los renderizan los editores
 // de campos de `bloques/` (etiquetas de hoy: ver EditorImagen, EditorGaleria, EditorCta, EditorVideo…).
-import { crearBloque, type Bloque, type TipoBloque } from '@blog/bloques';
+//
+// T098 (spec 005, ampliación; research D22 y D31 C6): la selección trae los ELEMENTOS del documento
+// (`{ tipo: 'elementos', desde, hasta, elementos: Elemento[] }`), los errores son `ErrorElemento[]` y `alCambiar`
+// recibe `CambiosDeElemento`. Los editores de campos de hoy no cambian: reciben la forma de siempre gracias al
+// adaptador `datosDeElemento`/`elementoDesdeDatos` de '@blog/bloques'. Los elementos se crean con
+// `crearElemento(tipo)` (T101) y los tipos son los del documento (`heading`, `blockquote`, `codeBlock`…).
+import { crearElemento, type Elemento, type TipoElemento } from '@blog/bloques';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { etiquetaDe, etiquetasDe } from '../../../pruebas/html-estatico';
@@ -30,14 +36,25 @@ import { PropiedadesDelElemento } from './PropiedadesDelElemento';
 
 type Props = Parameters<typeof PropiedadesDelElemento>[0];
 
-const seleccionDe = (...bloques: Bloque[]): Props['seleccion'] => ({ tipo: 'elementos', desde: 0, hasta: 1, bloques });
+const seleccionDe = (...elementos: Elemento[]): Props['seleccion'] => ({
+  tipo: 'elementos',
+  desde: 0,
+  hasta: 1,
+  elementos,
+});
 
-const dibujar = (cambios: Partial<Props> & { bloque?: Bloque } = {}) => {
+/** Un elemento nuevo con estos attrs mezclados (o con estos ítems, para una lista). */
+const conAttrs = (tipo: TipoElemento, attrs: Record<string, unknown>) => {
+  const elemento = crearElemento(tipo);
+  return { ...elemento, attrs: { ...elemento.attrs, ...attrs } } as Elemento;
+};
+
+const dibujar = (cambios: Partial<Props> & { bloque?: Elemento } = {}) => {
   const { bloque, ...resto } = cambios;
   return renderToStaticMarkup(
     <PropiedadesDelElemento
       variante="lateral"
-      seleccion={seleccionDe(bloque ?? crearBloque('imagen'))}
+      seleccion={seleccionDe(bloque ?? crearElemento('imagen'))}
       posicion={3}
       indice={2}
       errores={[]}
@@ -66,14 +83,14 @@ const MENSAJE_ALT = 'Escribe el texto alternativo o marca la imagen como decorat
 
 describe('PropiedadesDelElemento: cada tipo muestra solo sus propiedades (H2-E2, H2-E3)', () => {
   it('H2-E2: imagen vacía: el selector «Elegir imagen» y la leyenda; sin texto alternativo todavía', () => {
-    const html = dibujar({ bloque: crearBloque('imagen') });
+    const html = dibujar({ bloque: crearElemento('imagen') });
     expect(textosDeBotones(html).join(' ')).toContain('Elegir imagen');
     expect(etiquetasDeCampos(html)).toContain('Leyenda');
     expect(etiquetasDeCampos(html)).not.toContain('Texto alternativo');
   });
 
   it('H2-E2: imagen subida: texto alternativo, casilla de decorativa, leyenda y «Quitar imagen»', () => {
-    const bloque = { ...crearBloque('imagen'), imagen: conImagen } as Bloque;
+    const bloque = conAttrs('imagen', { imagen: conImagen });
     const html = dibujar({ bloque });
     const etiquetas = etiquetasDeCampos(html);
     expect(etiquetas).toContain('Texto alternativo');
@@ -83,7 +100,7 @@ describe('PropiedadesDelElemento: cada tipo muestra solo sus propiedades (H2-E2,
   });
 
   it('H2-E3: galería: columnas, «Agregar imagen» y el texto alternativo de cada imagen', () => {
-    const bloque = { ...crearBloque('galeria'), imagenes: [conImagen, { ...conImagen, alt: 'Otra' }] } as Bloque;
+    const bloque = conAttrs('galeria', { imagenes: [conImagen, { ...conImagen, alt: 'Otra' }] });
     const html = dibujar({ bloque });
     const etiquetas = etiquetasDeCampos(html);
     expect(etiquetas).toContain('Columnas');
@@ -92,37 +109,44 @@ describe('PropiedadesDelElemento: cada tipo muestra solo sus propiedades (H2-E2,
   });
 
   it('H2-E3: llamada a la acción: título, texto, texto del botón y URL', () => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque('cta') }));
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento('cta') }));
     for (const campo of ['Título', 'Texto', 'Texto del botón', 'URL']) expect(etiquetas).toContain(campo);
   });
 
   it('H2-E3: video: proveedor, ID del video y título del video', () => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque('video') }));
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento('video') }));
     for (const campo of ['Proveedor', 'ID del video', 'Título del video']) expect(etiquetas).toContain(campo);
   });
 
   it('H2-E3: código: solo el lenguaje (el código se escribe en el lienzo)', () => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque('codigo') }));
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento('codeBlock') }));
     expect(etiquetas).toContain('Lenguaje');
     expect(etiquetas).not.toContain('Código');
   });
 
   it('H2-E3: cita: autor y fuente, sin el campo de texto', () => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque('cita') }));
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento('blockquote') }));
     expect(etiquetas).toContain('Autor');
     expect(etiquetas.some((e) => e.startsWith('Fuente'))).toBe(true);
     expect(etiquetas).not.toContain('Texto');
   });
 
   it('H2-E3: lista: solo si es ordenada, sin los campos de ítem', () => {
-    const bloque = { ...crearBloque('lista'), items: ['uno', 'dos'] } as Bloque;
+    const lista = crearElemento('bulletList');
+    const bloque = {
+      ...lista,
+      content: ['uno', 'dos'].map((texto) => ({
+        type: 'listItem',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: texto }] }],
+      })),
+    } as Elemento;
     const etiquetas = etiquetasDeCampos(dibujar({ bloque }));
     expect(etiquetas.some((e) => e.includes('Lista ordenada'))).toBe(true);
     expect(etiquetas.filter((e) => e.startsWith('Ítem'))).toEqual([]);
   });
 
   it('H2-E3: título: solo el nivel, sin el campo de texto', () => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque('titulo') }));
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento('heading') }));
     expect(etiquetas).toContain('Nivel');
     expect(etiquetas).not.toContain('Texto');
   });
@@ -131,15 +155,15 @@ describe('PropiedadesDelElemento: cada tipo muestra solo sus propiedades (H2-E2,
     ['imagen', ['Nivel', 'Autor', 'Lenguaje', 'Columnas', 'URL', 'Proveedor']],
     ['video', ['Nivel', 'Autor', 'Lenguaje', 'Leyenda', 'Columnas', 'URL']],
     ['cta', ['Nivel', 'Autor', 'Lenguaje', 'Leyenda', 'Proveedor']],
-  ] as [TipoBloque, string[]][])('H2-E3: %s no muestra campos de otros tipos', (tipo, ajenos) => {
-    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearBloque(tipo) }));
+  ] as [TipoElemento, string[]][])('H2-E3: %s no muestra campos de otros tipos', (tipo, ajenos) => {
+    const etiquetas = etiquetasDeCampos(dibujar({ bloque: crearElemento(tipo) }));
     for (const campo of ajenos) expect(etiquetas, campo).not.toContain(campo);
   });
 
   it('H2-E5: los errores del bloque se muestran con texto y el campo queda inválido y descrito', () => {
     const html = dibujar({
-      bloque: { ...crearBloque('imagen'), imagen: { ...conImagen, alt: '' } } as Bloque,
-      errores: [{ indice: 2, campo: 'imagen.alt', mensaje: MENSAJE_ALT }],
+      bloque: conAttrs('imagen', { imagen: { ...conImagen, alt: '' } }),
+      errores: [{ indice: 2, id: '00000000-0000-4000-8000-000000000002', campo: 'imagen.alt', mensaje: MENSAJE_ALT }],
     });
     expect(sinEtiquetas(html)).toContain(MENSAJE_ALT);
     const campo = etiquetasDe(html).find((e) => e.nombre === 'input' && e.atributos['aria-invalid'] === 'true');
@@ -147,27 +171,57 @@ describe('PropiedadesDelElemento: cada tipo muestra solo sus propiedades (H2-E2,
   });
 
   it('H2-E5: los campos llevan el id de hoy, bloque-<indice>-<campo> (el enfoque del primer error los busca)', () => {
-    const html = dibujar({ bloque: crearBloque('cta'), indice: 5 });
+    const html = dibujar({ bloque: crearElemento('cta'), indice: 5 });
     expect(etiquetaDe(html, 'input', (e) => e.atributos.id === 'bloque-5-etiquetaBoton')).toBeDefined();
   });
 });
 
+describe('PropiedadesDelElemento: el adaptador entrega a los editores la forma de hoy (D31 C6)', () => {
+  it('título: el nivel del elemento (level) llega al editor como nivel', () => {
+    const html = dibujar({ bloque: conAttrs('heading', { level: 3 }) });
+    const nivel = etiquetaDe(html, 'option', (e) => 'selected' in e.atributos);
+
+    expect(nivel?.atributos.value).toBe('3');
+  });
+
+  it('lista numerada: el tipo de nodo llega al editor como «Lista ordenada» marcada', () => {
+    const html = dibujar({ bloque: crearElemento('orderedList') });
+    const casilla = etiquetaDe(html, 'input', (e) => e.atributos.type === 'checkbox');
+
+    expect(casilla && 'checked' in casilla.atributos).toBe(true);
+  });
+
+  it('cita: el autor de attrs.autor aparece en su campo', () => {
+    const html = dibujar({ bloque: conAttrs('blockquote', { autor: 'Ellen Lupton' }) });
+
+    expect(etiquetaDe(html, 'input', (e) => e.atributos.value === 'Ellen Lupton')).toBeDefined();
+  });
+
+  it('código: el lenguaje de attrs.lenguaje aparece en su campo', () => {
+    const html = dibujar({ bloque: conAttrs('codeBlock', { lenguaje: 'ts' }) });
+
+    expect(etiquetaDe(html, 'input', (e) => e.atributos.value === 'ts')).toBeDefined();
+  });
+});
+
 describe('PropiedadesDelElemento: sin propiedades, varios y sin selección', () => {
-  it.each(['parrafo', 'separador'] as TipoBloque[])(
+  it.each(['paragraph', 'horizontalRule'] as TipoElemento[])(
     'H2-E4: %s muestra el aviso de sin propiedades y ningún campo',
     (tipo) => {
-      const html = dibujar({ bloque: crearBloque(tipo) });
+      const html = dibujar({ bloque: crearElemento(tipo) });
       expect(sinEtiquetas(html)).toContain(SIN_PROPIEDADES);
       expect(camposDeFormulario(html)).toHaveLength(0);
     },
   );
 
   it('H2-E4: un elemento con propiedades no muestra el aviso de sin propiedades', () => {
-    expect(sinEtiquetas(dibujar({ bloque: crearBloque('cta') }))).not.toContain(SIN_PROPIEDADES);
+    expect(sinEtiquetas(dibujar({ bloque: crearElemento('cta') }))).not.toContain(SIN_PROPIEDADES);
   });
 
   it('H2-E4: con varios elementos muestra "3 elementos seleccionados" y ningún campo', () => {
-    const html = dibujar({ seleccion: seleccionDe(crearBloque('imagen'), crearBloque('cta'), crearBloque('video')) });
+    const html = dibujar({
+      seleccion: seleccionDe(crearElemento('imagen'), crearElemento('cta'), crearElemento('video')),
+    });
     expect(sinEtiquetas(html)).toContain('3 elementos seleccionados');
     expect(camposDeFormulario(html)).toHaveLength(0);
   });
@@ -187,11 +241,11 @@ describe('PropiedadesDelElemento: nombre y variantes (H2-E6, H2-E7)', () => {
   it.each([
     ['cta', 'llamada a la acción'],
     ['galeria', 'galería'],
-    ['codigo', 'código'],
-  ] as [TipoBloque, string][])(
+    ['codeBlock', 'código'],
+  ] as [TipoElemento, string][])(
     'H2-E7: el nombre usa el tipo en español (%s: %s) y la posición recibida',
     (tipo, nombre) => {
-      const aside = etiquetaDe(dibujar({ bloque: crearBloque(tipo), posicion: 8 }), 'aside');
+      const aside = etiquetaDe(dibujar({ bloque: crearElemento(tipo), posicion: 8 }), 'aside');
       expect(aside?.atributos['aria-label']).toBe(`Propiedades del elemento 8, ${nombre}`);
     },
   );

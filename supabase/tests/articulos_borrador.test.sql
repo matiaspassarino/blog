@@ -5,7 +5,7 @@
 -- No depende del seed: crea sus propios usuarios @prueba.local.
 begin;
 \ir helpers/pruebas.psql
-select plan(45);
+select plan(47);
 
 select pruebas.crear_usuario('h1-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editor"}');
 select pruebas.crear_usuario('h1-editora@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editora"}');
@@ -14,14 +14,19 @@ select pruebas.crear_usuario('h1-inactivo@prueba.local', '{"provider":"email","r
 update public.perfiles set activo = false
   where id = (select id from auth.users where email = 'h1-inactivo@prueba.local');
 
--- Contenido de tres bloques válidos, en un orden conocido.
+-- Documento de tres elementos válidos, en un orden conocido (spec 005, T096: el contenido es el documento).
 create function pruebas.contenido_h1() returns jsonb
 language sql immutable as $$
-  select '[
-    {"id": "b1000000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Primer párrafo."},
-    {"id": "b1000000-0000-4000-8000-000000000002", "tipo": "titulo", "nivel": 2, "texto": "Un subtítulo"},
-    {"id": "b1000000-0000-4000-8000-000000000003", "tipo": "lista", "ordenada": false, "items": ["Uno", "Dos"]}
-  ]'::jsonb
+  select '{"type": "doc", "content": [
+    {"type": "paragraph", "attrs": {"id": "b1000000-0000-4000-8000-000000000001"},
+     "content": [{"type": "text", "text": "Primer "}, {"type": "text", "text": "párrafo", "marks": [{"type": "bold"}]},
+                 {"type": "text", "text": "."}]},
+    {"type": "heading", "attrs": {"id": "b1000000-0000-4000-8000-000000000002", "level": 2},
+     "content": [{"type": "text", "text": "Un subtítulo"}]},
+    {"type": "bulletList", "attrs": {"id": "b1000000-0000-4000-8000-000000000003"}, "content": [
+      {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Uno"}]}]},
+      {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dos"}]}]}]}
+  ]}'::jsonb
 $$;
 create function pruebas.id_de(email_usuario text) returns uuid
 language sql stable security definer set search_path = '' as $$
@@ -34,13 +39,13 @@ grant execute on function pruebas.contenido_h1(), pruebas.id_de(text) to anon, a
 delete from public.articulos where slug ~ '^mi-articulo(-[0-9]+)?$';
 
 -- ---------------------------------------------------------------------------
--- H1-E1: un editor guarda un artículo con título y tres bloques
+-- H1-E1: un editor guarda un artículo con título y un documento de tres elementos
 -- ---------------------------------------------------------------------------
 select pruebas.como('h1-editor@prueba.local');
 select lives_ok($$
   insert into public.articulos (id, titulo, contenido, autor_id)
   values ('a1000000-0000-4000-8000-000000000001', 'Mi artículo', pruebas.contenido_h1(), auth.uid())
-$$, 'H1-E1: un editor guarda un artículo con título y tres bloques válidos');
+$$, 'H1-E1: un editor (authenticated) guarda un artículo con título y un documento de tres elementos');
 
 select results_eq(
   $$select estado::text, slug, version from public.articulos
@@ -54,10 +59,11 @@ select is(
   'H1-E1: el contenido se guarda tal cual se envió'
 );
 select results_eq(
-  $$select contenido -> 0 ->> 'tipo', contenido -> 1 ->> 'tipo', contenido -> 2 ->> 'tipo'
+  $$select contenido -> 'content' -> 0 ->> 'type', contenido -> 'content' -> 1 ->> 'type',
+           contenido -> 'content' -> 2 ->> 'type'
     from public.articulos where id = 'a1000000-0000-4000-8000-000000000001'$$,
-  $$values ('parrafo'::text, 'titulo'::text, 'lista'::text)$$,
-  'H1-E1: los bloques conservan el orden indicado'
+  $$values ('paragraph'::text, 'heading'::text, 'bulletList'::text)$$,
+  'H1-E1: los elementos del documento conservan el orden indicado'
 );
 select results_eq(
   $$select autor_id = auth.uid(), publicado_en is null, programado_para is null
@@ -195,47 +201,67 @@ select throws_ok($$
 $$, 'P0001', 'conflicto_version', 'RF-008: una versión que no coincide (mayor) también lanza conflicto_version');
 
 -- ---------------------------------------------------------------------------
--- Defensa del contenido en la base (check privado.contenido_valido, D8)
+-- Defensa del contenido en la base (check privado.contenido_valido, D8). Spec 005 (T096): la base comprueba
+-- la forma mínima del documento ({type: doc, content: [...]}, tipos de privado.tipos_elemento() y attrs.id).
+-- Todo como authenticated: el check y sus funciones corren con el rol de quien guarda (research D31, A1).
 -- ---------------------------------------------------------------------------
 select throws_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Bloque inexistente', '[{"id": "b1", "tipo": "tabla"}]', auth.uid())
-$$, '23514', null, 'un contenido con un tipo de bloque inexistente viola el check');
+  values ('Elemento inexistente', '{"type": "doc", "content": [{"type": "tabla", "attrs": {"id": "b1"}}]}', auth.uid())
+$$, '23514', null, 'un documento con un tipo de elemento inexistente viola el check');
 select throws_like($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Bloque inexistente', '[{"id": "b1", "tipo": "tabla"}]', auth.uid())
+  values ('Elemento inexistente', '{"type": "doc", "content": [{"type": "tabla", "attrs": {"id": "b1"}}]}', auth.uid())
 $$, '%contenido%', 'el error del check menciona contenido (traducirError lo mapea a contenido_invalido)');
 select throws_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Demasiados bloques',
-          (select jsonb_agg(jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'separador'))
-           from generate_series(1, 201)),
+  values ('Demasiados elementos',
+          jsonb_build_object('type', 'doc', 'content',
+            (select jsonb_agg(jsonb_build_object('type', 'horizontalRule', 'attrs', jsonb_build_object('id', gen_random_uuid())))
+             from generate_series(1, 201))),
           auth.uid())
-$$, '23514', null, 'un contenido con más de 200 bloques viola el check');
+$$, '23514', null, 'un documento con más de 200 elementos viola el check');
 select lives_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Doscientos bloques',
-          (select jsonb_agg(jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'separador'))
-           from generate_series(1, 200)),
+  values ('Doscientos elementos',
+          jsonb_build_object('type', 'doc', 'content',
+            (select jsonb_agg(jsonb_build_object('type', 'horizontalRule', 'attrs', jsonb_build_object('id', gen_random_uuid())))
+             from generate_series(1, 200))),
           auth.uid())
-$$, 'un contenido con exactamente 200 bloques se acepta');
+$$, 'un documento con exactamente 200 elementos se acepta');
 select throws_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Contenido que no es arreglo', '{"tipo": "parrafo"}', auth.uid())
-$$, '23514', null, 'un contenido que no es un arreglo viola el check');
+  values ('Formato anterior', '[{"id": "b1000000-0000-4000-8000-000000000009", "tipo": "parrafo", "texto": "Hola"}]', auth.uid())
+$$, '23514', null, 'el formato anterior (una lista de bloques) viola el check');
+select throws_ok($$
+  insert into public.articulos (titulo, contenido, autor_id)
+  values ('Tipo de documento', '{"type": "parrafo", "content": []}', auth.uid())
+$$, '23514', null, 'un objeto con type distinto de doc viola el check');
 -- contenido_valido debe devolver false (no null) cuando falta un campo: un check con null pasa.
 select throws_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Bloque sin tipo', '[{"id": "b1", "texto": "Huérfano"}]', auth.uid())
-$$, '23514', null, 'un bloque sin tipo viola el check');
+  values ('Elemento sin tipo', '{"type": "doc", "content": [{"attrs": {"id": "b1"}}]}', auth.uid())
+$$, '23514', null, 'un elemento sin type viola el check');
 select throws_ok($$
   insert into public.articulos (titulo, contenido, autor_id)
-  values ('Bloque sin id', '[{"tipo": "parrafo", "texto": "Sin id"}]', auth.uid())
-$$, '23514', null, 'un bloque sin id viola el check');
+  values ('Elemento sin id', '{"type": "doc", "content": [{"type": "horizontalRule"}]}', auth.uid())
+$$, '23514', null, 'un elemento sin attrs.id viola el check');
 select throws_ok($$
-  update public.articulos set contenido = '[{"id": "b1", "tipo": "tabla"}]', version = 4
+  update public.articulos
+    set contenido = '{"type": "doc", "content": [{"type": "tabla", "attrs": {"id": "b1"}}]}', version = 4
   where id = 'a1000000-0000-4000-8000-000000000001'
-$$, '23514', null, 'un update con un tipo de bloque inexistente viola el check');
+$$, '23514', null, 'un update con un tipo de elemento inexistente viola el check');
+select lives_ok($$
+  update public.articulos
+    set contenido = '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "b1000000-0000-4000-8000-000000000004"}}]}',
+        version = 4
+  where id = 'a1000000-0000-4000-8000-000000000001'
+$$, 'research D31 A1: un update como authenticated con un documento pasa el check');
+select is(
+  (select contenido -> 'content' -> 0 ->> 'type' from public.articulos where id = 'a1000000-0000-4000-8000-000000000001'),
+  'horizontalRule',
+  'research D31 A1: el documento del update se guarda'
+);
 
 -- ---------------------------------------------------------------------------
 -- RF-001, RF-004, RF-006: límites de los campos

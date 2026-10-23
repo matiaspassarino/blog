@@ -7,7 +7,7 @@
 //     estado    el estado ANTES de aplicar la transacción
 //     contexto  {
 //       transaccion: Transaction                 la que se quiere aplicar (el plugin la recibe en filterTransaction)
-//       subidasEnCurso: ReadonlySet<string>      `bloqueId` de los elementos con una subida en curso
+//       subidasEnCurso: ReadonlySet<string>      `id` de los elementos con una subida en curso
 //       imagenGuardada: (ruta: string) => boolean  la misma función de `ContextoEditor` (imagen ya guardada en el artículo)
 //       confirmado?: boolean                     true cuando la persona ya aceptó el diálogo y la transacción se reintenta
 //     }
@@ -15,11 +15,15 @@
 //     | { accion: 'permitir'; anuncio?: string }          sin `anuncio` si no se quitó ni se movió nada
 //     | { accion: 'bloquear'; anuncio: string }           subida en curso: anuncioSubidaEnCurso()
 //     | { accion: 'confirmar'; cantidad: number }         hay imágenes guardadas entre lo que se quita (cantidad = elementos que se quitan)
-// La decisión sale de comparar los elementos de primer nivel (por `bloqueId`) del documento antes y después de aplicar
+// La decisión sale de comparar los elementos de primer nivel (por `id`) del documento antes y después de aplicar
 // la transacción: un id que desaparece es un elemento quitado; los mismos ids en otro orden son un elemento movido.
 // Los elementos sin id (copias recién duplicadas) no cuentan. Mensajes (anuncios.ts):
 //   quitado  "Elemento quitado. Pulsa Ctrl+Z para deshacer" / "3 elementos quitados. Pulsa Ctrl+Z para deshacer"
 //   movido   "Elemento movido a la posición N de M"
+//
+// T098 (spec 005, ampliación; research D22 y D31 C7): el esquema es el del editor (`getSchema(extensiones)` en
+// ./esquema-prueba), la identidad es `id` (antes `bloqueId`, sin `continuacion`) y las imágenes de un elemento están
+// en `attrs.imagen.ruta` y `attrs.imagenes[*].ruta` (attrs planos).
 import { NodeSelection, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { describe, expect, it } from 'vitest';
 import { cita, estadoDe, galeria, imagen, parrafo, posDe, titulo } from './esquema-prueba';
@@ -75,14 +79,14 @@ describe('lo que pasa sin más: ediciones que no quitan ni mueven elementos (H3 
 
   it('H3-E8: asignar el id a un elemento que no lo tenía (asignarIds) no cuenta como quitar', () => {
     const estado = estadoDe(parrafo('a', 'Uno'), parrafo('', 'Copia'));
-    const tr = estado.tr.setNodeMarkup(posDe(estado, 1), undefined, { bloqueId: 'nuevo', continuacion: '' });
+    const tr = estado.tr.setNodeMarkup(posDe(estado, 1), undefined, { id: 'nuevo' });
 
     expect(decidirBorrado(estado, contextoDe(tr))).toEqual({ accion: 'permitir' });
   });
 
   it('H3-E8: cambiar el tipo conservando el id (convertir) no cuenta como quitar', () => {
     const estado = estadoBase();
-    const tr = estado.tr.setNodeMarkup(posDe(estado, 4), undefined, { bloqueId: 'e', level: 4 });
+    const tr = estado.tr.setNodeMarkup(posDe(estado, 4), undefined, { id: 'e', level: 4 });
 
     expect(decidirBorrado(estado, contextoDe(tr))).toEqual({ accion: 'permitir' });
   });
@@ -200,13 +204,13 @@ describe('imagen ya guardada: pide confirmación por cualquier vía (H3 esc. 7 y
       transaccion: (estado) => {
         return estado.tr
           .setSelection(NodeSelection.create(estado.doc, posDe(estado, 1)))
-          .replaceSelectionWith(estado.schema.nodes.paragraph!.create({ bloqueId: '' }));
+          .replaceSelectionWith(estado.schema.nodes.paragraph!.create({ id: '' }));
       },
     },
     {
       via: 'Mod+A y borrar (se reemplaza todo el documento)',
       transaccion: (estado) =>
-        estado.tr.replaceWith(0, estado.doc.content.size, estado.schema.nodes.paragraph!.create({ bloqueId: '' })),
+        estado.tr.replaceWith(0, estado.doc.content.size, estado.schema.nodes.paragraph!.create({ id: '' })),
     },
     {
       via: 'un rango de texto que cruza párrafos hasta la isla y se borra',
@@ -273,11 +277,7 @@ describe('subida en curso: no se puede mover ni quitar (H3 esc. 3, 7 y 10)', () 
 
   it('H3-E7: Mod+A y borrar con una subida en curso se bloquea', () => {
     const estado = estadoBase();
-    const tr = estado.tr.replaceWith(
-      0,
-      estado.doc.content.size,
-      estado.schema.nodes.paragraph!.create({ bloqueId: '' }),
-    );
+    const tr = estado.tr.replaceWith(0, estado.doc.content.size, estado.schema.nodes.paragraph!.create({ id: '' }));
 
     expect(decidirBorrado(estado, contextoDe(tr, { subiendo: ['c'] })).accion).toBe('bloquear');
   });
@@ -285,8 +285,8 @@ describe('subida en curso: no se puede mover ni quitar (H3 esc. 3, 7 y 10)', () 
   it('H3-E7: editar las propiedades del elemento que sube (la subida termina y escribe la ruta) se permite', () => {
     const estado = estadoBase();
     const tr = estado.tr.setNodeMarkup(posDe(estado, 2), undefined, {
-      bloqueId: 'c',
-      bloque: { id: 'c', tipo: 'imagen', imagen: { ruta: 'articulos/otra.png', ancho: 4, alto: 3, decorativa: true } },
+      id: 'c',
+      imagen: { ruta: 'articulos/otra.png', ancho: 4, alto: 3, decorativa: true },
     });
 
     expect(decidirBorrado(estado, contextoDe(tr, { subiendo: ['c'] }))).toEqual({ accion: 'permitir' });

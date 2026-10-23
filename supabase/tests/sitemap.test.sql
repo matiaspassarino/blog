@@ -15,17 +15,17 @@ insert into public.etiquetas (nombre, slug) values
 
 -- 1.100 publicados (más que max_rows), cargados por el sistema.
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
-select 'H3 sitemap ' || n, 'h3-sitemap-' || n, '[{"id": "x", "tipo": "separador"}]',
+select 'H3 sitemap ' || n, 'h3-sitemap-' || n, '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
        (select id from public.categorias where slug = 'h3-sitemap-con'),
        (select id from auth.users where email = 'h3-sitemap@prueba.local'),
        'publicado', now() - make_interval(mins => n)
 from generate_series(1, 1100) as n;
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado)
-values ('H3 sitemap borrador', 'h3-sitemap-borrador', '[{"id": "x", "tipo": "separador"}]',
+values ('H3 sitemap borrador', 'h3-sitemap-borrador', '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
         (select id from public.categorias where slug = 'h3-sitemap-solo-borrador'),
         (select id from auth.users where email = 'h3-sitemap@prueba.local'), 'borrador');
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, programado_para)
-values ('H3 sitemap programado', 'h3-sitemap-programado', '[{"id": "x", "tipo": "separador"}]',
+values ('H3 sitemap programado', 'h3-sitemap-programado', '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
         (select id from public.categorias where slug = 'h3-sitemap-con'),
         (select id from auth.users where email = 'h3-sitemap@prueba.local'), 'programado', now() + interval '1 day');
 insert into public.articulos_etiquetas (articulo_id, etiqueta_id)
@@ -39,11 +39,11 @@ select pruebas.crear_usuario('h3-sitemap-reciente@prueba.local', '{"provider":"e
 select pruebas.crear_usuario('h3-sitemap-borrador@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Tres Sitemap Borrador"}');
 select pruebas.crear_usuario('h3-sitemap-sin@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Tres Sitemap Sin"}');
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
-values ('H3 mapa reciente', 'h3-mapa-reciente', '[{"id": "x", "tipo": "separador"}]',
+values ('H3 mapa reciente', 'h3-mapa-reciente', '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
         (select id from public.categorias where slug = 'h3-sitemap-con'),
         (select id from auth.users where email = 'h3-sitemap-reciente@prueba.local'), 'publicado', now() - interval '1 hour');
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado)
-values ('H3 mapa borrador de autor', 'h3-mapa-borrador-autor', '[{"id": "x", "tipo": "separador"}]',
+values ('H3 mapa borrador de autor', 'h3-mapa-borrador-autor', '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
         (select id from public.categorias where slug = 'h3-sitemap-con'),
         (select id from auth.users where email = 'h3-sitemap-borrador@prueba.local'), 'borrador');
 alter table public.perfiles disable trigger a90_actualizado_en;

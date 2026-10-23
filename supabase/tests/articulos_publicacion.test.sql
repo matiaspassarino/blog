@@ -6,7 +6,7 @@
 -- sus artículos con slugs propios (prefijo h2-pub-).
 begin;
 \ir helpers/pruebas.psql
-select plan(43);
+select plan(46);
 
 select pruebas.crear_usuario('h2-pub-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Dos Pub Editor"}');
 select pruebas.crear_usuario('h2-pub-admin@prueba.local', '{"provider":"email","rol":"admin"}', '{"nombre":"Hache Dos Pub Admin"}');
@@ -17,7 +17,7 @@ insert into public.categorias (nombre, slug) values ('H2 Pub Categoría', 'h2-pu
 
 create function pruebas.contenido_h2() returns jsonb
 language sql immutable as $$
-  select '[{"id": "b2000000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Cuerpo publicable."}]'::jsonb
+  select '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Cuerpo publicable."}]}]}'::jsonb
 $$;
 create function pruebas.categoria_h2() returns uuid
 language sql stable security definer set search_path = '' as $$
@@ -144,11 +144,29 @@ select is(
 );
 
 insert into public.articulos (id, titulo, slug, categoria_id)
-  values ('a2000000-0000-4000-8000-000000000002', 'H2 sin bloques', 'h2-pub-sin-bloques', pruebas.categoria_h2());
+  values ('a2000000-0000-4000-8000-000000000002', 'H2 sin contenido', 'h2-pub-sin-bloques', pruebas.categoria_h2());
 select is(
   pruebas.intentar_transicion('a2000000-0000-4000-8000-000000000002', 'publicado'),
   'P0001 requisitos_publicacion: contenido',
-  'RF-010: publicar un borrador sin bloques lanza requisitos_publicacion con detail = contenido'
+  'RF-010: publicar un borrador con el contenido por defecto (el documento vacío) lanza requisitos_publicacion con detail = contenido'
+);
+-- Spec 005 (T096): el requisito de contenido es privado.documento_tiene_contenido.
+insert into public.articulos (id, titulo, slug, contenido, categoria_id) values
+  ('a2000000-0000-4000-8000-000000000011', 'H2 documento vacío', 'h2-pub-documento-vacio',
+   '{"type": "doc", "content": []}', pruebas.categoria_h2()),
+  ('a2000000-0000-4000-8000-000000000012', 'H2 solo párrafos vacíos', 'h2-pub-solo-parrafos-vacios',
+   '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2000000-0000-4000-8000-000000000011"}},
+     {"type": "paragraph", "attrs": {"id": "b2000000-0000-4000-8000-000000000012"}, "content": []}]}',
+   pruebas.categoria_h2());
+select is(
+  pruebas.intentar_transicion('a2000000-0000-4000-8000-000000000011', 'publicado'),
+  'P0001 requisitos_publicacion: contenido',
+  'RF-010: publicar un documento vacío lanza requisitos_publicacion con detail = contenido'
+);
+select is(
+  pruebas.intentar_transicion('a2000000-0000-4000-8000-000000000012', 'publicado'),
+  'P0001 requisitos_publicacion: contenido',
+  'RF-010: publicar un documento con solo párrafos vacíos lanza requisitos_publicacion con detail = contenido'
 );
 select pruebas.como_postgres();
 select results_eq(
@@ -298,7 +316,13 @@ select throws_ok($$
   insert into public.articulos (titulo, slug, categoria_id, autor_id, estado, publicado_en)
   values ('H2 check sin bloques', 'h2-pub-check-sin-bloques', pruebas.categoria_h2(),
           pruebas.autor_h2(), 'publicado', now())
-$$, '23514', null, 'check: un publicado sin bloques viola el check de requisitos');
+$$, '23514', null, 'check: un publicado con el documento vacío por defecto viola el check de requisitos');
+select throws_ok($$
+  insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
+  values ('H2 check solo párrafos vacíos', 'h2-pub-check-parrafos-vacios',
+          '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2000000-0000-4000-8000-000000000013"}}]}',
+          pruebas.categoria_h2(), pruebas.autor_h2(), 'publicado', now())
+$$, '23514', null, 'check: un publicado con solo párrafos vacíos viola el check de requisitos (documento_tiene_contenido)');
 alter table public.articulos enable trigger user;
 
 select pruebas.como_postgres();

@@ -1,13 +1,16 @@
 // T046: video sin JS con iframe srcdoc (spec 002, RF-004, H1-E4, research D6;
-// contracts/bloques-render.md, fila "video").
+// contracts/bloques-render.md, fila "video"). Adaptado al documento en T095 (spec 005, ampliación): el elemento
+// video lleva sus campos como attrs planos (D22).
 import { describe, expect, it } from 'vitest';
-import { contenidoDe, desescapar, renderizar } from './ayudas-prueba';
+import { nodo } from '../pruebas/corpus-documento';
+import { renderizarElementos } from './ayudas-documento';
+import { desescapar } from './ayudas-prueba';
 
 const ID_YOUTUBE = 'dQw4w9WgXcQ';
 const ID_VIMEO = '76979871';
 
 function renderizarVideo(proveedor: 'youtube' | 'vimeo', idVideo: string, titulo = 'Video de presentación') {
-  const html = renderizar(contenidoDe({ tipo: 'video', proveedor, idVideo, titulo }));
+  const html = renderizarElementos(nodo.video(proveedor, idVideo, titulo));
   const iframe = html.match(/<iframe\s[^>]*>/)?.[0] ?? '';
   const srcdoc = desescapar(iframe.match(/\ssrcdoc="([^"]*)"/i)?.[1] ?? '');
   // Lo que queda fuera del iframe (el enlace "Ver en …").
@@ -15,7 +18,7 @@ function renderizarVideo(proveedor: 'youtube' | 'vimeo', idVideo: string, titulo
   return { html, iframe, srcdoc, fuera };
 }
 
-describe('bloque video de YouTube', () => {
+describe('elemento video de YouTube', () => {
   it('H1-E4: produce un <figure> con un <iframe> con título accesible y carga diferida', () => {
     const { html, iframe } = renderizarVideo('youtube', ID_YOUTUBE, 'Cómo armar una grilla');
 
@@ -63,7 +66,7 @@ describe('bloque video de YouTube', () => {
   });
 });
 
-describe('bloque video de Vimeo', () => {
+describe('elemento video de Vimeo', () => {
   it('H1-E4: produce un <iframe> con título, carga diferida y sin src', () => {
     const { iframe } = renderizarVideo('vimeo', ID_VIMEO, 'Recorrido por el estudio');
 

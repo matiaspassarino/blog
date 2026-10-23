@@ -12,9 +12,9 @@
 //                                                      seleccionados (antes del primero y después del último); null fuera
 //                                                      del modo elementos, aunque haya un rango de texto
 //   moverRango(direccion: -1 | 1): Command             Alt+↑ / Alt+↓; false en los extremos sin despachar nada
-//   duplicarRango(): Command                           copia justo debajo; copias con bloqueId ''; la selección pasa a las copias
+//   duplicarRango(): Command                           copia justo debajo; copias con id ''; la selección pasa a las copias
 //   quitarRango(): Command                             sale del modo; el foco queda en el contiguo; nunca deja el documento vacío
-//   convertirElemento(tipo, opciones?): Command        solo con UN elemento de texto; conserva bloqueId y texto; false si no aplica
+//   convertirElemento(tipo, opciones?): Command        solo con UN elemento de texto; conserva id y texto; false si no aplica
 //   pierdeAlConvertir(estado, tipo, opciones?): { pierde: string[] }   lo que el contrato describe como "devuelve { pierde }":
 //                                                      la interfaz lo consulta antes de despachar `convertirElemento`
 //   seleccionarElementos(desdeIndice, hastaIndice): Command   entra al modo elementos con esos elementos (índices desde 0)
@@ -22,6 +22,13 @@
 //   TipoDeTexto = 'parrafo' | 'titulo' | 'cita' | 'lista' | 'codigo'
 // Todo comando sigue la convención de ProseMirror: `(estado, despachar?) => boolean`; sin `despachar` solo responde si es
 // posible. Cada acción despacha UNA transacción (un Deshacer la revierte).
+//
+// T098 (spec 005, ampliación; research D20 actualizada, D22 y D31 C7): el esquema es el del editor
+// (`getSchema(extensiones)` en ./esquema-prueba), el atributo de identidad es `id` (antes `bloqueId`) y los
+// elementos especiales llevan sus campos como attrs planos (`imagen`, no `imagenBloque` con `bloque`). Pasar un
+// párrafo con marcas a título ya no pierde nada (RF-009: los títulos admiten formato); a código, sí. El autor y la
+// fuente se pierden al pasar una cita a cualquier otro tipo y los ítems, al pasar una lista de varios a párrafo o a
+// título.
 import { undo } from '@tiptap/pm/history';
 import { TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { describe, expect, it } from 'vitest';
@@ -240,7 +247,7 @@ describe('moverRango: Alt+↑ y Alt+↓ (H3 esc. 2 y 10)', () => {
     const { estado } = ejecutar(enModo(base, 3), moverRango(-1));
 
     expect(idsDe(estado)).toEqual([ID.a, ID.b, ID.d, ID.c]);
-    expect(estado.doc.child(2).attrs.bloque).toEqual(base.doc.child(3).attrs.bloque);
+    expect(estado.doc.child(2).attrs.imagen).toEqual(base.doc.child(3).attrs.imagen);
     expect(estado.doc.child(3).attrs).toMatchObject({ autor: 'Alguien', fuente: 'https://example.com' });
   });
 });
@@ -267,11 +274,9 @@ describe('duplicarRango: Mod+D (H3 esc. 5 y 10)', () => {
     const { estado } = ejecutar(enModo(base, 1), duplicarRango());
 
     expect(estado.doc.childCount).toBe(3);
-    expect(estado.doc.child(2).type.name).toBe('imagenBloque');
-    expect(estado.doc.child(2).attrs.bloqueId).toBe('');
-    expect((estado.doc.child(2).attrs.bloque as { imagen: unknown }).imagen).toEqual(
-      (base.doc.child(1).attrs.bloque as { imagen: unknown }).imagen,
-    );
+    expect(estado.doc.child(2).type.name).toBe('imagen');
+    expect(idsDe(estado)[2]).toBe('');
+    expect(estado.doc.child(2).attrs.imagen).toEqual(base.doc.child(1).attrs.imagen);
   });
 
   it('H3-E10: con varios seleccionados, duplica el conjunto debajo (A B → A B A′ B′) en un solo paso', () => {
@@ -381,7 +386,7 @@ describe('convertirElemento: «Convertir en…» entre tipos de texto (H3 esc. 6
     expect(respuesta).toBe(true);
     expect(transacciones).toBe(1);
     expect(estado.doc.child(0).type.name).toBe('heading');
-    expect(estado.doc.child(0).attrs).toMatchObject({ bloqueId: ID.a, level: 3 });
+    expect(estado.doc.child(0).attrs).toMatchObject({ id: ID.a, level: 3 });
     expect(estado.doc.child(0).textContent).toBe('Un texto');
     expect(estado.doc.child(1).textContent).toBe('Otro');
   });
@@ -391,7 +396,7 @@ describe('convertirElemento: «Convertir en…» entre tipos de texto (H3 esc. 6
 
     expect(estado.doc.child(0).type.name).toBe('blockquote');
     expect(estado.doc.child(0).textContent).toBe('Una frase');
-    expect(estado.doc.child(0).attrs.bloqueId).toBe(ID.a);
+    expect(estado.doc.child(0).attrs.id).toBe(ID.a);
   });
 
   it('H3-E6: párrafo a lista pone el texto como único ítem', () => {
@@ -451,6 +456,16 @@ describe('convertirElemento: «Convertir en…» entre tipos de texto (H3 esc. 6
     expect(convertirElemento('titulo', { nivel: 2 })(estadoDe(parrafo(ID.a, 'Uno')))).toBe(false);
   });
 
+  it('D20 (actualizada): un párrafo con marcas a título conserva las marcas', () => {
+    const { estado } = ejecutar(
+      enModo(estadoDe(parrafoConNegrita(ID.a, 'Con negrita')), 0),
+      convertirElemento('titulo', { nivel: 2 }),
+    );
+
+    expect(estado.doc.child(0).type.name).toBe('heading');
+    expect(estado.doc.child(0).firstChild?.marks.map((marca) => marca.type.name)).toEqual(['bold']);
+  });
+
   it('H3-E6: convertir a un código conserva el texto', () => {
     const { estado } = ejecutar(enModo(estadoDe(parrafo(ID.a, 'const x = 1;')), 0), convertirElemento('codigo'));
 
@@ -488,18 +503,33 @@ describe('pierdeAlConvertir: aviso antes de convertir con pérdida (H3 esc. 6, R
     expect(sinDatos).toEqual([]);
   });
 
-  it('H3-E6: un párrafo con marcas a título o a código avisa de que las pierde', () => {
+  it('D20 (actualizada): un párrafo con marcas a código avisa de que las pierde', () => {
     const base = estadoDe(parrafoConNegrita(ID.a, 'Con negrita'));
 
-    expect(pierde(base, 'titulo', { nivel: 2 }).join(' ')).toMatch(/marcas|formato/i);
     expect(pierde(base, 'codigo').join(' ')).toMatch(/marcas|formato/i);
   });
 
-  it('H3-E6: un párrafo con marcas a cita, a lista o a párrafo no pierde nada', () => {
+  it('D20 (actualizada): un párrafo con marcas a título, a cita o a lista no pierde nada', () => {
     const base = estadoDe(parrafoConNegrita(ID.a, 'Con negrita'));
 
+    expect(pierde(base, 'titulo', { nivel: 2 })).toEqual([]);
     expect(pierde(base, 'cita')).toEqual([]);
     expect(pierde(base, 'lista')).toEqual([]);
+  });
+
+  it('D20 (actualizada): una cita con autor o fuente a título, a lista o a código avisa del dato que se pierde', () => {
+    const conAutor = estadoDe(cita(ID.a, 'Una cita', 'Alguien'));
+    const conFuente = estadoDe(cita(ID.a, 'Una cita', '', 'https://example.com'));
+
+    expect(pierde(conAutor, 'titulo', { nivel: 2 }).join(' ')).toMatch(/autor/i);
+    expect(pierde(conAutor, 'lista').join(' ')).toMatch(/autor/i);
+    expect(pierde(conFuente, 'codigo').join(' ')).toMatch(/fuente/i);
+  });
+
+  it('D20 (actualizada): una lista de varios ítems a título avisa de los ítems', () => {
+    expect(pierde(estadoDe(lista(ID.a, ['x', 'y'])), 'titulo', { nivel: 2 }).join(' ')).toMatch(
+      /ítems|items|elementos de la lista/i,
+    );
   });
 
   it('H3-E6: consultar lo que se pierde no modifica el documento ni despacha nada', () => {

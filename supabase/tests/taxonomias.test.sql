@@ -42,7 +42,7 @@ insert into public.etiquetas (id, nombre, slug) values
 -- autor es el admin: el editor opera sobre artículos de otro autor (RF-024).
 insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 select x.id::uuid, 'H3 taxonomías ' || x.sufijo, 'h3-tax-' || x.sufijo,
-       '[{"id": "b3000000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto."}]',
+       '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b3000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto."}]}]}',
        x.categoria_id::uuid,
        (select id from auth.users where email = 'h3-tax-admin@prueba.local'),
        x.estado::public.estado_articulo, x.publicado_en

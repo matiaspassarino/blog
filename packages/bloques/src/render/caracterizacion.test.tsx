@@ -17,9 +17,11 @@
 // - `enlaces`: `href` y texto visible de cada `<a>`, en orden.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { CORPUS_CONTENIDOS } from '../pruebas/corpus-contenido';
+import { CORPUS_DOCUMENTOS, DOCUMENTOS_EQUIVALENTES } from '../pruebas/corpus-documento';
 import { ImagenPrueba } from './ayudas-prueba';
 import { Bloques } from './index';
 
@@ -224,6 +226,49 @@ describe('caracterización del renderer de bloques (T089)', () => {
     'RF-023, CE-002: "%s" se ve igual que en la fixture',
     (nombre, contenido) => {
       expect(visibleDeBloquesRenderizados(contenido)).toEqual(leerFixture()[nombre]);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// T095 (fase roja): el renderer nuevo y su extractor puro. `<Documento>` muestra lo mismo que `visibleDeDocumento`
+// (D31 C2) y, para los documentos equivalentes a contenidos del corpus anterior, lo mismo que la fixture (CE-002).
+// Los módulos se importan al correr la prueba para que la parte de T089 siga en verde mientras no existen; T104 los
+// pasa a imports estáticos y quita la parte de `<Bloques>`.
+// Firmas propuestas: `Documento` en './Documento' (T104) y `visibleDeDocumento` en '../elementos' (T101).
+// ---------------------------------------------------------------------------------------------------------------
+type ModuloDocumento = {
+  Documento: (props: { contenido: unknown; componentes: { Imagen: typeof ImagenPrueba } }) => ReactNode;
+};
+type ModuloElementos = { visibleDeDocumento: (documento: unknown) => Visible };
+
+const RUTA_DOCUMENTO = './Documento';
+const RUTA_ELEMENTOS = '../elementos';
+
+async function rendererNuevo() {
+  const { Documento } = (await import(/* @vite-ignore */ RUTA_DOCUMENTO)) as ModuloDocumento;
+  const { visibleDeDocumento } = (await import(/* @vite-ignore */ RUTA_ELEMENTOS)) as ModuloElementos;
+  const visibleRenderizado = (contenido: unknown) =>
+    visibleDeHtml(renderToStaticMarkup(<Documento contenido={contenido} componentes={{ Imagen: ImagenPrueba }} />));
+  return { visibleRenderizado, visibleDeDocumento };
+}
+
+describe('caracterización del renderer del documento (T095)', () => {
+  it.each(CORPUS_DOCUMENTOS.map(({ nombre, documento }) => [nombre, documento] as const))(
+    'D31 C2: <Documento> muestra lo mismo que visibleDeDocumento para "%s"',
+    async (_nombre, documento) => {
+      const { visibleRenderizado, visibleDeDocumento } = await rendererNuevo();
+
+      expect(visibleRenderizado(documento)).toEqual(visibleDeDocumento(documento));
+    },
+  );
+
+  it.each(Object.entries(DOCUMENTOS_EQUIVALENTES))(
+    'CE-002: el documento equivalente a "%s" se ve igual que en la fixture del renderer anterior',
+    async (nombre, documento) => {
+      const { visibleRenderizado } = await rendererNuevo();
+
+      expect(visibleRenderizado(documento)).toEqual(leerFixture()[nombre]);
     },
   );
 });
