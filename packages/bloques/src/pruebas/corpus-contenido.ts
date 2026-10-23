@@ -1,8 +1,7 @@
 // Corpus compartido de pruebas (spec 005, T013): contenidos válidos con los diez tipos, párrafos con saltos y
 // líneas en blanco, tramos vacíos o de solo espacios, textos con marcas propias y el contenido de cada artículo de
-// `supabase/seed.sql` (al día en T089). Lo usan `en-linea.test.ts`, `parrafos.test.ts`, `documento/conversion.test.ts`
-// y `render/caracterizacion.test.tsx`. No se exporta desde `index.ts`.
-import type { Bloque, Contenido } from '../esquema';
+// `supabase/seed.sql` (al día en T089). Lo usan las pruebas de `conversion-anterior/`. No se exporta desde `index.ts`.
+import type { Bloque, Contenido } from '../conversion-anterior/esquema-bloques';
 
 let contador = 0;
 /** uuid v4 válido y determinista (el esquema exige `z.uuid`). */

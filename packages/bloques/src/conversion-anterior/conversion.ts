@@ -1,15 +1,8 @@
 // Correspondencia entre el documento del editor (JSON de ProseMirror) y la lista de bloques guardada
 // (contracts/documento.md de la spec 005). Funciones puras: no importan React ni la librería del editor.
-import {
-  analizarEnLinea,
-  partirParrafos,
-  serializarEnLinea,
-  unirParrafos,
-  type Bloque,
-  type Contenido,
-  type NodoEnLinea,
-  type TramoDeParrafo,
-} from '@blog/bloques';
+import { analizarEnLinea, serializarEnLinea, type NodoEnLinea } from './en-linea';
+import type { Bloque, Contenido } from './esquema-bloques';
+import { partirParrafos, unirParrafos, type TramoDeParrafo } from './parrafos';
 
 type MarcaDocumento = { type: string; attrs?: Record<string, unknown> };
 export type NodoDocumento = {

@@ -4,8 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./render": "./src/render/index.ts",
-    "./pruebas/corpus-contenido": "./src/pruebas/corpus-contenido.ts"
+    "./render": "./src/render/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

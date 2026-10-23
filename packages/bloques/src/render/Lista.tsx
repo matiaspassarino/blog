@@ -1,16 +1,17 @@
-import type { BloqueDe } from '../esquema';
+import type { ElementoDe } from '../esquema';
 import { CLASES_LISTA, CLASES_LISTA_NUMERADA, CLASES_LISTA_VINETAS } from './clases';
-import { TextoEnLinea } from './TextoEnLinea';
+import { EnLinea } from './EnLinea';
 
-export function Lista({ bloque }: { bloque: BloqueDe<'lista'> }) {
-  const Etiqueta = bloque.ordenada ? 'ol' : 'ul';
+export function Lista({ elemento }: { elemento: ElementoDe<'bulletList' | 'orderedList'> }) {
+  const ordenada = elemento.type === 'orderedList';
+  const Etiqueta = ordenada ? 'ol' : 'ul';
   return (
     <Etiqueta
-      className={`${CLASES_LISTA} ${bloque.ordenada ? CLASES_LISTA_NUMERADA : CLASES_LISTA_VINETAS}`}
+      className={`${CLASES_LISTA} ${ordenada ? CLASES_LISTA_NUMERADA : CLASES_LISTA_VINETAS}`}
     >
-      {bloque.items.map((item, i) => (
+      {elemento.content.map((item, i) => (
         <li key={i}>
-          <TextoEnLinea texto={item} />
+          <EnLinea contenido={item.content[0].content} />
         </li>
       ))}
     </Etiqueta>

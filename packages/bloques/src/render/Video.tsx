@@ -1,6 +1,7 @@
-import type { BloqueDe } from '../esquema';
+import type { ElementoDe } from '../esquema';
 import { AvisoOtraPestania } from './AvisoOtraPestania';
 import { CLASE_ENLACE } from './enlaces';
+import { PROVEEDORES } from './proveedores-video';
 
 // Video sin JS (research D6): el iframe carga un documento propio (srcdoc) con la miniatura
 // y un enlace al reproductor con autoplay. El reproductor del proveedor recién se descarga
@@ -14,21 +15,6 @@ const escaparHtml = (texto: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const PROVEEDORES = {
-  youtube: {
-    nombre: 'YouTube',
-    reproductor: (id: string) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`,
-    original: (id: string) => `https://www.youtube.com/watch?v=${id}`,
-    miniatura: (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-  },
-  vimeo: {
-    nombre: 'Vimeo',
-    reproductor: (id: string) => `https://player.vimeo.com/video/${id}?autoplay=1`,
-    original: (id: string) => `https://vimeo.com/${id}`,
-    // Vimeo no expone la miniatura sin su API: fondo liso con el título.
-    miniatura: () => null,
-  },
-} as const;
 
 // El srcdoc es un documento aislado: no hereda los tokens de la página, así que usa los
 // colores convencionales de un reproductor (negro y blanco).
@@ -45,21 +31,22 @@ a:focus-visible b,a:hover b{background:#000;outline:3px solid #fff}
 </style></head><body><a href="${escaparHtml(reproductor)}">${fondo}<span><b aria-hidden="true">▶</b>Reproducir: ${t}</span></a></body></html>`;
 }
 
-export function Video({ bloque }: { bloque: BloqueDe<'video'> }) {
-  const proveedor = PROVEEDORES[bloque.proveedor];
-  const id = encodeURIComponent(bloque.idVideo);
+export function Video({ elemento }: { elemento: ElementoDe<'video'> }) {
+  const campos = elemento.attrs;
+  const proveedor = PROVEEDORES[campos.proveedor];
+  const id = encodeURIComponent(campos.idVideo);
   return (
     <figure className="mt-10">
       <iframe
-        title={bloque.titulo}
+        title={campos.titulo}
         loading="lazy"
-        srcDoc={documentoVistaPrevia(bloque.titulo, proveedor.reproductor(id), proveedor.miniatura(id))}
+        srcDoc={documentoVistaPrevia(campos.titulo, proveedor.reproductor(id), proveedor.miniatura(id))}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         className="aspect-video w-full rounded-md bg-texto"
       />
       <figcaption className="mt-2 text-sm text-texto-suave">
-        {bloque.titulo} ·{' '}
+        {campos.titulo} ·{' '}
         <a href={proveedor.original(id)} target="_blank" rel="noopener noreferrer" className={CLASE_ENLACE}>
           Ver en {proveedor.nombre}
           <AvisoOtraPestania />

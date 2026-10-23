@@ -6,10 +6,10 @@
 // Nodos: paragraph {bloqueId, continuacion}, heading {level, bloqueId}, blockquote {autor, fuente, bloqueId},
 // bulletList/orderedList > listItem > paragraph, codeBlock {lenguaje}, horizontalRule, hardBreak,
 // imagenBloque/galeriaBloque/ctaBloque/videoBloque {bloque}. Marcas: bold, italic, code, link {href}.
-import { crearBloque, type Contenido } from '@blog/bloques';
-import { CORPUS_CONTENIDOS } from '@blog/bloques/pruebas/corpus-contenido';
+import { CORPUS_CONTENIDOS } from '../pruebas/corpus-contenido';
 import { describe, expect, it } from 'vitest';
 import { bloquesADocumento, documentoABloques } from './conversion';
+import { crearBloque, type Contenido } from './esquema-bloques';
 
 type Nodo = {
   type?: string;

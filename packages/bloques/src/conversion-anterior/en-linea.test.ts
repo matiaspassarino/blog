@@ -6,7 +6,7 @@
 //   NodoEnLinea = texto | negrita | cursiva | codigo | enlace (ver contrato)
 import { describe, expect, it } from 'vitest';
 import { analizarEnLinea, normalizarMarcas, serializarEnLinea, type NodoEnLinea } from './en-linea';
-import { CORPUS_CONTENIDOS, CORPUS_TEXTOS } from './pruebas/corpus-contenido';
+import { CORPUS_CONTENIDOS, CORPUS_TEXTOS } from '../pruebas/corpus-contenido';
 
 const ANCHO_CERO = '​';
 

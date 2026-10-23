@@ -7,7 +7,7 @@
 //   unirParrafos(tramos): string
 import { describe, expect, it } from 'vitest';
 import { partirParrafos, unirParrafos } from './parrafos';
-import { CORPUS_CONTENIDOS, CORPUS_TEXTOS } from './pruebas/corpus-contenido';
+import { CORPUS_CONTENIDOS, CORPUS_TEXTOS } from '../pruebas/corpus-contenido';
 
 describe('partirParrafos: tramos y separador exacto (RF-012)', () => {
   it('RF-012: un texto sin líneas en blanco da un solo tramo, con separador vacío', () => {

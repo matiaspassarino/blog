@@ -5,7 +5,7 @@
 -- No depende del seed: crea sus propios usuarios @prueba.local.
 begin;
 \ir helpers/pruebas.psql
-select plan(47);
+select plan(48);
 
 select pruebas.crear_usuario('h1-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editor"}');
 select pruebas.crear_usuario('h1-editora@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Uno Editora"}');
