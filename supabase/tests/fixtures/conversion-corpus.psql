@@ -1,7 +1,28 @@
--- MARCADOR (fase roja de T113 y T114): la fixture real la genera T120 con
---   ACTUALIZAR_FIXTURE=1 pnpm --filter @blog/bloques exec vitest run scripts/convertir-contenido.test.ts
--- Mientras tanto, `sql_conversion` falla con un código que no es el de la conversión (P0001), así
--- conversion.test.sql falla por aserciones y no aborta el archivo.
+-- Generado por scripts/convertir-contenido.test.ts (ACTUALIZAR_FIXTURE=1) desde el corpus del formato anterior.
+-- No editar a mano. Lo usa supabase/tests/conversion.test.sql con \ir (variable psql `sql_conversion`).
+-- Se elimina después del corte (data-model, "Conversión de los artículos existentes", paso 5).
 select $fixture$
-do $$ begin raise exception using errcode = 'feature_not_supported', message = 'Falta generar la fixture de la conversión (T120)'; end $$;
+do $$
+declare
+  actualizados integer;
+begin
+  alter table public.articulos disable trigger a30_controlar_version, disable trigger a90_actualizado_en, disable trigger z90_notificar_cambio;
+  update public.articulos a set contenido = v.contenido
+  from (values
+    ('c0a00000-0000-4000-8000-000000000001'::uuid, 1, '{"type":"doc","content":[{"type":"paragraph","attrs":{"id":"00000000-0000-4000-8000-000000000022"},"content":[{"type":"text","text":"Uno"}]},{"type":"paragraph","attrs":{"id":"74b4439a-a20b-5544-9505-38471e2aa7b6"},"content":[{"type":"text","text":"Dos"}]},{"type":"paragraph","attrs":{"id":"00000000-0000-4000-8000-000000000023"},"content":[{"type":"text","text":"Uno"}]},{"type":"paragraph","attrs":{"id":"590c9b2c-ccb9-5b98-b95f-5a2e44fbfd0c"},"content":[{"type":"text","text":"Dos"}]},{"type":"paragraph","attrs":{"id":"20f49a4a-51a0-5602-8b32-1675faad3597"},"content":[{"type":"text","text":"Tres"}]},{"type":"paragraph","attrs":{"id":"00000000-0000-4000-8000-000000000024"},"content":[{"type":"text","text":"Salto simple"},{"type":"hardBreak"},{"type":"text","text":"y doble"}]},{"type":"paragraph","attrs":{"id":"5ec62586-58f2-5d2b-a376-83fcd56d3db4"},"content":[{"type":"text","text":"y triple"}]},{"type":"paragraph","attrs":{"id":"c6216464-0262-5de3-b9ef-1a6c88b5c9df"},"content":[{"type":"text","text":"fin"}]}]}'::jsonb),
+    ('c0a00000-0000-4000-8000-000000000002'::uuid, 1, '{"type":"doc","content":[{"type":"paragraph","attrs":{"id":"00000000-0000-4000-8000-000000000061"},"content":[{"type":"text","text":"JavaScript cambió mucho en los últimos años. Estas son las herramientas que conviene conocer primero."}]},{"type":"codeBlock","attrs":{"id":"00000000-0000-4000-8000-000000000062","lenguaje":"js"},"content":[{"type":"text","text":"const respuesta = await fetch(''/api/articulos'');\nconst articulos = await respuesta.json();"}]},{"type":"orderedList","attrs":{"id":"00000000-0000-4000-8000-000000000063"},"content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Módulos con "},{"type":"text","text":"import","marks":[{"type":"code"}]},{"type":"text","text":" y "},{"type":"text","text":"export","marks":[{"type":"code"}]},{"type":"text","text":"."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Promesas y "},{"type":"text","text":"async","marks":[{"type":"code"}]},{"type":"text","text":"/"},{"type":"text","text":"await","marks":[{"type":"code"}]},{"type":"text","text":"."}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"Desestructuración y operador spread."}]}]}]}]}'::jsonb)
+  ) as v(id, version, contenido)
+  where a.id = v.id and a.version = v.version;
+  get diagnostics actualizados = row_count;
+  if actualizados <> 2 then
+    raise exception 'La conversión actualizó % de 2 artículos: alguno cambió después del export', actualizados;
+  end if;
+  if exists (select 1 from public.articulos where jsonb_typeof(contenido) = 'array') then
+    raise exception 'Quedan artículos en el formato anterior: alguno se creó después del export';
+  end if;
+  alter table public.articulos validate constraint articulos_contenido_check;
+  alter table public.articulos validate constraint articulos_requisitos_publicacion;
+  alter table public.articulos enable trigger a30_controlar_version, enable trigger a90_actualizado_en, enable trigger z90_notificar_cambio;
+end
+$$;
 $fixture$ as sql_conversion \gset

@@ -8,9 +8,6 @@
     "apps/admin": {
       "entry": ["src/app/**/{page,layout,route,loading,not-found,forbidden,robots}.{ts,tsx}"]
     },
-    "packages/bloques": {
-      "entry": ["scripts/convertir-contenido.ts"]
-    },
     "packages/*": {}
   },
   "ignore": ["packages/db/src/tipos.ts"],

@@ -39,23 +39,4 @@ export const esquemaBloque = z.discriminatedUnion(
 );
 
 export type Bloque = z.infer<typeof esquemaBloque>;
-export type BloqueDe<T extends Bloque['tipo']> = Extract<Bloque, { tipo: T }>;
 export type Contenido = Bloque[];
-
-const VALORES_INICIALES = {
-  parrafo: { texto: '' },
-  titulo: { nivel: 2, texto: '' },
-  imagen: { imagen: { ruta: '', ancho: 0, alto: 0, alt: '', decorativa: false } },
-  cita: { texto: '' },
-  lista: { ordenada: false, items: [] },
-  galeria: { imagenes: [], columnas: 3 },
-  cta: { titulo: '', etiquetaBoton: '', url: '' },
-  separador: {},
-  codigo: { codigo: '', lenguaje: '' },
-  video: { proveedor: 'youtube', idVideo: '', titulo: '' },
-} as const satisfies Record<Bloque['tipo'], object>;
-
-/** Bloque nuevo (para las pruebas de la conversión): tiene id, pero no es válido hasta completarse. */
-export function crearBloque<T extends Bloque['tipo']>(tipo: T): BloqueDe<T> {
-  return { id: crypto.randomUUID(), tipo, ...structuredClone(VALORES_INICIALES[tipo]) } as unknown as BloqueDe<T>;
-}

@@ -1,11 +1,15 @@
-// Correspondencia entre el documento del editor (JSON de ProseMirror) y la lista de bloques guardada
-// (contracts/documento.md de la spec 005). Funciones puras: no importan React ni la librería del editor.
+// Correspondencia entre la lista de bloques del formato anterior y el documento guardado (contracts/documento.md,
+// "Correspondencia con el formato anterior"; research D25). Solo para el script de conversión de un solo uso.
+// Funciones puras: no importan React ni la librería del editor.
+import { createHash } from 'node:crypto';
+import type { Documento } from '../esquema';
+import { normalizarDocumento } from '../normalizar';
 import { analizarEnLinea, serializarEnLinea, type NodoEnLinea } from './en-linea';
 import type { Bloque, Contenido } from './esquema-bloques';
-import { partirParrafos, unirParrafos, type TramoDeParrafo } from './parrafos';
+import { partirParrafos } from './parrafos';
 
 type MarcaDocumento = { type: string; attrs?: Record<string, unknown> };
-export type NodoDocumento = {
+type NodoDocumento = {
   type?: string;
   attrs?: Record<string, unknown>;
   content?: NodoDocumento[];
@@ -13,19 +17,34 @@ export type NodoDocumento = {
   text?: string;
 };
 
-/** Nodo especial (atómico) del documento de cada tipo de bloque que no es texto. */
-const NODO_DE_TIPO = {
-  imagen: 'imagenBloque',
-  galeria: 'galeriaBloque',
-  cta: 'ctaBloque',
-  video: 'videoBloque',
-} as const;
-const TIPO_DE_NODO: Record<string, keyof typeof NODO_DE_TIPO> = {
-  imagenBloque: 'imagen',
-  galeriaBloque: 'galeria',
-  ctaBloque: 'cta',
-  videoBloque: 'video',
-};
+/**
+ * uuid v5 (RFC 9562) con el id del bloque como espacio de nombres y el número de tramo como nombre: el id del n-ésimo
+ * párrafo que sale de un párrafo con líneas en blanco. Repetible: convertir dos veces da los mismos ids.
+ */
+export function idDeTramo(idBloque: string, numero: number): string {
+  const hash = createHash('sha1')
+    .update(Buffer.concat([Buffer.from(idBloque.replaceAll('-', ''), 'hex'), Buffer.from(String(numero), 'utf8')]))
+    .digest();
+  hash[6] = (hash[6]! & 0x0f) | 0x50;
+  hash[8] = (hash[8]! & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Los tramos de un párrafo que el sitio mostraba (un `<p>` por tramo que no está en blanco). */
+const tramosVisibles = (texto: string) => partirParrafos(texto).filter((tramo) => tramo.texto.trim() !== '');
+
+/**
+ * Lo que devuelve la ida y vuelta: cada párrafo con sus tramos visibles unidos por una sola línea en blanco; un
+ * párrafo sin tramos visibles desaparece. El resto del contenido queda igual.
+ */
+export function reducirTramos(contenido: Contenido): Contenido {
+  return contenido.flatMap((bloque): Bloque[] => {
+    if (bloque.tipo !== 'parrafo') return [bloque];
+    const tramos = tramosVisibles(bloque.texto);
+    return tramos.length > 0 ? [{ ...bloque, texto: tramos.map((tramo) => tramo.texto).join('\n\n') }] : [];
+  });
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Texto en línea: árbol de marcas ⇄ tramos de texto con marcas
@@ -33,7 +52,7 @@ const TIPO_DE_NODO: Record<string, keyof typeof NODO_DE_TIPO> = {
 type Marca = { tipo: 'enlace' | 'negrita' | 'cursiva' | 'codigo'; href?: string };
 type Tramo = { texto: string; marcas: Marca[] };
 
-/** Orden de anidado de las marcas: el que fija el esquema del editor (enlace por fuera, código por dentro). */
+/** Orden de anidado de las marcas: el canónico del documento (enlace por fuera, código por dentro). */
 const ORDEN_DE_MARCAS: Marca['tipo'][] = ['enlace', 'negrita', 'cursiva', 'codigo'];
 const MARCA_DE_DOCUMENTO: Record<string, Marca['tipo']> = {
   link: 'enlace',
@@ -70,39 +89,26 @@ const marcaDeDocumento = (marca: Marca): MarcaDocumento => {
   }
 };
 
-const nodoDeTexto = (texto: string, marcas: Marca[]): NodoDocumento => ({
-  type: 'text',
-  text: texto,
-  ...(marcas.length > 0 ? { marks: marcas.map(marcaDeDocumento) } : {}),
-});
-
-/** Contenido en línea de un texto guardado. Con `saltos`, el `\n` pasa a `hardBreak` conservando las marcas. */
+/** Contenido en línea de un texto guardado. Con `saltos`, el `\n` pasa a `hardBreak` (las marcas siguen después). */
 function enLineaADocumento(texto: string, saltos: boolean): NodoDocumento[] {
   const resultado: NodoDocumento[] = [];
   for (const tramo of aTramos(analizarEnLinea(texto))) {
     const lineas = saltos ? tramo.texto.split('\n') : [tramo.texto];
     lineas.forEach((linea, i) => {
-      if (i > 0) {
-        resultado.push({
-          type: 'hardBreak',
-          ...(tramo.marcas.length > 0 ? { marks: tramo.marcas.map(marcaDeDocumento) } : {}),
-        });
-      }
-      if (linea) resultado.push(nodoDeTexto(linea, tramo.marcas));
+      if (i > 0) resultado.push({ type: 'hardBreak' });
+      if (!linea) return;
+      const marcas = tramo.marcas.map(marcaDeDocumento);
+      resultado.push({ type: 'text', text: linea, ...(marcas.length > 0 ? { marks: marcas } : {}) });
     });
   }
   return resultado;
 }
 
-/** Un párrafo guardado: cada línea es su propio texto en línea (como en el sitio) y el salto simple es `hardBreak`. */
-function parrafoADocumento(texto: string): NodoDocumento[] {
-  return texto
+/** Un tramo de párrafo: cada línea es su propio texto en línea (como en el sitio) y el salto simple, `hardBreak`. */
+const parrafoADocumento = (texto: string): NodoDocumento[] =>
+  texto
     .split('\n')
-    .flatMap((linea, i): NodoDocumento[] => [
-      ...(i > 0 ? [{ type: 'hardBreak' }] : []),
-      ...enLineaADocumento(linea, false),
-    ]);
-}
+    .flatMap((linea, i): NodoDocumento[] => [...(i > 0 ? [{ type: 'hardBreak' }] : []), ...enLineaADocumento(linea, false)]);
 
 function tramosDeDocumento(hijos: NodoDocumento[]): Tramo[] {
   return hijos.flatMap((hijo): Tramo[] => {
@@ -142,7 +148,7 @@ function aArbol(tramos: Tramo[]): NodoEnLinea[] {
 
 const enLineaDeDocumento = (hijos: NodoDocumento[] = []) => serializarEnLinea(aArbol(tramosDeDocumento(hijos)));
 
-/** Párrafo guardado: las líneas se serializan por separado, igual que las lee el sitio. */
+/** Tramo de párrafo guardado: las líneas se serializan por separado, igual que las lee el sitio. */
 function parrafoDeDocumento(hijos: NodoDocumento[] = []): string {
   const lineas: NodoDocumento[][] = [[]];
   for (const hijo of hijos) {
@@ -159,25 +165,29 @@ const textoSinMarcas = (hijos: NodoDocumento[] = []) =>
 // Bloques → documento
 
 const conContenido = (content: NodoDocumento[]) => (content.length > 0 ? { content } : {});
-const parrafoEnLinea = (texto: string): NodoDocumento => ({
+const parrafoInterno = (texto: string): NodoDocumento => ({
   type: 'paragraph',
   ...conContenido(enLineaADocumento(texto, true)),
 });
+const opcionales = (campos: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(campos).filter(([, valor]) => valor !== undefined && valor !== ''));
 
-function bloqueADocumento(bloque: Bloque): NodoDocumento[] {
-  const bloqueId = bloque.id;
+/** Los elementos del documento de un bloque (un párrafo con líneas en blanco da uno por tramo visible). */
+export function bloqueADocumento(bloque: Bloque): NodoDocumento[] {
+  const { id } = bloque;
   switch (bloque.tipo) {
     case 'parrafo':
-      return partirParrafos(bloque.texto).map((tramo, i) => ({
+      return tramosVisibles(bloque.texto).map((tramo, n) => ({
         type: 'paragraph',
-        attrs: { bloqueId, continuacion: i === 0 ? '' : tramo.separador },
+        attrs: { id: n === 0 ? id : idDeTramo(id, n) },
         ...conContenido(parrafoADocumento(tramo.texto)),
       }));
     case 'titulo':
+      // El sitio dibujaba el título sin leer marcas: el texto pasa tal cual.
       return [
         {
           type: 'heading',
-          attrs: { level: bloque.nivel, bloqueId },
+          attrs: { id, level: bloque.nivel },
           ...conContenido(bloque.texto ? [{ type: 'text', text: bloque.texto }] : []),
         },
       ];
@@ -185,83 +195,50 @@ function bloqueADocumento(bloque: Bloque): NodoDocumento[] {
       return [
         {
           type: 'blockquote',
-          attrs: { autor: bloque.autor ?? '', fuente: bloque.fuente ?? '', bloqueId },
-          content: [parrafoEnLinea(bloque.texto)],
+          attrs: { id, ...opcionales({ autor: bloque.autor, fuente: bloque.fuente }) },
+          content: [parrafoInterno(bloque.texto)],
         },
       ];
     case 'lista':
       return [
         {
           type: bloque.ordenada ? 'orderedList' : 'bulletList',
-          attrs: { bloqueId },
-          content: bloque.items.map((item) => ({ type: 'listItem', content: [parrafoEnLinea(item)] })),
+          attrs: { id },
+          content: bloque.items.map((item) => ({ type: 'listItem', content: [parrafoInterno(item)] })),
         },
       ];
     case 'codigo':
       return [
         {
           type: 'codeBlock',
-          attrs: { lenguaje: bloque.lenguaje ?? '', bloqueId },
+          attrs: { id, ...opcionales({ lenguaje: bloque.lenguaje }) },
           ...conContenido(bloque.codigo ? [{ type: 'text', text: bloque.codigo }] : []),
         },
       ];
     case 'separador':
-      return [{ type: 'horizontalRule', attrs: { bloqueId } }];
-    default:
-      return [{ type: NODO_DE_TIPO[bloque.tipo], attrs: { bloqueId, bloque } }];
+      return [{ type: 'horizontalRule', attrs: { id } }];
+    default: {
+      const { tipo, id: _id, ...campos } = bloque;
+      return [{ type: tipo, attrs: { id, ...campos } }];
+    }
   }
 }
 
-/** Documento del editor para un contenido guardado. Siempre tiene al menos un párrafo. */
-export function bloquesADocumento(contenido: Contenido): NodoDocumento {
-  const content = contenido.flatMap(bloqueADocumento);
-  return {
-    type: 'doc',
-    content: content.length > 0 ? content : [{ type: 'paragraph', attrs: { bloqueId: '', continuacion: '' } }],
-  };
+/** El documento de un contenido del formato anterior, en forma canónica. */
+export function bloquesADocumento(contenido: Contenido): Documento {
+  return normalizarDocumento({ type: 'doc', content: contenido.flatMap(bloqueADocumento) });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Documento → bloques
-
-function idDe(nodo: NodoDocumento): string {
-  const id = nodo.attrs?.bloqueId;
-  if (typeof id !== 'string' || id === '') {
-    throw new Error(
-      `El elemento "${nodo.type ?? '?'}" no tiene bloqueId: asegurarIds tiene que correr antes de convertir.`,
-    );
-  }
-  return id;
-}
+// Documento → bloques (la verificación de ida y vuelta del script)
 
 const textoDe = (valor: unknown) => (typeof valor === 'string' ? valor : '');
 const opcional = <T extends string>(campo: T, valor: unknown) => (textoDe(valor) ? { [campo]: textoDe(valor) } : {});
 const primerParrafo = (nodo: NodoDocumento) => nodo.content?.find((hijo) => hijo.type === 'paragraph');
 
-type Grupo = { nodo: NodoDocumento; tramos: TramoDeParrafo[]; vacio: boolean };
-
-/** Une cada párrafo con `continuacion` al párrafo anterior; un párrafo vacío sin continuación no genera bloque. */
-function agruparParrafos(nodos: NodoDocumento[]): (NodoDocumento | Grupo)[] {
-  const salida: (NodoDocumento | Grupo)[] = [];
-  for (const nodo of nodos) {
-    const anterior = salida[salida.length - 1];
-    const separador = textoDe(nodo.attrs?.continuacion);
-    const texto = parrafoDeDocumento(nodo.content);
-    if (nodo.type === 'paragraph' && separador && anterior && 'tramos' in anterior) {
-      anterior.tramos.push({ texto, separador });
-      anterior.vacio = false;
-    } else if (nodo.type === 'paragraph') {
-      salida.push({ nodo, tramos: [{ texto, separador: '' }], vacio: texto === '' });
-    } else {
-      salida.push(nodo);
-    }
-  }
-  return salida;
-}
-
 function bloqueDeDocumento(nodo: NodoDocumento): Bloque {
-  const id = idDe(nodo);
   const atributos = nodo.attrs ?? {};
+  const id = textoDe(atributos.id);
   switch (nodo.type) {
     case 'heading':
       return { id, tipo: 'titulo', nivel: atributos.level, texto: textoSinMarcas(nodo.content) } as Bloque;
@@ -282,33 +259,38 @@ function bloqueDeDocumento(nodo: NodoDocumento): Bloque {
         items: (nodo.content ?? []).map((item) => enLineaDeDocumento(primerParrafo(item)?.content)),
       };
     case 'codeBlock':
-      return {
-        id,
-        tipo: 'codigo',
-        codigo: textoSinMarcas(nodo.content),
-        ...opcional('lenguaje', atributos.lenguaje),
-      } as Bloque;
+      return { id, tipo: 'codigo', codigo: textoSinMarcas(nodo.content), ...opcional('lenguaje', atributos.lenguaje) } as Bloque;
     case 'horizontalRule':
       return { id, tipo: 'separador' };
     default: {
-      const tipo = TIPO_DE_NODO[nodo.type ?? ''];
-      if (!tipo) throw new Error(`El elemento "${nodo.type ?? '?'}" no tiene un bloque equivalente.`);
-      const { leyenda, ...bloque } = atributos.bloque as Record<string, unknown>;
-      return { ...bloque, id, ...(textoDe(leyenda) ? { leyenda } : {}) } as Bloque;
+      const { id: _id, ...campos } = atributos;
+      return { id, tipo: nodo.type, ...campos } as Bloque;
     }
   }
 }
 
-/** Contenido guardado de un documento. Pura: no genera ids ni valida (eso lo hace el esquema al guardar). */
-export function documentoABloques(doc: NodoDocumento): Contenido {
+/**
+ * El contenido del formato anterior de un documento. Los párrafos seguidos con los ids `idDeTramo(id, 1)`,
+ * `idDeTramo(id, 2)`… del párrafo anterior vuelven a ser tramos de su bloque, unidos por una línea en blanco.
+ */
+export function documentoABloques(documento: Documento): Contenido {
   const contenido: Bloque[] = [];
-  for (const elemento of agruparParrafos(doc.content ?? [])) {
-    if ('tramos' in elemento) {
-      if (elemento.vacio) continue;
-      contenido.push({ id: idDe(elemento.nodo), tipo: 'parrafo', texto: unirParrafos(elemento.tramos) });
-    } else {
-      contenido.push(bloqueDeDocumento(elemento));
+  let grupo: { bloque: Extract<Bloque, { tipo: 'parrafo' }>; siguiente: number } | null = null;
+  for (const nodo of documento.content as NodoDocumento[]) {
+    const id = textoDe(nodo.attrs?.id);
+    if (nodo.type === 'paragraph') {
+      const texto = parrafoDeDocumento(nodo.content);
+      if (grupo && id === idDeTramo(grupo.bloque.id, grupo.siguiente)) {
+        grupo.bloque.texto += `\n\n${texto}`;
+        grupo.siguiente += 1;
+        continue;
+      }
+      grupo = { bloque: { id, tipo: 'parrafo', texto }, siguiente: 1 };
+      contenido.push(grupo.bloque);
+      continue;
     }
+    grupo = null;
+    contenido.push(bloqueDeDocumento(nodo));
   }
   return contenido;
 }
