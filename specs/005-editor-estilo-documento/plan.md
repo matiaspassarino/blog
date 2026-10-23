@@ -29,7 +29,7 @@ El cuerpo del artículo se escribe en un **documento de texto enriquecido** hech
 | `@tiptap/extension-highlight` | resaltado de un solo color | **nueva, aprobada** |
 | `@tiptap/extension-subscript`, `@tiptap/extension-superscript` | subíndice y superíndice | **nuevas, aprobadas** |
 
-Las cinco nuevas no tienen dependencias de runtime (solo *peers* `@tiptap/core` y, algunas, `@tiptap/pm`, en la misma versión) y su versión cumple `minimumReleaseAge`. `apps/web` **no** suma dependencias. **Dependencia de desarrollo**: `@types/node` en `@blog/bloques` (ya está en el stack, en `apps/admin`), para el script de conversión. Una regla `no-restricted-imports` de `@tiptap/*` en `packages/config/eslint.config.js` (desactivada en `apps/admin`) asegura que la librería no salga del panel.
+Las cinco nuevas no tienen dependencias de runtime (solo *peers* `@tiptap/core` y, algunas, `@tiptap/pm`, en la misma versión) y su versión cumple `minimumReleaseAge`. `apps/web` **no** suma dependencias. **Dependencia de desarrollo**: `@types/node` en `@blog/bloques` (ya está en el stack, en `apps/admin`), para el script de conversión. La prueba de límites `packages/db/src/limites.test.ts` asegura que `@tiptap/*` no salga del panel (también en `apps/web`, que no usa ESLint).
 
 **Almacenamiento**: `articulos.contenido` cambia de formato (migración `20261023120000_contenido_documento.sql`, ver [data-model.md](data-model.md)). Sin tablas, columnas, buckets ni políticas nuevas.
 
