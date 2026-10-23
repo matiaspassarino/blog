@@ -1,37 +1,46 @@
 ---
 
-description: "Lista de tareas: editor de notas estilo documento"
+description: "Lista de tareas: editor de notas estilo documento (con la ampliación de la constitución 2.0.0)"
 ---
 
 # Tareas: Editor de notas estilo documento
 
-**Entrada**: Documentos de diseño en `/specs/005-editor-estilo-documento/`: [plan.md](plan.md), [spec.md](spec.md) (con Aclaraciones), [research.md](research.md) (D1–D21), [data-model.md](data-model.md), [contracts/componentes.md](contracts/componentes.md), [contracts/documento.md](contracts/documento.md), [contracts/atajos.md](contracts/atajos.md) y [quickstart.md](quickstart.md).
+**Entrada**: Documentos de diseño en `/specs/005-editor-estilo-documento/`: [plan.md](plan.md), [spec.md](spec.md) (con Aclaraciones), [research.md](research.md) (D1–D21 de la etapa anterior; **D22–D31 de la ampliación, que prevalecen**), [data-model.md](data-model.md), [contracts/documento.md](contracts/documento.md) (lista permitida), [contracts/componentes.md](contracts/componentes.md), [contracts/atajos.md](contracts/atajos.md) y [quickstart.md](quickstart.md).
 
 **Prerrequisitos**: plan.md, spec.md, research.md, data-model.md, contracts/
 
-**Tests**: OBLIGATORIOS (constitucion.md §IX). En cada fase, las tareas de test van primero, las escribe el agente `escritor-tests` y **deben fallar** antes de implementar. Sin jsdom ni Testing Library (research D16): la lógica pura se prueba con Vitest en entorno `node` (conversión, análisis en línea, comandos sobre el rango, ids, atajos, pegado, límites, filtro del menú y los anuncios); las reglas de entrada de ProseMirror y toda la interacción (teclado, arrastre, foco, panel, hoja, lectores) se prueban con Playwright.
+**Tests**: OBLIGATORIOS (constitucion.md §IX). En cada fase, las tareas de test van primero, las escribe el agente `escritor-tests` y **deben fallar** antes de implementar (salvo las de caracterización, que deben **pasar** contra el código de hoy). Sin jsdom ni Testing Library (research D16): la lógica pura se prueba con Vitest en entorno `node`; la interacción, con Playwright; la base, con pgTAP.
 
-**Organización**: Por historia de usuario de spec.md: H1 (escribir como documento, P1), H2 (elementos especiales y panel, P1), H5 (nada se pierde, P1), H3 (mover, duplicar, quitar y seleccionar varios, P2) y H4 (atajos, pegado y deshacer, P2). La Fase 0 es una prueba de concepto con **compuerta de decisión**; la fase fundacional deja listas la gramática en línea, la conversión, el reductor y las piezas que usan todas las historias. El editor anterior se retira en la fase final (no hay interruptor).
+**Organización**:
+- **Etapa anterior (hecha)**: Fase 0 (compuerta), Fases 1 y 2, H1, H2 y H3 (T001–T055 y T062–T069) sobre el formato de bloques, y el retiro del editor anterior (T078). Se conservan abajo como historial.
+- **Ampliación** (desde T086): el documento pasa a ser lo que se guarda. Fases 9 (preparación), 10 (fundacional: lista permitida, base, renderer y editor sobre el documento), 11 (H5, nada se pierde: conversión y regresión), 12 (H6, más formato y alineación), 13 (H7, tablas), 14 (H4, atajos, pegado y deshacer) y 15 (cierre y corte en la nube).
+- Las tareas pendientes de la etapa anterior (T056–T061, T070–T077 y T079–T085) quedan **reemplazadas** por las de la ampliación; la equivalencia está al comienzo de cada fase nueva.
 
 ## Formato: `[ID] [P?] [Historia] Descripción`
 
 - **[P]**: Puede ejecutarse en paralelo: toca archivos distintos y no depende de tareas incompletas.
-- **[Historia]**: US1 (H1), US2 (H2), US3 (H3), US4 (H4) o US5 (H5), según spec.md.
+- **[Historia]**: US1 (H1), US2 (H2), US3 (H3), US4 (H4), US5 (H5), US6 (H6) o US7 (H7), según spec.md.
 
 ## Convenciones de rutas
 
-- Paquetes: `packages/bloques/src/` (gramática en línea, partición de párrafos, clases de bloque), `packages/ui/src/` (`clases.ts`, `tokens.css`).
-- Editor: `apps/admin/src/componentes/editor/` (con `documento/` y `documento/nodos/` nuevos); `apps/admin/src/lib/`; `apps/admin/src/componentes/estructura/`.
-- E2E: `e2e/admin/` (proyecto `admin` de `playwright.config.ts`, `http://localhost:3100`).
+- Paquetes: `packages/bloques/src/` (esquema, validación, normalización, elementos, tablas, renderer; `conversion-anterior/` y `scripts/` solo hasta el corte), `packages/db/src/`, `packages/ui/src/` (`clases.ts`, `tokens.css`), `packages/config/` (ESLint).
+- Editor: `apps/admin/src/componentes/editor/` (con `documento/` y `documento/nodos/`); `apps/admin/src/acciones/`, `apps/admin/src/lib/`.
+- Sitio: `apps/web/src/pages/blog/[slug].astro`.
+- Base: `supabase/migrations/20261023120000_contenido_documento.sql`, `supabase/seed.sql`, `supabase/tests/`.
+- E2E: `e2e/admin/` (proyecto `admin`, `http://localhost:3100`) y `e2e/web/` (proyecto `web`).
 - Reglas transversales:
-  - **Next 16**: antes de escribir código en `apps/admin`, leer las guías de `apps/admin/node_modules/next/dist/docs/` indicadas en la tarea (`apps/admin/AGENTS.md`).
-  - **UI**: solo tokens de `packages/ui/src/tokens.css`, sin hex, px sueltos ni valores arbitrarios (`[...]`) (§VII.2); textos en español con tuteo; un `h1` por pantalla; la palabra **«elemento»** (nunca «bloque») en todo lo que ve la persona (mensajes, `aria-label`, errores).
-  - **Esquema único**: el esquema de bloques (`packages/bloques/src/esquema.ts`) no cambia; ninguna tarea agrega un tipo ni un campo (§VI.5).
-  - **Sitio público**: `apps/web` no se toca; la salida de `TextoEnLinea`, `Parrafo` y `textoPlano` no cambia (R1: pruebas de caracterización de T012 antes de mover nada).
-  - **Dependencias**: solo las de la tabla del plan, en versión exacta 3.31.4 y solo en `apps/admin`; el asa depende del resultado de la compuerta (T011). Antes de crear un archivo, revisar "Reutilización" en [plan.md](plan.md) (§VIII).
+  - **Next 16**: antes de escribir código en `apps/admin`, leer las guías de `apps/admin/node_modules/next/dist/docs/` indicadas en la tarea (`apps/admin/AGENTS.md`). **Astro**: antes de tocar `apps/web`, cargar la skill `astro-seo`.
+  - **Lista permitida única** (§VI): todo nodo, marca o atributo nuevo se agrega en la misma tarea o fase al esquema (`esquema.ts`), a las extensiones del editor, al renderer, a la extracción de texto de la búsqueda y de imágenes en uso, y a sus tests (§VI.5). La prueba de contrato `extensiones.test.ts` lo controla.
+  - **Tiptap solo en `apps/admin`** (RF-021): la regla `no-restricted-imports` de T088 lo hace cumplir.
+  - **UI**: solo tokens de `packages/ui/src/tokens.css`, sin hex, px sueltos ni valores arbitrarios (`[...]`) (§VII.2); textos en español con **tuteo**; un `h1` por pantalla; la palabra **«elemento»** (nunca «bloque») en todo lo que ve la persona.
+  - **Base** (`CLAUDE.md`, "Modelo de datos"): `set search_path = ''`, nombres calificados, privilegios explícitos, `pnpm db:reset && pnpm db:tipos` después de la migración y commitear `packages/db/src/tipos.ts`.
+  - **Dependencias**: solo las de la tabla del plan, en versión exacta 3.31.4, solo en `apps/admin` (más `@types/node` de desarrollo en `@blog/bloques`). Antes de crear un archivo, revisar "Reutilización" en [plan.md](plan.md) (§VIII).
   - **Memoria**: en una PC de 8 GB, correr Playwright contra el build (`pnpm --filter admin build && pnpm --filter admin exec next start -p 3100`) y con `--workers=1`. Los Vitest de `apps/admin` y `@blog/db` corren en serie (`--no-file-parallelism`).
+  - **Nube**: hasta el corte (Fase 15), todo se valida en local; el preview de Vercel lee la base de la nube, que sigue en el formato anterior.
 
 ---
+
+# Etapa anterior (hecha)
 
 ## Fase 0: Prueba de concepto y compuerta de decisión
 
@@ -151,27 +160,6 @@ description: "Lista de tareas: editor de notas estilo documento"
 **Checkpoint**: T047 a T049 en verde; los diez tipos se insertan, se ven como en el sitio y se editan en el panel.
 
 ---
-
-## Fase 5: Historia 5 - Que nada de lo que ya funciona se pierda (Prioridad: P1)
-
-**Objetivo**: Los artículos existentes se abren y se guardan idénticos; las validaciones, los avisos, el conflicto, las subidas y los flujos de las specs 003 y 004 siguen cumpliéndose con el editor nuevo.
-
-**Prueba independiente**: abrir y guardar sin tocar cada artículo del seed y uno con los diez tipos; el contenido guardado es idéntico y la versión no cambia.
-
-### Tests de la Historia 5 (escribir PRIMERO, deben FALLAR) ⚠️
-
-- [ ] T056 [US5] En `e2e/admin/editor-documento.spec.ts`, bloque "Nada se pierde" (H5 esc. 1 a 6, CE-002): abrir y guardar sin tocar los artículos reales del seed y uno con los diez tipos, y un artículo con asteriscos, guiones bajos, corchetes y comillas invertidas propios: contenido idéntico y versión sin cambios (consulta a la base con `e2e/admin/ayudas/articulos.ts`); publicar o archivar desde la barra **no** reinicia el documento (se conserva el cursor y el historial) y `adoptar_vigente` sí; con 360 px la barra se reacomoda con «Más» y «Insertar» sigue visible. RF-018: con la pestaña «Elemento» activa, «Publicación» sigue visible y la barra de acciones del artículo de la spec 004 y los permisos de editor y admin no cambian. Tras guardar, el contenido que devuelve el servidor es idéntico al enviado y el documento no se toca; si el servidor devolviera otro (por ejemplo, normalizado), el editor lo adopta, conserva la selección cuando puede y lo avisa.
-- [ ] T057 [US5] Adaptar `e2e/admin/ayudas/editor.ts` (`agregarBloque` inserta desde «Insertar» o `/`; `grupoDeBloque` ubica el elemento en el lienzo; `completarBloque` completa los campos en el panel; `elegirImagen` sube desde el panel) y `e2e/admin/articulo-editor.spec.ts` (los 10 tipos, errores por elemento, mover en los extremos con el teclado y cambios sin guardar). Deben fallar contra el editor actual y pasar al final de esta fase.
-- [ ] T058 [P] [US5] Adaptar `e2e/admin/casos-borde.spec.ts` (subida fallida, slug repetido y publicado sin bloques sobre el lienzo y el panel), `e2e/admin/articulo-conflicto.spec.ts` (la comparación y «Reemplazar con la vigente» reinician el documento y el historial), `e2e/admin/medios.spec.ts` y `e2e/admin/permisos.spec.ts` (imagen destacada y de elemento sobre el lienzo y el panel).
-- [ ] T059 [P] [US5] Adaptar `e2e/admin/accesibilidad.spec.ts`: axe sobre el editor nuevo con el menú `/` abierto, con el panel y con la hoja abiertos, en los cuatro anchos; el editor sin violaciones.
-
-### Implementación de la Historia 5
-
-- [ ] T060 [US5] `apps/admin/src/componentes/editor/EditorArticulo.tsx` y `documento/EditorDocumento.tsx`: `guardado` **no** toca el documento (también se despacha al publicar o archivar desde `BarraEditor.alCambiarEstado`); solo la carga inicial y `adoptar_vigente` suben `reinicio`; el aviso de conflicto, `ComparacionVersiones` y «Reemplazar con la vigente» funcionan con el documento; las subidas en curso bloquean guardar como hoy; la limpieza de imágenes sin uso sigue (`rutasDeImagenes`); si el contenido que devuelve el servidor difiere del enviado, se adopta con `setContent` (conservando la selección cuando se pueda) y se avisa por la región de estado; si es idéntico, no se toca nada. T056 a T059 en verde.
-- [ ] T061 [US5] `apps/admin/src/componentes/editor/ComparacionVersiones.tsx` y los textos de `AvisoConflicto.tsx`: usar «elemento» en lugar de «bloque» y comprobar que `textoPlano` (ahora sobre `analizarEnLinea`) sigue dando la comparación esperada.
-
-**Checkpoint**: T056 a T059 en verde; el editor nuevo cumple todo lo que cumplía el anterior, salvo mover, duplicar y quitar (Historia 3).
-
 ---
 
 ## Fase 6: Historia 3 - Mover, duplicar, quitar y seleccionar varios elementos (Prioridad: P2)
@@ -198,95 +186,234 @@ description: "Lista de tareas: editor de notas estilo documento"
 
 ---
 
-## Fase 7: Historia 4 - Atajos de escritura, pegado y deshacer (Prioridad: P2)
+## Retiro del editor anterior (hecho)
 
-**Objetivo**: Atajos tipo Markdown con deshacer inmediato, pegado limpio con sobrante a párrafos nuevos, avisos de límite de caracteres y un solo historial con mensajes que nombran la acción.
+- [X] T078 Retirar el editor anterior (research D18): `ListaBloques.tsx`, `BarraMarcas.tsx` y `TextoConMarcas.tsx`; las acciones por bloque del reductor y los textos viejos de `anuncios.ts`; `operaciones.ts` y `marcas.ts` de `packages/bloques` con sus exports. **Hecha** (2026-10-22, `3e23021`): `CampoBloque.tsx` se conserva (lo usan los editores del panel de propiedades); `pnpm calidad` en verde.
 
-**Prueba independiente**: escribir «## Mi título» al comienzo de una línea y comprobar que se convierte en un título; pegar un texto de un documento con formato y comprobar que solo conserva las cuatro marcas permitidas.
-
-### Tests de la Historia 4 (escribir PRIMERO, deben FALLAR) ⚠️
-
-- [ ] T070 [P] [US4] Crear `apps/admin/src/componentes/editor/documento/pegado.test.ts` y `apps/admin/src/componentes/editor/documento/limites.test.ts`: partir un párrafo pegado que supera 5000 caracteres en párrafos nuevos cortando en fin de oración o de palabra (nunca a mitad de palabra), cuántos se crearon, texto sin pérdida; en títulos, citas, ítems y código el sobrante no crea elementos de otro tipo; el conteo es del texto **serializado** (con marcadores y URL, sin U+200B); avisos al cruzar el 90 % y el 100 % sin repetirse; límite de 200 elementos.
-- [ ] T071 [US4] En `e2e/admin/editor-documento.spec.ts`, bloque "Atajos, pegado y deshacer" (H4 esc. 1 a 5): `## `, `### `, `#### `, `- `, `1. `, `> `, `---` y las tres comillas invertidas convierten la línea; Deshacer inmediato deja el texto escrito; `Mod+Z` y `Mod+Shift+Z` sobre un solo historial (texto, formato y acciones sobre elementos, y un elemento quitado se recupera); pegar HTML con colores, tipografías y tamaños deja solo las cuatro marcas; pegar un párrafo de más de 5000 caracteres crea los párrafos nuevos y se anuncia; copiar y pegar elementos nunca duplica ids; CE-006: el menú `/` e «Insertar» abren en menos de 200 ms con 50 elementos y el máximo de 200 se comporta como [contracts/atajos.md](contracts/atajos.md).
-
-### Implementación de la Historia 4
-
-- [ ] T072 [US4] `apps/admin/src/componentes/editor/documento/atajos.ts` y `extensiones.ts`: completar las reglas de entrada de bloque (`## `, `### `, `#### `, `- `, `* `, `1. `, `> `, `---`, tres comillas invertidas) y de línea (`**x**`, `_x_`, `` `x` ``, `[x](u)`) con deshacer inmediato que deja el texto escrito; según el resultado de T006, con `beforeinput` si hace falta para teclados móviles y composición.
-- [ ] T073 [P] [US4] `apps/admin/src/componentes/editor/documento/pegado.ts`: `transformPasted` que parte los párrafos que superan el límite (T070 en verde), reduce el formato a las cuatro marcas (el esquema descarta el resto), no copia `bloqueId` ni `continuacion` y anuncia cuántos párrafos se crearon.
-- [ ] T074 [P] [US4] `apps/admin/src/componentes/editor/documento/limites.ts`: contador por bloque sobre el texto serializado con `CharacterCount` y avisos por la región de estado solo al cruzar el 90 % y el 100 %; rechazo con aviso al llegar a 200 elementos (Enter, «Insertar», `/` y pegado). T070 en verde.
-- [ ] T075 [US4] `apps/admin/src/componentes/editor/documento/EditorDocumento.tsx`: anuncios de deshacer y rehacer con el nombre de la acción ("Se deshizo: mover elemento"), con *debounce* de 400 ms para insertar, mover y duplicar y solo si el foco no cambió; `adoptar_vigente` recrea el editor con historial vacío. T071 en verde.
-
-**Checkpoint**: T070 y T071 en verde.
+La Historia 5 (T056–T061) y la Historia 4 (T070–T075) de la etapa anterior quedan reemplazadas por las Fases 11 y 14.
 
 ---
 
-## Fase 8: Validación y cierre
+# Ampliación: el documento es el contenido
 
-- [ ] T076 [US5] Cobertura cruzada: comprobar con la tabla "Plan de pruebas" de [plan.md](plan.md) que cada RF y cada CE de la spec tiene al menos un test ejecutándose (RF-001 a RF-021, CE-001 a CE-007); completar lo que falte.
-- [ ] T077 Actualizar `specs/004-jerarquia-visual-panel/contracts/matriz-acciones.md` y `e2e/admin/jerarquia.spec.ts`: las filas «Editor — barra de marcas» y «Editor — bloques (provisorio)» pasan a la barra de herramientas, «Acciones» y el asa; las demás filas no cambian.
-- [X] T078 Retirar el editor anterior (research D18): eliminar `apps/admin/src/componentes/editor/ListaBloques.tsx`, `BarraMarcas.tsx`, `TextoConMarcas.tsx`; de `reductor.ts` las acciones `agregar_bloque`, `mover_bloque`, `duplicar_bloque`, `quitar_bloque` y `actualizar_bloque` con sus pruebas; de `anuncios.ts` `etiquetaDeBloque`, `nombreDeBoton`, `anuncioDeMovimiento` y `anuncioDeQuitado` con sus pruebas; de `packages/bloques`: `src/operaciones.ts`, `src/marcas.ts` y sus pruebas, y sus exports de `index.ts` (`agregarBloque`, `moverBloque`, `duplicarBloque`, `quitarBloque`, `actualizarBloque`, `aplicarMarca`, `MarcaEnLinea`, `Seleccion`). Confirmar con `pnpm calidad` que knip y jscpd (≤ 3 %) están en verde. **Hecha** (2026-10-22): `CampoBloque.tsx` se conserva porque lo usan los editores del panel de propiedades (`bloques/Editor*.tsx`); knip dejó de reportar `entrarAlModo` y las ayudas sin uso de `esquema-prueba.ts`. Los ayudantes de E2E (`agregarBloque` y otros de `e2e/admin/ayudas/editor.ts`) se adaptan en T057.
-- [ ] T079 Ejecutar `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build` (Vitest de `apps/admin` y `@blog/db` en serie).
-- [ ] T080 Ejecutar todos los E2E (`pnpm exec playwright test --project=admin` y `--project=web`) con `pnpm db:reset` previo, contra el build del admin y con `--workers=1` (CE-005 y regresión del sitio, R1).
-- [ ] T081 Medir: Lighthouse (solo Accesibilidad, ≥ 95) en el editor en 360, 768, 1024 y 1440 px con el procedimiento de la spec 003 (T103); peso real del editor frente al tope de 250 KB gzip y sin `yjs` en el cliente; latencia de escritura con 200 elementos; una pasada final con NVDA (y VoiceOver o TalkBack si hay dispositivo) con el guion de T005; anotarlo todo en `specs/005-editor-estilo-documento/validacion.md`.
-- [ ] T082 Recorrer [quickstart.md](quickstart.md) (A a F) y la comprobación visual del sitio (F); corregir el quickstart si algo cambió. Hacer la prueba de CE-001 y CE-007 con 3 a 5 personas que escriben habitualmente en procesadores de texto y anotar tiempo y dudas: es **requisito de cierre**; si no es posible antes del PR, CE-001 y CE-007 se declaran **diferidos** en `validacion.md` con la fecha prevista.
-- [ ] T083 Ejecutar `/validar` (`revisor-ux-ui` y `consistencia-codigo`; `arquitecto-db` no aplica porque no hay cambios de base) y resolver todos los BLOQUEANTES en `specs/005-editor-estilo-documento/validacion.md`. CE-004 se verifica con T081 y la revisión de `revisor-ux-ui`.
-- [ ] T084 Actualizar `CLAUDE.md` ("Estado actual": spec 005 y lo que sigue) y abrir el PR a `main`.
-- [ ] T085 **Después del merge**: enmendar `constitucion.md` §II (tabla del stack: fila "Editor de texto: Tiptap 3.31", versión de PARCHE o MENOR según la gobernanza) en un commit aparte.
+Las tareas pendientes de la etapa anterior se reemplazan así: T056–T061 → Fase 11 (H5); T070–T075 → Fase 14 (H4); T076, T077 y T079–T084 → Fase 15; T085 → hecha en la enmienda 2.0.0 de la constitución (`28a5a8b`).
+
+## Fase 9: Preparación de la ampliación
+
+**Propósito**: Dependencias, herramientas y la red de seguridad del sitio **antes** de cambiar el formato.
+
+- [ ] T086 Instalar en `apps/admin/package.json`, con `pnpm add --filter admin --save-exact`, `@tiptap/extension-table@3.31.4`, `@tiptap/extension-text-align@3.31.4`, `@tiptap/extension-highlight@3.31.4`, `@tiptap/extension-subscript@3.31.4` y `@tiptap/extension-superscript@3.31.4` (aprobadas por `consistencia-codigo`, research D31); sin exclusiones de `minimumReleaseAge`; `pnpm install` y `pnpm calidad` (knip las marcará sin uso hasta las Fases 12 y 13: anotarlo, no ignorarlas).
+- [ ] T087 [P] En `packages/bloques`: sumar `@types/node` a `devDependencies` (la misma versión que `apps/admin`), agregar `scripts` al `include` de `packages/bloques/tsconfig.json`, la entrada `"packages/bloques": { "entry": ["scripts/convertir-contenido.ts"] }` en `knip.json` y los patrones `articulos-*.json` y `conversion-*.sql` en `.gitignore` (research D31, C8 y C9).
+- [ ] T088 [P] En `packages/config/eslint.config.js`: regla `no-restricted-imports` que prohíbe `@tiptap/*` en todos los workspaces y se desactiva solo en `apps/admin` (RF-021, D31 C10); `pnpm lint` en verde.
+- [ ] T089 Caracterización del sitio **con el renderer de hoy** (research D26, R1), que debe **pasar** contra el código actual: crear `packages/bloques/src/render/caracterizacion.test.tsx` que, para el corpus de `packages/bloques/src/pruebas/corpus-contenido.ts` y los textos del seed, extrae de `renderToStaticMarkup(<Bloques …>)` el texto visible por elemento, los ids de los títulos (anclas), `src`, `alt` y leyenda de las imágenes, `href` y texto de los enlaces, y escribe la *fixture* `packages/bloques/src/pruebas/salida-anterior.json` (modo de generación con una variable de entorno; en modo normal compara contra ella). Commitear la *fixture* **antes** de tocar el renderer.
+
+**Checkpoint**: dependencias instaladas, `pnpm lint` en verde y la *fixture* commiteada.
+
+---
+
+## Fase 10: Fundacional — el documento como contenido (bloqueante)
+
+**Propósito**: Lista permitida, normalización, validación, base de datos, renderer del sitio y editor sobre el documento, con los cuatro formatos de hoy (los nuevos llegan en la Fase 12 y las tablas en la 13). Ninguna historia de la ampliación puede empezar antes.
+
+### Tests (escribir primero, deben fallar)
+
+- [ ] T090 [P] Reescribir `packages/bloques/src/esquema.test.ts` para `esquemaDocumento` ([contracts/documento.md](contracts/documento.md)): `{ type: "doc", content: Elemento[] }` con **0 a 200 elementos**; once tipos (`paragraph`, `heading`, `bulletList`, `orderedList`, `blockquote`, `codeBlock`, `horizontalRule`, `imagen`, `galeria`, `cta`, `video`; la `table` llega en T138); `attrs.id` uuid **único** en el documento; objetos estrictos (una clave de más es error); `paragraph` "1 a 5000 caracteres de texto (sin contar marcas)" con `hardBreak`; `heading` `level` 2, 3 o 4, "1 a 150 caracteres", sin `hardBreak`; listas con "1 a 50 `listItem`, cada uno con **un** `paragraph`", "1 a 500 caracteres por ítem", sin anidar; `blockquote` con "**un** `paragraph`", "1 a 1000 caracteres", `autor?` "1 a 120" y `fuente?` "URL https"; `codeBlock` con "0 o 1 `text` **sin marcas**", "0 a 20 000 caracteres" y `lenguaje?` `^[a-z0-9+#-]{1,20}$`; `imagen`, `galeria`, `cta` y `video` con los campos y mensajes de hoy (`esquemaImagen`, "2 a 24" imágenes, `columnas` 2, 3 o 4…); marcas `link` (con `hrefSeguro`), `bold`, `italic` y `code`; `code` excluye otras marcas; rechaza el formato anterior (un arreglo), HTML, nodos o marcas desconocidos y textos vacíos.
+- [ ] T091 [P] Crear `packages/bloques/src/normalizar.test.ts` (research D24): `normalizarDocumento` quita atributos `null` o por defecto, `marks: []`, textos vacíos y párrafos vacíos de primer nivel (el de `TrailingNode` incluido), une textos contiguos con las mismas marcas, ordena las marcas según el orden canónico del contrato y es **idempotente**; propiedad sobre el corpus y documentos al azar: `normalizar(normalizar(d)) = normalizar(d)`.
+- [ ] T092 [P] Crear `packages/bloques/src/elementos.test.ts`: `TIPOS_ELEMENTO`; `crearElemento(tipo)` válido para cada tipo (con id nuevo); `textoDeElemento` (texto visible); `visibleDeDocumento(doc)` (texto, anclas con `anclaDe`, imágenes y enlaces, mismo formato que la *fixture* de T089); ida y vuelta del adaptador `datosDeElemento`/`elementoDesdeDatos` para los **ocho** editores de campos (imagen, galería, llamada a la acción, video, título con `level` ↔ `nivel`, cita, lista con el tipo de nodo ↔ `ordenada`, código); `recorrer(doc, visitante)`.
+- [ ] T093 [P] Reescribir `packages/bloques/src/validar.test.ts`: `validarDocumento(doc, { publicar })` devuelve `ErrorElemento[]` = `{ indice, id, campo, mensaje }` (índice del elemento en `content`, −1 para la imagen destacada como hoy); con `publicar: true`, el requisito de contenido; nombres de campo estables.
+- [ ] T094 [P] Adaptar `packages/bloques/src/imagenes-en-uso.test.ts`: `rutasDeImagenes(doc)` y `rutasQuitadas` sobre `imagen.attrs.imagen.ruta` y `galeria.attrs.imagenes[*].ruta`.
+- [ ] T095 [P] Crear `packages/bloques/src/render/documento.test.tsx` y adaptar `render/seguridad.test.tsx`, `render/anclas.test.tsx` y `render/video.test.tsx`: `<Documento contenido componentes />` dibuja los once tipos con sus componentes de hoy, `EnLinea` con `strong`, `em`, `code`, `a` (con `hrefSeguro` y `atributosEnlace`) y `br`, anclas únicas como hoy, títulos desde `h2`, nada de HTML crudo; y comparar `visibleDeDocumento` con `renderToStaticMarkup(<Documento>)` (parte nueva de `caracterizacion.test.tsx`).
+- [ ] T096 [P] pgTAP ([data-model.md](data-model.md#pruebas-pgtap-v2-y-ix4)): crear `supabase/tests/contenido_documento.test.sql` (`contenido_valido`, `documento_tiene_contenido`, `tipos_elemento`, `documento_a_texto` con los casos del data-model, *default* válido, nunca NULL, checks `convalidated`); adaptar `privilegios.test.sql` (`function_privs_are` con `execute` para `anon, authenticated, service_role` en `tipos_elemento` y `documento_tiene_contenido`, sin `execute` en `documento_a_texto`, `hasnt_function` para `tipos_bloque` y `bloques_a_texto`, barridos y `plan(…)`), `articulos_borrador.test.sql` o `validaciones.test.sql` (insert y update **como `authenticated`** con un documento), `busqueda.test.sql`, `articulos_publicacion.test.sql`, `programacion.test.sql` (`publicar_programados` con documentos), `panel_admin.test.sql` (`rutas_en_uso` con `attrs.imagen.ruta`, `attrs.imagenes[*].ruta` y `a.jpg` frente a `a.jpg.bak`), `seed.test.sql` (jsonpath `$.content[*] ? (@.type == "imagen").attrs.imagen` y galería), `notificaciones.test.sql` y los demás que arman `contenido`.
+- [ ] T097 [P] Crear `apps/admin/src/componentes/editor/documento/extensiones.test.ts`: con `getSchema(extensiones)`, los nodos, marcas y atributos del esquema de ProseMirror son **exactamente** los de la lista permitida de esta fase (sin `language` en `codeBlock`, sin `target`, `rel` ni `class` en `link`, con `id` y sin `bloqueId` ni `continuacion`).
+- [ ] T098 [P] Adaptar las pruebas de `apps/admin` y `packages/db` al documento: `reductor.test.ts`, `datos` (validación), `documento/mapa-errores.test.ts` (por `id`), `documento/comandos.test.ts`, `documento/proteger.test.ts` e `ids.test.ts` (`bloqueId` → `id`; `documento/esquema-prueba.ts` pasa a construir nodos sobre `getSchema(extensiones)`, sin esquema a mano, D31 C7), `PropiedadesDelElemento.test.tsx` (adaptador), `packages/db/src/pruebas/datos.ts`, `pruebas/imagenes.ts`, `invariantes.test.ts` (`TIPOS_ELEMENTO` frente a `privado.tipos_elemento`) y `consultas/equipo-articulos.test.ts`.
+
+### Implementación
+
+- [ ] T099 `packages/bloques/src/esquema.ts`: **exportar los esquemas de campos** (`texto`, `urlHttps`, `nivelTitulo`, `lenguaje`, `camposImagen`, `camposGaleria`, `camposCta`, `camposVideo`, `camposCita`) y armar con ellos `esquemaDocumento` (estricto, recursivo con Zod 4) con los tipos `Documento`, `Elemento`, `ElementoDe<T>`, `Inline`, `Texto`, `Marca`, `DatosDe<T>` y `CambiosDeElemento`; quitar `esquemaBloque`, `esquemaContenido`, `Bloque`, `BloqueDe` y `Contenido` (D31 C1 y C6). T090 en verde.
+- [ ] T100 [P] `packages/bloques/src/normalizar.ts`: `normalizarDocumento` (D24). T091 en verde.
+- [ ] T101 [P] `packages/bloques/src/elementos.ts`: `TIPOS_ELEMENTO`, `crearElemento`, `textoDeElemento`, `visibleDeDocumento`, `datosDeElemento`, `elementoDesdeDatos` y `recorrer`; eliminar `tipos-bloque.ts`, `crearBloque` y `textoPlano` de `utilidades.ts` (con sus pruebas). T092 en verde.
+- [ ] T102 `packages/bloques/src/validar.ts`: `validarDocumento` y `ErrorElemento` (reemplaza a `validarContenido` y `ErrorBloque`), y actualizar a quienes los usan: `packages/db/src/errores.ts`, `packages/db/src/validar-imagen.ts`, `packages/db/src/consultas/equipo-articulos.ts`, `apps/admin/src/lib/errores-campo.ts`, `apps/admin/src/lib/resultado.ts` y `apps/admin/src/componentes/FormularioPerfil.tsx`. T093 en verde.
+- [ ] T103 [P] `packages/bloques/src/imagenes-en-uso.ts`: recorrer el documento. T094 en verde.
+- [ ] T104 `packages/bloques/src/render/`: `Documento.tsx` (reutiliza `Titulo`, `Cita`, `Lista`, `Codigo`, `Galeria`, `Cta`, `Video` e `ImagenBloque` con los `attrs` adaptados), `EnLinea.tsx`, `tipos.ts` (`ComponentesBloques` → `ComponentesDocumento`) y `index.ts`; eliminar `Bloques.tsx`, `TextoEnLinea.tsx` y `Parrafo.tsx` (la *fixture* de T089 ya guarda lo que mostraban); `packages/bloques/src/index.ts` con los exports nuevos y sin los de lo eliminado (la gramática en línea y los tramos siguen hasta T112). T095 en verde.
+- [ ] T105 Migración `supabase/migrations/20261023120000_contenido_documento.sql` según la tabla de [data-model.md](data-model.md#migración-20261023120000_contenido_documentosql), **en este orden**: `tipos_elemento`, `contenido_valido` (`create or replace`, con `coalesce(…, false)`), `documento_tiene_contenido` (con `coalesce(…, false)`), `documento_a_texto` (orden de lectura, sin duplicar, `''` con un arreglo, sin `codeBlock` ni URL, truncado a 200 000), `calcular_busqueda` y la función de `a40_validar_estado` (copiar el cuerpo de `estados_y_publicacion.sql` y cambiar solo el requisito), recrear `articulos_contenido_check` y `articulos_requisitos_publicacion` con `not valid`, el bloque `do` de validación condicional, el *default* `'{"type":"doc","content":[]}'`, los privilegios de la tabla del data-model y, al final, `drop function` de `tipos_bloque` y `bloques_a_texto`. Consultar la skill `supabase-postgres-best-practices`.
+- [ ] T106 `supabase/seed.sql`: reescribir las funciones `pg_temp.*` para que devuelvan elementos del documento, agregar `pg_temp.texto(texto, marcas)` para los seis tramos con formato y armar cada `contenido` con `jsonb_build_object('type', 'doc', 'content', jsonb_build_array(…))`, con ids uuid literales. Después, `pnpm db:reset && pnpm db:tipos` y commitear `packages/db/src/tipos.ts`. T096 en verde.
+- [ ] T107 [P] `packages/db/src/`: `Contenido` → `Documento` en `consultas/tipos-publicos.ts`, `consultas/mapeo.ts`, `consultas/articulos-publicos.ts`, `pruebas/datos.ts` y `pruebas/imagenes.ts`. T098 (parte de `packages/db`) en verde.
+- [ ] T108 [P] `apps/web/src/pages/blog/[slug].astro` y `apps/admin/src/app/(panel)/articulos/[id]/vista-previa/page.tsx`: `Bloques` → `Documento` (cargar la skill `astro-seo` antes de tocar `apps/web`); `pnpm --filter web build` en verde.
+- [ ] T109 `apps/admin/src/componentes/editor/documento/extensiones.ts` (research D22, D23 y D31 C12): nodos `imagen`, `galeria`, `cta` y `video` con `attrs` planos (sin el objeto `bloque`); `id` en lugar de `bloqueId` (en `ids.ts` también); sin `continuacion` ni la normalización de marcas en una transacción sin historial; quitar `language` del `codeBlock` y `target`, `rel` y `class` del `link` con `extend({ addAttributes })`. T097 en verde.
+- [ ] T110 `apps/admin/src/componentes/editor/`: `EditorDocumento.tsx` (`contenido: Documento`, `alCambiar` con `normalizarDocumento(editor.getJSON())`, sin `conversion.ts`), `nodos/NodoBloque.tsx` (dibuja con `Documento` o el componente del elemento), `comandos.ts`, `acciones-elemento.ts`, `proteger.ts`, `AsaDeElemento.tsx`, `MenuAcciones.tsx` y `menu-insercion.ts` (`crearElemento`, `id`), `mapa-errores.ts` (por `id`), `PropiedadesDelElemento.tsx` y `bloques/EditorDeBloque.tsx` con el adaptador (`DatosDe<T>`, `CambiosDeElemento` reemplaza a `CambiosDeBloque` en `bloques/tipos.ts`). T098 (parte de `apps/admin`) en verde.
+- [ ] T111 `apps/admin/src/componentes/editor/reductor.ts`, `datos.ts` (`validarEditor` con `validarDocumento`), `EditorArticulo.tsx`, `ComparacionVersiones.tsx` (`textoDeElemento`) y `apps/admin/src/acciones/articulos.ts` (normalizar y `validarDocumento` antes de escribir; leer antes la guía de Server Actions de `apps/admin/node_modules/next/dist/docs/`). E2E de `editor-documento.spec.ts` y de las specs 003 y 004 que no dependen de la forma guardada, en verde.
+
+**Checkpoint**: `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm build` en verde; el editor guarda documentos y el sitio y la vista previa los dibujan; T089 y T095 en verde (el sitio muestra lo mismo).
+
+---
+
+## Fase 11: Historia 5 - Que nada de lo que ya funciona se pierda (Prioridad: P1)
+
+**Objetivo**: La conversión de los artículos existentes (sin pérdida, de todo o nada, sin avisos ni cambios de versión) y la regresión de todos los flujos del panel con el editor nuevo. Reemplaza a T056–T061.
+
+**Prueba independiente**: convertir el corpus y el seed anterior con el script y comprobar que no se pierde nada y que el sitio muestra lo mismo; abrir y guardar sin tocar cada artículo del seed y comprobar que la versión no cambia.
+
+### Tests de la Historia 5 (escribir PRIMERO, deben FALLAR) ⚠️
+
+- [ ] T112 [US5] Mover con `git mv` a `packages/bloques/src/conversion-anterior/` (sin exportarlo en `index.ts` ni en `package.json`): `apps/admin/src/componentes/editor/documento/conversion.ts` y su prueba, `packages/bloques/src/en-linea.ts` y `parrafos.ts` con sus pruebas; y adaptar `conversion.test.ts` a la forma del contrato ([contracts/documento.md](contracts/documento.md#correspondencia-con-el-formato-anterior-solo-para-la-conversión)): nodos renombrados y `attrs` planos, un párrafo con líneas en blanco da varios `paragraph` (el primero con el id del bloque y los demás con un uuid v5 derivado del id y del número de tramo), salto simple = `hardBreak`, el resultado cumple `esquemaDocumento`, ida y vuelta y repetible; y `visibleDeBloques(contenido)` coincide con la *fixture* de T089 (D31 C2).
+- [ ] T113 [P] [US5] Crear `packages/bloques/scripts/convertir-contenido.test.ts`: con una entrada del corpus y del seed anterior, el SQL generado es **un único bloque `do $$ … $$`** sin `begin`/`commit` con los pasos del data-model (desactiva `a30_controlar_version`, `a90_actualizado_en` y `z90_notificar_cambio`; `update … from (values …) as v(id, version, contenido) where a.id = v.id and a.version = v.version`; conteo con `get diagnostics`; "ningún arreglo"; `validate constraint` de los dos checks; `enable trigger`); un artículo que ya es documento no se toca; un artículo que no pasa la verificación hace fallar todo sin generar nada e indica cuál y por qué; la salida para el corpus coincide con la *fixture* SQL de `supabase/tests/` (no se desvía).
+- [ ] T114 [P] [US5] Crear `supabase/tests/conversion.test.sql` con el *setup* y los casos de [data-model.md](data-model.md#pruebas-pgtap-v2-y-ix4) (drop de los dos checks, `a40` desactivado, borrador y publicado en formato anterior, checks `not valid` de nuevo; `version` y `actualizado_en` sin cambios, cola de `net` igual, `busqueda` recalculada, checks `convalidated`, triggers en `tgenabled = 'O'`; con una versión que no coincide, `throws_ok` y todo igual).
+- [ ] T115 [US5] En `e2e/admin/editor-documento.spec.ts`, bloque "Nada se pierde" (H5 esc. 4 a 8): abrir y guardar sin tocar cada artículo del seed (versión sin cambios, comparando con `e2e/admin/ayudas/articulos.ts`, que pasa a leer el documento); publicar o archivar desde la barra **no** reinicia el documento y `adoptar_vigente` sí; un contenido inválido se rechaza en el servidor sin guardarse; a 360 px la barra se reacomoda con «Más» y «Insertar» sigue visible; RF-018 (Publicación visible con la pestaña «Elemento», barra de la 004 y permisos sin cambios).
+- [ ] T116 [US5] Adaptar `e2e/admin/ayudas/editor.ts` (`agregarBloque` inserta desde «Insertar» o `/`; `grupoDeBloque` ubica el elemento en el lienzo; `completarBloque` completa los campos en el panel; `elegirImagen` sube desde el panel) y `e2e/admin/articulo-editor.spec.ts` (los 10 tipos de hoy, errores por elemento, mover en los extremos con el teclado y cambios sin guardar).
+- [ ] T117 [P] [US5] Adaptar `e2e/admin/casos-borde.spec.ts` (subida fallida, slug repetido y publicado sin contenido sobre el lienzo y el panel), `e2e/admin/articulo-conflicto.spec.ts` (la comparación y «Reemplazar con la vigente» reinician el documento y el historial), `e2e/admin/medios.spec.ts` y `e2e/admin/permisos.spec.ts`.
+- [ ] T118 [P] [US5] Adaptar `e2e/admin/accesibilidad.spec.ts`: axe sobre el editor con el menú `/` abierto, con el panel y con la hoja abiertos, en los cuatro anchos; sin violaciones.
+
+### Implementación de la Historia 5
+
+- [ ] T119 [US5] `packages/bloques/src/conversion-anterior/`: adaptar `bloquesADocumento` y `documentoABloques` a la forma del contrato, `esquema-bloques.ts` armado con los esquemas de campos exportados por `esquema.ts` (solo agrega `{ id, tipo }`) y `visible.ts` con `visibleDeBloques` (sobre `analizarEnLinea`, `partirParrafos` y `anclaDe`, sin JSX). T112 en verde.
+- [ ] T120 [US5] `packages/bloques/scripts/cargador.mjs` (con `module.registerHooks`, resuelve los imports sin extensión a `.ts`) y `scripts/convertir-contenido.ts` (lee `--entrada`, convierte y verifica cada artículo, escribe `--salida` o termina con error sin escribir nada); script `convertir-contenido` en `packages/bloques/package.json` (`node --import ./scripts/cargador.mjs scripts/convertir-contenido.ts`); generar la *fixture* SQL de `supabase/tests/` desde el corpus. T113 y T114 en verde; probarlo de punta a punta exportando la base local de `main` (antes de la migración) y aplicando la migración y el SQL juntos con `psql -1`.
+- [ ] T121 [US5] `apps/admin/src/componentes/editor/EditorArticulo.tsx` y `documento/EditorDocumento.tsx` (antes T060): `guardado` **no** toca el documento (también al publicar o archivar desde `BarraEditor.alCambiarEstado`); solo la carga inicial y `adoptar_vigente` suben `reinicio`; conflicto, `ComparacionVersiones` y «Reemplazar con la vigente» con el documento; las subidas en curso bloquean guardar; la limpieza de imágenes sin uso sigue (`rutasDeImagenes`); si el servidor devuelve un documento distinto del enviado, se adopta con `setContent` (conservando la selección cuando se pueda) y se avisa; si es idéntico, no se toca. T115 a T118 en verde.
+- [ ] T122 [P] [US5] `apps/admin/src/componentes/editor/ComparacionVersiones.tsx` y `AvisoConflicto.tsx` (antes T061): «elemento» en lugar de «bloque» y la comparación con `textoDeElemento`.
+
+**Checkpoint**: T112 a T118 en verde; la conversión está probada sobre el corpus y una base local real, y el editor cumple todos los flujos de las specs 003 y 004.
+
+---
+
+## Fase 12: Historia 6 - Más formato: subrayado, tachado, resaltado, superíndice, subíndice y alineación (Prioridad: P1)
+
+**Objetivo**: Los nueve formatos en línea y la alineación de párrafos y títulos, en el editor y en el sitio.
+
+**Prueba independiente**: subrayar, tachar, resaltar, escribir «m2» con el 2 en superíndice, centrar un título y justificar un párrafo; guardar y comprobar que la vista previa y el sitio se ven igual.
+
+### Tests de la Historia 6 (escribir PRIMERO, deben FALLAR) ⚠️
+
+- [ ] T123 [P] [US6] Ampliar `packages/bloques/src/esquema.test.ts` y `normalizar.test.ts`: marcas `underline`, `strike`, `highlight` (sin `color`), `superscript` y `subscript` en párrafos, títulos, citas e ítems; `code` excluye todas; `superscript` y `subscript` se excluyen entre sí; orden canónico `link`, `bold`, `italic`, `underline`, `strike`, `highlight`, `code`, `superscript`, `subscript`; `textAlign` solo `"center"`, `"right"` o `"justify"` en `paragraph` y `heading` (la izquierda es la ausencia; `"left"` lo quita la normalización y el esquema lo rechaza); sin `textAlign` en citas, ítems ni celdas.
+- [ ] T124 [P] [US6] Ampliar `packages/bloques/src/render/documento.test.tsx`: `u` (`decoration-1 underline-offset-2 decoration-current`), `s`, `mark`, `sup`, `sub` y combinaciones; un enlace subrayado se dibuja solo como enlace; `text-center`, `text-right` y `text-justify hyphens-auto`.
+- [ ] T125 [P] [US6] Ampliar `packages/ui/src/clases.test.ts` con los tokens `--color-resaltado` y `--color-resaltado-texto` (texto sobre resaltado ≥ 4,5:1; la línea del enlace `decoration-marca` sobre el resaltado ≥ 3:1) y la regla de `forced-colors` de `mark` (`Mark`/`MarkText`).
+- [ ] T126 [P] [US6] Ampliar `documento/extensiones.test.ts` (las cinco marcas nuevas y `textAlign` en el esquema de ProseMirror; atajos por defecto de `Strike`, `Highlight` y `TextAlign` desactivados) y `documento/BarraHerramientas.test.tsx`: subrayado en la barra; menú «Alineación» (`menuitemradio` con ícono de verificación, nombre "Alineación: centro" o "varias", `aria-disabled` fuera de párrafos y títulos con "La alineación es solo para párrafos y títulos", sin ocultarse); «Más formato» (`menuitemcheckbox`, "Más formato, resaltado activo" con marca no cromática); con `code` activo, los demás formatos y «Enlace» `aria-disabled` con "El código no admite otros formatos" y «Código» habilitado; los títulos admiten formatos (sin `estado.sinMarcas`).
+- [ ] T127 [US6] En `e2e/admin/editor-documento.spec.ts`, bloque "Más formato y alineación" (H6 esc. 1 a 5): aplicar y quitar cada formato con la barra y «Más formato»; `Mod+U`; `Ctrl+.` y `Ctrl+,` fuera de macOS; exclusiones; alineación con el menú en párrafos y títulos y no disponible en el resto; la razón de `aria-disabled` se ve al enfocar y se puede cerrar; guardar y ver la vista previa. En `e2e/web/articulo.spec.ts`: el artículo se ve igual que en el lienzo, el subrayado no se parece a un enlace (prueba visual) y `forcedColors: 'active'` mantiene visible el resaltado.
+
+### Implementación de la Historia 6
+
+- [ ] T128 [US6] `packages/bloques/src/esquema.ts` y `normalizar.ts`: las cinco marcas, las exclusiones, el orden canónico y `textAlign`. T123 en verde.
+- [ ] T129 [P] [US6] `packages/bloques/src/render/EnLinea.tsx`, `render/clases.ts` y los componentes de párrafo y título: las marcas nuevas y la alineación con utilidades de Tailwind (`text-justify` con `hyphens-auto`); `packages/ui/src/tokens.css`: `--color-resaltado`, `--color-resaltado-texto` y `@media (forced-colors: active) { mark { background: Mark; color: MarkText } }`. T124 y T125 en verde.
+- [ ] T130 [US6] `apps/admin/src/componentes/editor/documento/extensiones.ts`: activar `underline` y `strike` de `starter-kit`, agregar `Highlight` (`multicolor: false`), `Subscript`, `Superscript` y `TextAlign` (`types: ['paragraph', 'heading']`, sin guardar la izquierda); atajos según [contracts/atajos.md](contracts/atajos.md) (`Mod+U`; `Ctrl+.` y `Ctrl+,` fuera de macOS; sin atajo para tachado, resaltado y alineación) en `atajos.ts`. T126 (parte de extensiones) en verde.
+- [ ] T131 [US6] `apps/admin/src/componentes/editor/documento/BarraHerramientas.tsx` y `apps/admin/src/componentes/Icono.tsx`: subrayado, menús «Alineación» y «Más formato» con `useMenuTeclado`, reglas de `aria-disabled` con la razón por `aria-describedby` y aviso visible al enfocar (1.4.13); íconos subrayado, tachado, resaltado, superíndice, subíndice y las cuatro alineaciones. T126 y T127 en verde.
+
+**Checkpoint**: T123 a T127 en verde; los nueve formatos y la alineación se ven igual en el lienzo, la vista previa y el sitio.
+
+---
+
+## Fase 13: Historia 7 - Tablas (Prioridad: P2)
+
+**Objetivo**: Tablas con celdas de varios párrafos, fila de encabezado, descripción, filas y columnas, celdas combinadas y separadas, accesibles en el editor y en el sitio, con el comportamiento de menos de 768 px.
+
+**Prueba independiente**: insertar una tabla de 3 × 3, marcar el encabezado, escribir en las celdas (una negrita y una celda de dos párrafos), combinar dos celdas, agregar una fila y quitar una columna; guardar y comprobar en la vista previa y en el sitio a 360 px.
+
+### Tests de la Historia 7 (escribir PRIMERO, deben FALLAR) ⚠️
+
+- [ ] T132 [P] [US7] Crear `packages/bloques/src/tablas.test.ts`: `cuadricula(tabla)` (tipo estructural, sirve para el JSON y para `node.toJSON()`) con `colspan` y `rowspan`; `esRectangulo(celdas)`; regularidad (todas las filas cubren el mismo número de columnas, "1 a 10", sin superposiciones ni huecos); límites "1 a 50 `tableRow`", "hasta 1000 caracteres en total por celda (todos sus párrafos)" y descripción "1 a 150".
+- [ ] T133 [P] [US7] Ampliar `packages/bloques/src/esquema.test.ts`, `normalizar.test.ts`, `validar.test.ts` y `elementos.test.ts` con la `table` del contrato: `attrs: { id, descripcion? }`; celdas `tableHeader` o `tableCell` con 1 o más `paragraph` sin `textAlign`; `colspan`/`rowspan` ≥ 2 cuando están (1 se quita al normalizar), sin `colwidth`; `tableHeader` solo en la primera fila y con `rowspan` 1; cuenta como un elemento; con `publicar`, "La tabla no tiene contenido" si ninguna celda tiene texto; `textoDeElemento` y `visibleDeDocumento` de una tabla.
+- [ ] T134 [P] [US7] Crear `packages/bloques/src/render/tabla.test.tsx`: región `role="region"` con `aria-labelledby`, `tabindex="0"` y `max-w-full`; `caption` visible (`text-texto-suave text-sm`) o `aria-label` "Tabla N"; `th scope="col"` en la fila de encabezado y `headers`/`id` calculados con `cuadricula()` en las celdas (también combinadas); `colspan`/`rowspan`; tokens `--color-borde-tabla` y `--color-fondo-encabezado-tabla`; sin JavaScript. Ampliar `packages/ui/src/clases.test.ts`: borde de tabla ≥ 3:1, texto sobre el encabezado ≥ 4,5:1, línea del enlace sobre el encabezado ≥ 3:1, y la selección de celdas (`marca-suave` con `outline` de 2 px de marca) ≥ 3:1.
+- [ ] T135 [P] [US7] Crear `apps/admin/src/componentes/editor/documento/tablas.test.ts` (sobre `getSchema(extensiones)`): insertar 3 × 3 con encabezado; insertar y quitar filas y columnas con los máximos ("Se alcanzó el máximo de 10 columnas", 50 filas); combinar solo rectángulos y nunca encabezado con cuerpo; «Combinar con la celda de la derecha» y «… de abajo»; separar (el contenido queda en la primera); quitar una fila o columna que atraviesa una celda combinada la achica sin perder texto (el contenido pasa a la parte que queda); agregar en medio la agranda; quitar la única fila o columna no está disponible ("Usa «Quitar tabla»"); «Quitar tabla» pasa por `proteger`. Ampliar `extensiones.test.ts` con la tabla (sin `colwidth`) y `BarraHerramientas.test.tsx` (con el cursor en una celda: estilo de párrafo, listas, alineación e «Insertar» `aria-disabled` con "Las celdas solo admiten párrafos con formato").
+- [ ] T136 [US7] Crear `e2e/admin/editor-tablas.spec.ts` (H7 esc. 1 a 10, RF-028, RF-029 y research D29 y D31): insertar desde «Insertar» y `/`; Tab, Shift+Tab (en la primera celda no hace nada y se anuncia) y Tab en la última celda que agrega una fila desde 768 px y avisa en 50; Enter crea un párrafo en la celda; "Tabla. Esc para salir" al entrar y el texto visible en la barra «Tabla»; `Esc` → `Shift+Tab` llega a la barra «Tabla», que actúa sobre la última celda o selección; Shift+flechas selecciona celdas y se anuncia "Celdas seleccionadas: 2 filas por 3 columnas"; combinar, separar, filas y columnas desde la barra y desde el panel; acciones no disponibles con su razón fija; a 768 px con `hasTouch`, «Combinar con la celda de la derecha»; a 360 px solo se escribe y se ve el texto de RF-029 (el ancho de la ventana manda), «Quitar tabla» disponible con aviso visible y «Deshacer»; descripción en el panel con el aviso si falta; árbol de accesibilidad de la tabla en el editor (nombre, `th` del encabezado); axe con una tabla, la selección de celdas y los menús abiertos; pegar una tabla de 4 × 3 y una de 12 columnas (se pega como texto y se avisa).
+- [ ] T137 [P] [US7] En `e2e/web/articulo.spec.ts` y `e2e/web/accesibilidad.spec.ts`: la tabla del artículo del seed a 360 px sin desplazamiento horizontal de la página, la región se alcanza con Tab y se desplaza, `caption` y encabezados asociados, con `javaScriptEnabled: false`, con `forcedColors: 'active'` (foco de la región visible), un solo `h1` y axe sin violaciones. En `packages/db/src/consultas/busqueda.test.ts` y `supabase/tests/busqueda.test.sql`: `buscar_articulos` encuentra el artículo por una palabra de una celda y de la descripción (RF-027).
+
+### Implementación de la Historia 7
+
+- [ ] T138 [US7] `packages/bloques/src/tablas.ts` y la `table` en `esquema.ts`, `normalizar.ts`, `validar.ts` y `elementos.ts` (con `cuadricula` para la regularidad). T132 y T133 en verde.
+- [ ] T139 [P] [US7] `packages/bloques/src/render/Tabla.tsx` (y su uso en `Documento.tsx`) y `packages/ui/src/tokens.css` (`--color-borde-tabla` y `--color-fondo-encabezado-tabla` como alias de `--color-borde` y `--color-superficie` si cumplen; si no, valor propio justificado), con las sombras de desplazamiento solo con CSS y el foco con `--foco-ancho` y `--foco-separacion`. T134 en verde.
+- [ ] T140 [US7] `apps/admin/src/componentes/editor/documento/extensiones.ts`: `Table` (`resizable: false`, `allowTableNodeSelection: true`), `TableRow`, `TableHeader` y `TableCell` con `content: 'paragraph+'`, sin `colwidth`, y el plugin `reglasDeTabla`; estilo de `.selectedCell` con `bg-marca-suave` y `outline` de 2 px de marca (y `Highlight` en `forced-colors`), celdas con `min-h-tactil`; `/` no abre el menú dentro de una celda. T135 (parte de extensiones) en verde.
+- [ ] T141 [US7] `apps/admin/src/componentes/editor/documento/tablas.ts`: comandos y reglas de T135 (usa `TableMap` solo para la selección; las reglas de cuadrícula vienen de `@blog/bloques`), con la referencia a la última celda o selección para el modo elementos. T135 en verde.
+- [ ] T142 [US7] `apps/admin/src/componentes/editor/documento/BarraTabla.tsx`: fila dentro de la barra fija, visible con el cursor en una celda o con la tabla seleccionada en modo elementos; texto visible "Esc: salir de la tabla"; acciones con nombre, anuncio y `aria-disabled` con razón fija; reacomodo con «Más»; por debajo de 768 px (`matchMedia('(min-width: 48rem)')`, la misma fuente para el teclado) solo «Quitar tabla» y el texto de RF-029; aviso visible con «Deshacer» tras quitar en el teléfono. Íconos de tabla, filas, columnas, combinar y separar en `Icono.tsx`.
+- [ ] T143 [US7] `PropiedadesDelElemento.tsx` (descripción, aviso si falta, fila de encabezado y las acciones de la barra «Tabla» sobre la misma referencia), `menu-insercion.ts` y `MenuInsertar.tsx` (ítem «Tabla»), `BarraHerramientas.tsx` (controles `aria-disabled` dentro de una celda), `anuncios.ts` (mensajes de tablas de [contracts/atajos.md](contracts/atajos.md)) y `EditorDocumento.tsx` (anuncio al entrar a una tabla). T136 en verde.
+- [ ] T144 [US7] `supabase/seed.sql`: `pg_temp.tabla(…)` y un artículo publicado con los nueve formatos, las cuatro alineaciones y una tabla de 5 columnas con una celda combinada en horizontal, otra en vertical y una celda de dos párrafos (CE-008, RF-027); `pnpm db:reset`; ajustar `seed.test.sql`. T137 en verde.
+
+**Checkpoint**: T132 a T137 en verde; las tablas funcionan con ratón, teclado y toque, y el sitio las muestra accesibles a 360 px.
+
+---
+
+## Fase 14: Historia 4 - Atajos de escritura, pegado y deshacer (Prioridad: P2)
+
+**Objetivo**: Reglas de escritura tipo Markdown con deshacer inmediato, pegado limpio (formatos, alineación y tablas permitidos), avisos de límites y un solo historial con mensajes que nombran la acción. Reemplaza a T070–T075.
+
+**Prueba independiente**: escribir «## Mi título» al comienzo de una línea y comprobar que se convierte en título; pegar un texto con colores, tipografías, subrayado y una alineación y comprobar que quedan solo el subrayado y la alineación.
+
+### Tests de la Historia 4 (escribir PRIMERO, deben FALLAR) ⚠️
+
+- [ ] T145 [P] [US4] Crear `apps/admin/src/componentes/editor/documento/pegado.test.ts` y `limites.test.ts`: partir un párrafo pegado que supera "5000 caracteres de texto" en párrafos nuevos cortando en fin de oración o de palabra (nunca a mitad de palabra), cuántos se crearon, sin perder texto; en títulos, citas, ítems, celdas y código el sobrante no crea elementos de otro tipo; el conteo es del **texto** (sin marcas); avisos al cruzar el 90 % y el 100 % sin repetirse ("Quedan 500 caracteres"); límite de 200 elementos; una tabla pegada dentro de los límites (combinaciones que forman rectángulos y respetan el encabezado se conservan; si no, se separan y se avisa) y fuera de ellos (se pega como párrafos y se avisa).
+- [ ] T146 [US4] En `e2e/admin/editor-documento.spec.ts`, bloque "Atajos, pegado y deshacer" (H4 esc. 1 a 6, H6 esc. 6): `## `, `### `, `#### `, `- `, `1. `, `> `, `---` y las tres comillas invertidas convierten la línea; Deshacer inmediato deja el texto escrito; `Mod+Z` y `Mod+Shift+Z` sobre un solo historial (texto, formato, alineación, tablas y acciones sobre elementos; un elemento quitado se recupera); pegar HTML con colores, tipografías, tamaños, subrayado, superíndice y alineación deja solo lo permitido (el color del resaltado se descarta); pegar más de 5000 caracteres crea párrafos y se anuncia; copiar y pegar elementos nunca duplica ids; CE-006: el menú `/` e «Insertar» abren en menos de 200 ms con 50 elementos y el máximo de 200 se comporta como [contracts/atajos.md](contracts/atajos.md).
+
+### Implementación de la Historia 4
+
+- [ ] T147 [US4] `apps/admin/src/componentes/editor/documento/atajos.ts` y `extensiones.ts` (antes T072): completar las reglas de entrada de bloque y de línea (`**x**`, `_x_`, `` `x` ``, `[x](u)`) con deshacer inmediato que deja el texto escrito.
+- [ ] T148 [P] [US4] `apps/admin/src/componentes/editor/documento/pegado.ts` (antes T073): `transformPasted` que parte los párrafos que superan el límite, deja que el esquema descarte lo no permitido, aplica las reglas de tablas pegadas, no copia `id` y anuncia lo creado. T145 en verde.
+- [ ] T149 [P] [US4] `apps/admin/src/componentes/editor/documento/limites.ts` (antes T074): contador del texto por elemento y por celda con `CharacterCount`, avisos al cruzar el 90 % y el 100 %, y rechazo con aviso al llegar a 200 elementos (Enter, «Insertar», `/` y pegado). T145 en verde.
+- [ ] T150 [US4] `apps/admin/src/componentes/editor/documento/EditorDocumento.tsx` (antes T075): anuncios de deshacer y rehacer con el nombre de la acción ("Se deshizo: mover elemento"), con *debounce* de 400 ms para insertar, mover y duplicar y solo si el foco no cambió; `adoptar_vigente` recrea el editor con historial vacío. T146 en verde.
+
+**Checkpoint**: T145 y T146 en verde.
+
+---
+
+## Fase 15: Validación, cierre y corte en la nube
+
+- [ ] T151 Cobertura cruzada (antes T076): comprobar con la tabla "Plan de pruebas" de [plan.md](plan.md) que cada RF (RF-001 a RF-030) y cada CE (CE-001 a CE-010) tiene al menos un test ejecutándose; completar lo que falte.
+- [ ] T152 [P] Actualizar `specs/004-jerarquia-visual-panel/contracts/matriz-acciones.md` y `e2e/admin/jerarquia.spec.ts` (antes T077): las filas «Editor — barra de marcas» y «Editor — bloques (provisorio)» pasan a la barra de herramientas, «Acciones», el asa y la barra «Tabla».
+- [ ] T153 Ejecutar `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm calidad && pnpm build` (Vitest de `apps/admin` y `@blog/db` en serie). `pnpm calidad` debe quedar en verde también con `conversion-anterior/` presente (jscpd ≤ 3 %, knip con la entrada de T087).
+- [ ] T154 Ejecutar todos los E2E (`pnpm exec playwright test --project=admin` y `--project=web`) con `pnpm db:reset` previo, contra el build del admin y con `--workers=1` (CE-005).
+- [ ] T155 Medir y anotar en `specs/005-editor-estilo-documento/validacion.md` (antes T081): Lighthouse Accesibilidad ≥ 95 en el editor en 360, 768, 1024 y 1440 px (CE-004); Lighthouse del sitio en móvil sobre el artículo del seed con tablas y formatos (SEO ≥ 95, Rendimiento ≥ 90, Accesibilidad ≥ 95, LCP < 2,5 s, CLS < 0,1; CE-009); peso del editor con las tablas frente al tope de 250 KB gzip y sin `yjs` en el cliente (si se pasa, cargar la extensión de tablas aparte con su estado de carga); latencia de escritura con 200 elementos (< 100 ms; si no, normalización diferida); una pasada con NVDA si es posible (barra, «Más formato», alineación, tabla: entrar, moverse, combinar con teclado, salir con `Esc`; decidir si el anuncio de la celda se queda).
+- [ ] T156 Recorrer [quickstart.md](quickstart.md) (A a G) y la prueba de CE-001 y CE-007 con 3 a 5 personas (antes T082); si no es posible antes del PR, declararlos **diferidos** en `validacion.md` con la fecha prevista.
+- [ ] T157 Ejecutar `/validar` con los **tres** agentes (`arquitecto-db` aplica: hay migración) y resolver todos los BLOQUEANTES en `specs/005-editor-estilo-documento/validacion.md`.
+- [ ] T158 Actualizar `CLAUDE.md` ("Estado actual": spec 005, constitución 2.0.0, lo que sigue y el corte pendiente), pushear y abrir el PR a `main` **sin mergear**, con el CI en verde (antes T084).
+- [ ] T159 **Corte en la nube** (RF-030, a cargo del usuario con Claude; [quickstart.md](quickstart.md#corte-en-la-nube) pasos 1 a 4): aviso; exportar los artículos de la nube a `articulos-nube.json` y correr `pnpm --filter @blog/bloques convertir-contenido --entrada articulos-nube.json --salida conversion-nube.sql` (si un artículo falla, corregirlo y repetir); comprobar programados y pausar `publicar-programados`; verificar que la URL tenga `kgavzwzlhbzjkvreqhbu` y que `articulos` sea de `postgres`; ejecutar la migración y `conversion-nube.sql` **en una sola ejecución** del SQL Editor; comprobar `convalidated` de los dos checks. No commitear los dos archivos.
+- [ ] T160 Último commit antes del merge (RF-030): eliminar `packages/bloques/scripts/`, `packages/bloques/src/conversion-anterior/`, `src/pruebas/corpus-contenido.ts` (y su export en `package.json`), `src/pruebas/salida-anterior.json`, `render/caracterizacion.test.tsx`, `supabase/tests/conversion.test.sql` y su *fixture*, la entrada de `knip.json` y los patrones de `.gitignore` si ya no hacen falta; dejar `src/pruebas/corpus-documento.ts` para `normalizar.test.ts` y `documento.test.tsx`; grep de cierre (`tipos_bloque|esquemaBloque|analizarEnLinea|continuacion|​`, sin resultados) anotado en `validacion.md`; `pnpm calidad` y el CI en verde.
+- [ ] T161 Mergear el PR (Vercel despliega el sitio y el panel), reactivar `publicar-programados` y comprobar CE-010 en producción (artículos publicados iguales que antes; abrir y guardar sin tocar no sube la versión); advisors de Supabase; anotar en `validacion.md` la fecha, las filas convertidas y `convalidated`; en `CLAUDE.md`, sumar la migración a la lista de aplicadas sin registro en el historial (o registrarla con `supabase migration repair`).
 
 ---
 
 ## Dependencias y orden de ejecución
 
-### Entre fases
+### Entre fases (ampliación)
 
-- **Fase 0 (compuerta)** → **Preparación (F1)** → **Fundacional (F2)** → **H1** → **H2** → **H5** → **H3** → **H4** → **Cierre (F8)**.
-- **F1 y F2** pueden adelantarse a la compuerta (T012 a T035 no dependen de Tiptap: gramática, conversión, ids, reductor, anuncios y `packages/ui`), **pero se descartan o ajustan si la compuerta cambia de librería**. Lo que depende de la compuerta es T040 en adelante (instalación definitiva y asa, T067). Dentro de H1, T040 va antes de T038.
-- **H1** depende de F2 (T022 a T035). Es el MVP del editor, pero **no se mergea sola**: el editor anterior se retira en T078 y exige H2, H3 y H5.
-- **H2** depende de H1 (la barra, el menú y `EditorDocumento`).
-- **H5** depende de H1 y H2 (adapta los specs existentes al editor nuevo).
-- **H3** depende de H1 y H2 (el modo elementos y el menú de acciones usan la barra y los nodos).
-- **H4** depende de H1; puede ir en paralelo con H3 salvo T075, que toca `EditorDocumento.tsx`.
-- **Un solo PR** al final de la Fase 8, con las cinco historias.
+- **F9 → F10 → F11 (H5)**; después **F12 (H6)**, **F13 (H7)** y **F14 (H4)** dependen solo de F10 y pueden ir en paralelo entre sí (salvo los archivos compartidos de abajo); **F15** al final.
+- T089 (caracterización) va **antes** de T104 (se borra el renderer anterior).
+- T112 (mover la conversión) va después de T110 (el editor deja de importar `conversion.ts`).
+- T159 a T161 son **secuenciales** y requieren al usuario (la nube): T158 (PR abierto, CI en verde) → T159 → T160 → T161.
+- **Un solo PR** con la etapa anterior y la ampliación.
 
 ### Archivos compartidos (hacer en secuencia)
 
-- `apps/admin/src/componentes/editor/documento/extensiones.ts`: T041 → T050 → T066 → T072.
-- `apps/admin/src/componentes/editor/documento/EditorDocumento.tsx`: T045 → T054 → T060 → T075.
-- `apps/admin/src/componentes/editor/documento/BarraHerramientas.tsx`: T044 → T068.
-- `apps/admin/src/componentes/editor/documento/comandos.ts`: T052 (`actualizarBloque`) → T065.
-- `apps/admin/src/componentes/editor/documento/menu-insercion.ts` y `MenuInsertar.tsx`: T043 → T055.
-- `apps/admin/src/componentes/editor/documento/atajos.ts`: T042 → T072.
-- `apps/admin/src/componentes/editor/EditorArticulo.tsx`: T046 → T053 → T054 → T060.
-- `e2e/admin/editor-documento.spec.ts`: T039 → T049 → T056 → T064 → T071.
-- `e2e/admin/ayudas/editor.ts`: T039 → T057.
-- `packages/bloques/src/index.ts`: T026 → T078.
+- `packages/bloques/src/esquema.ts`: T099 → T128 → T138.
+- `packages/bloques/src/normalizar.ts`: T100 → T128 → T138.
+- `packages/bloques/src/render/Documento.tsx` y `clases.ts`: T104 → T129 → T139.
+- `packages/ui/src/tokens.css` y `clases.test.ts`: T125/T129 → T134/T139.
+- `apps/admin/src/componentes/editor/documento/extensiones.ts`: T109 → T130 → T140 → T147.
+- `apps/admin/src/componentes/editor/documento/BarraHerramientas.tsx`: T131 → T143.
+- `apps/admin/src/componentes/editor/documento/EditorDocumento.tsx`: T110 → T121 → T143 → T150.
+- `apps/admin/src/componentes/editor/EditorArticulo.tsx`: T111 → T121.
+- `e2e/admin/editor-documento.spec.ts`: T115 → T127 → T146.
+- `supabase/seed.sql`: T106 → T144.
 
 ### Dentro de cada historia
 
-Tests (rojo) → lógica pura → extensiones y plugins → componentes → pantalla.
+Tests (rojo) → `packages/bloques` (esquema, normalización, renderer) → base → extensiones y plugins → componentes → pantalla.
 
 ## Ejemplos de ejecución en paralelo
 
-- **Fase 0**: T003 a T009 en paralelo (distintas mediciones); T010 aparte; T011 al final.
-- **Fundacional, tests**: T014 a T021 en paralelo.
-- **Fundacional, implementación**: T022 → T023; T024, T025, T027, T029, T031, T032, T033, T034 y T035 en paralelo entre sí; T028 depende de T022 y T024; T030 de T020.
-- **H1**: T036, T037 y T038 en paralelo; T039 aparte; T042 y T043 en paralelo después de T041; T044 → T045 → T046.
-- **H2**: T047 y T048 en paralelo; T051 en paralelo con T050; T052 → T053 → T054; T055 al final.
-- **H5**: T058 y T059 en paralelo; T057 antes.
-- **H3**: T062 y T063 en paralelo; T065 y T066 en paralelo; T067 a T069 en secuencia sobre la barra.
-- **H4**: T073 y T074 en paralelo.
+- **F9**: T087 y T088 en paralelo; T089 aparte.
+- **F10, tests**: T090 a T098 en paralelo.
+- **F10, implementación**: T099 → (T100, T101, T103 en paralelo) → T102 → T104; T105 → T106; T107 y T108 en paralelo después de T104; T109 → T110 → T111.
+- **H5**: T113 y T114 en paralelo después de T112; T117 y T118 en paralelo después de T116; T119 → T120; T122 en paralelo con T121.
+- **H6**: T123 a T126 en paralelo; T128 → (T129, T130) → T131.
+- **H7**: T132 a T135 en paralelo, T137 en paralelo con T136; T138 → (T139, T140) → T141 → T142 → T143 → T144.
+- **H4**: T148 y T149 en paralelo.
 
 ## Estrategia
 
-- **Compuerta primero**: la Fase 0 decide la librería, el asa y los atajos con datos antes de escribir código definitivo; si falla, se compara con Lexical y se decide con el usuario.
-- **Red de seguridad antes de mover la gramática del sitio**: T012 caracteriza la salida de hoy; el refactor (T022 a T025) debe dejarla idéntica.
-- **MVP del editor**: F1 + F2 + H1 + H2 dan un editor de texto con todos los elementos; H5 lo hace equivalente al anterior; H3 y H4 lo completan. Se puede validar y mostrar a personas después de H2 y H5 (T082), antes de seguir.
-- **Un solo PR** al final de la Fase 8, sin interruptor entre editores.
+1. **Red de seguridad primero** (F9): la *fixture* del sitio antes de tocar nada.
+2. **Formato nuevo con lo de hoy** (F10): el editor y el sitio pasan al documento sin funciones nuevas; si algo se rompe, se ve contra la *fixture* y los E2E existentes.
+3. **Conversión probada** (H5) antes de sumar funciones: el corte queda listo temprano.
+4. **Funciones nuevas** por historia (H6, H7, H4), cada una completa en esquema, editor, sitio y tests (§VI.5).
+5. **Cierre en local** (F15 hasta T158) y **corte coordinado** (T159 a T161) con el usuario.
 
 ## Notas
 
-- Commit por tarea o grupo lógico (Conventional Commits en español, por ejemplo `feat(admin): conversión entre el documento y los bloques`).
-- Verificar que los tests fallen antes de implementar.
-- Entre T046 y T078 quedan sin uso `ListaBloques` y las acciones viejas del reductor: `pnpm calidad` (knip) falla en los commits intermedios. Es esperado (un solo PR) y T078 lo deja en verde.
-- La palabra «bloque» no aparece en nada que vea la persona; en el código y la base sigue siendo el término del esquema.
-- El esquema de bloques no se toca: si una tarea parece pedirlo, detenerse y consultar.
+- Las tareas `[P]` tocan archivos distintos; las que comparten archivo van en la secuencia de arriba.
+- Cada tarea de test se escribe con `escritor-tests` y se confirma en rojo antes de implementar.
+- Commitear después de cada tarea o grupo lógico, con Conventional Commits en español.
+- La nube no se toca hasta T159.
