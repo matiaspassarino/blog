@@ -460,7 +460,8 @@ export function EditorArticulo({
                       onClick={() => setPestania(clave)}
                       className={cn(
                         'min-h-(--tactil-min) border-b-2 px-4 font-titulos font-semibold',
-                        pestania === clave ? 'border-marca text-marca' : 'border-transparent text-texto-suave',
+                        // La pestaña es un control, no texto de apoyo: la activa se distingue por el borde y el color.
+                        pestania === clave ? 'border-marca text-marca' : 'border-transparent text-texto',
                       )}
                     >
                       {clave === 'articulo' ? 'Artículo' : 'Elemento'}

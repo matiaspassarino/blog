@@ -162,7 +162,7 @@ export function AsaDeElemento({ editor, contexto, contenedor }: Props) {
           aria-label={nombre}
           aria-haspopup="menu"
           aria-expanded={menuAbierto}
-          className="flex size-(--tactil-min) touch-none items-center justify-center rounded-md border border-borde bg-fondo text-texto-suave hover:bg-superficie hover:text-texto"
+          className="flex size-(--tactil-min) touch-none items-center justify-center rounded-md border border-borde bg-fondo text-texto hover:bg-superficie"
           onPointerDown={(evento) => {
             if (evento.button !== 0) return;
             evento.currentTarget.setPointerCapture(evento.pointerId);
