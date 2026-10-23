@@ -53,6 +53,18 @@ export const parrafo = (id: string, texto: Hijos = '') => tipo('paragraph').crea
 export const parrafoConNegrita = (id: string, texto: string) =>
   tipo('paragraph').create({ id }, esquema.text(texto, [esquema.marks.bold!.create()]));
 export const titulo = (id: string, texto: string, level = 2) => tipo('heading').create({ id, level }, contenido(texto));
+
+/** Fase 12 (RF-024): el nodo con `textAlign`, o un error claro si el esquema todavía no tiene el atributo (fase roja). */
+function conAlineacion(nombre: 'paragraph' | 'heading', attrs: Record<string, unknown>, hijos: NodoPm[]) {
+  if (!tipo(nombre).spec.attrs || !('textAlign' in (tipo(nombre).spec.attrs ?? {}))) {
+    throw new Error(`El esquema del editor no tiene el atributo textAlign en "${nombre}"`);
+  }
+  return tipo(nombre).create(attrs, hijos);
+}
+export const parrafoAlineado = (id: string, texto: string, textAlign: 'center' | 'right' | 'justify') =>
+  conAlineacion('paragraph', { id, textAlign }, contenido(texto));
+export const tituloAlineado = (id: string, texto: string, textAlign: 'center' | 'right' | 'justify', level = 2) =>
+  conAlineacion('heading', { id, level, textAlign }, contenido(texto));
 /** Un autor o una fuente vacíos son la ausencia del atributo (forma canónica, D24). */
 export const cita = (id: string, texto: string, autor = '', fuente = '') =>
   tipo('blockquote').create(

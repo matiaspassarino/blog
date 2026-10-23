@@ -29,6 +29,8 @@
 // párrafo con marcas a título ya no pierde nada (RF-009: los títulos admiten formato); a código, sí. El autor y la
 // fuente se pierden al pasar una cita a cualquier otro tipo y los ítems, al pasar una lista de varios a párrafo o a
 // título.
+//
+// T123 (Fase 12): al final, la alineación (RF-016, RF-024).
 import { undo } from '@tiptap/pm/history';
 import { TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { describe, expect, it } from 'vitest';
@@ -49,10 +51,12 @@ import {
   imagen,
   lista,
   parrafo,
+  parrafoAlineado,
   parrafoConNegrita,
   posDe,
   separador,
   titulo,
+  tituloAlineado,
 } from './esquema-prueba';
 
 type Comando = (estado: EditorState, despachar?: (tr: Transaction) => void) => boolean;
@@ -539,5 +543,97 @@ describe('pierdeAlConvertir: aviso antes de convertir con pérdida (H3 esc. 6, R
     pierdeAlConvertir(estado, 'parrafo');
 
     expect(estado.doc.toJSON()).toEqual(antes);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T123 (spec 005, Fase 12; RF-016, RF-024; research D20 actualizada): la alineación en «Convertir en…». Párrafos y
+// títulos guardan `textAlign`; las citas, las listas y el código no la admiten, así que convertir un párrafo o un título
+// alineado a uno de esos tipos la pierde y la interfaz lo avisa antes (`pierdeAlConvertir` devuelve "alineación").
+// Entre párrafo y título no se pierde. FASE ROJA: el esquema del editor no tiene `textAlign` (T130) y
+// `pierdeAlConvertir` no la considera (T128).
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe('convertirElemento y pierdeAlConvertir: la alineación (RF-016, RF-024)', () => {
+  const pierde = (estado: EditorState, ...args: Parameters<typeof convertirElemento>) =>
+    pierdeAlConvertir(enModo(estado, 0), ...args).pierde;
+  const SOLO_ALINEACION = [expect.stringMatching(/alineación/i)];
+
+  it.each([
+    ['un párrafo centrado', () => estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center'))],
+    ['un párrafo justificado', () => estadoDe(parrafoAlineado(ID.a, 'Justificado', 'justify'))],
+    ['un título a la derecha', () => estadoDe(tituloAlineado(ID.a, 'A la derecha', 'right'))],
+  ])('RF-016: %s a cita avisa que pierde la alineación', (_caso, armar) => {
+    expect(pierde(armar(), 'cita')).toEqual(SOLO_ALINEACION);
+  });
+
+  it.each([
+    ['un párrafo centrado', () => estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center'))],
+    ['un título justificado', () => estadoDe(tituloAlineado(ID.a, 'Justificado', 'justify', 3))],
+  ])('RF-016: %s a lista avisa que pierde la alineación', (_caso, armar) => {
+    expect(pierde(armar(), 'lista')).toEqual(SOLO_ALINEACION);
+  });
+
+  it('RF-016: un párrafo alineado a código también pierde la alineación (el código no la admite)', () => {
+    expect(pierde(estadoDe(parrafoAlineado(ID.a, 'const a = 1;', 'right')), 'codigo')).toEqual(SOLO_ALINEACION);
+  });
+
+  it('RF-024: entre párrafo y título la alineación se conserva: no se pierde nada', () => {
+    expect(pierde(estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center')), 'titulo', { nivel: 2 })).toEqual([]);
+    expect(pierde(estadoDe(tituloAlineado(ID.a, 'Centrado', 'center')), 'parrafo')).toEqual([]);
+  });
+
+  it('sin alineación (la izquierda) pasar a cita o a lista no pierde nada', () => {
+    expect(pierde(estadoDe(parrafo(ID.a, 'Uno')), 'cita')).toEqual([]);
+    expect(pierde(estadoDe(titulo(ID.a, 'Uno')), 'lista')).toEqual([]);
+  });
+
+  it('RF-024: un párrafo centrado convertido en título queda centrado (mismo id y texto)', () => {
+    const { estado } = ejecutar(
+      enModo(estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center')), 0),
+      convertirElemento('titulo', { nivel: 3 }),
+    );
+
+    expect(estado.doc.child(0).type.name).toBe('heading');
+    expect(estado.doc.child(0).attrs).toMatchObject({ id: ID.a, level: 3, textAlign: 'center' });
+    expect(estado.doc.child(0).textContent).toBe('Centrado');
+  });
+
+  it('RF-024: un título justificado convertido en párrafo queda justificado', () => {
+    const { estado } = ejecutar(
+      enModo(estadoDe(tituloAlineado(ID.a, 'Justificado', 'justify')), 0),
+      convertirElemento('parrafo'),
+    );
+
+    expect(estado.doc.child(0).type.name).toBe('paragraph');
+    expect(estado.doc.child(0).attrs).toMatchObject({ id: ID.a, textAlign: 'justify' });
+  });
+
+  it('RF-016: un párrafo centrado convertido en cita no deja textAlign en ningún nodo de la cita', () => {
+    const { estado } = ejecutar(
+      enModo(estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center')), 0),
+      convertirElemento('cita'),
+    );
+    const alineados: string[] = [];
+    estado.doc.descendants((nodo) => {
+      if (nodo.attrs.textAlign != null) alineados.push(nodo.type.name);
+    });
+
+    expect(estado.doc.child(0).type.name).toBe('blockquote');
+    expect(alineados).toEqual([]);
+  });
+
+  it('RF-016: un párrafo centrado convertido en lista no deja textAlign en el párrafo del ítem', () => {
+    const { estado } = ejecutar(
+      enModo(estadoDe(parrafoAlineado(ID.a, 'Centrado', 'center')), 0),
+      convertirElemento('lista'),
+    );
+    const alineados: string[] = [];
+    estado.doc.descendants((nodo) => {
+      if (nodo.attrs.textAlign != null) alineados.push(nodo.type.name);
+    });
+
+    expect(estado.doc.child(0).type.name).toBe('bulletList');
+    expect(alineados).toEqual([]);
   });
 });

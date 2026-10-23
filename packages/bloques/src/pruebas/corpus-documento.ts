@@ -27,7 +27,22 @@ export const marca = {
   negrita: { type: 'bold' },
   cursiva: { type: 'italic' },
   codigo: { type: 'code' },
+  // Fase 12 (H6, RF-009): los cinco formatos nuevos, sin atributos (el resaltado no lleva color).
+  subrayado: { type: 'underline' },
+  tachado: { type: 'strike' },
+  resaltado: { type: 'highlight' },
+  superindice: { type: 'superscript' },
+  subindice: { type: 'subscript' },
 };
+
+/** Alineaciones que se guardan (la izquierda es la ausencia del atributo, contracts/documento.md). */
+type Alineacion = 'center' | 'right' | 'justify';
+
+/** Copia de un párrafo o título con la alineación en sus `attrs` (Fase 12, RF-024). */
+export const alineado = (elemento: NodoPrueba, textAlign: Alineacion | string): NodoPrueba => ({
+  ...elemento,
+  attrs: { ...elemento.attrs, textAlign },
+});
 
 export const imagenDePrueba = (semilla: string, alt?: string): Imagen => ({
   ruta: `https://picsum.photos/seed/${semilla}/1600/900`,
@@ -192,6 +207,45 @@ export const CORPUS_DOCUMENTOS: { nombre: string; documento: Documento }[] = [
         titulo(3, texto('Primeros pasos')),
         titulo(2, texto('Contenido')),
         titulo(2, texto('¿¡…!?')),
+      ),
+    ),
+  },
+  {
+    // Fase 12 (H6, RF-009 y RF-024): los nueve formatos en línea, combinados, y las tres alineaciones que se guardan.
+    nombre: 'nueve formatos y alineación',
+    documento: comoDocumento(
+      doc(
+        alineado(titulo(2, texto('Un título '), texto('centrado', marca.subrayado)), 'center'),
+        parrafo(
+          texto('Texto '),
+          texto('subrayado', marca.subrayado),
+          texto(', '),
+          texto('tachado', marca.tachado),
+          texto(', '),
+          texto('resaltado', marca.resaltado),
+          texto(', m'),
+          texto('2', marca.superindice),
+          texto(' y H'),
+          texto('2', marca.subindice),
+          texto('O.'),
+        ),
+        alineado(
+          parrafo(
+            texto('Negrita subrayada con enlace', enlace('/blog'), negrita, marca.subrayado),
+            texto(' y '),
+            texto('todo junto', negrita, cursiva, marca.subrayado, marca.tachado, marca.resaltado),
+            texto(' y '),
+            texto('código', marca.codigo),
+            texto('.'),
+          ),
+          'justify',
+        ),
+        alineado(parrafo(texto('Un párrafo a la derecha.')), 'right'),
+        cita({}, texto('Una cita '), texto('resaltada', marca.resaltado)),
+        vinetas(
+          item(texto('Un ítem '), texto('tachado', marca.tachado)),
+          item(texto('x'), texto('2', marca.superindice)),
+        ),
       ),
     ),
   },

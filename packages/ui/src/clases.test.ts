@@ -6,9 +6,11 @@
 //               opciones?: { tamanio: 'compacto'; soloIcono: true } | { tamanio: 'estandar' | 'compacto'; soloIcono?: false }): string
 // El segundo parámetro se invoca por una envoltura sin tipos estrictos para que este archivo compile antes de que
 // exista; los tipos del contrato los verifica `apps/admin` (button.test.tsx).
+/// <reference types="vitest/node" />
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { clasesBoton } from './clases';
-import { contraste, tokens } from './pruebas/contraste';
+import { contraste, tokens, valorDe } from './pruebas/contraste';
 
 type Variante = 'primaria' | 'secundaria' | 'terciaria' | 'peligro';
 type Opciones = { tamanio: 'estandar' | 'compacto'; soloIcono?: boolean };
@@ -282,9 +284,12 @@ describe('Terciaria activa con borde de marca (spec 005, T018)', () => {
     expect(clasesDe(conOpciones('terciaria', { tamanio: 'compacto' }))).toContain('aria-pressed:border-marca');
   });
 
-  it.each(['primaria', 'secundaria', 'peligro'] as const)('RF-003: %s no define aria-pressed:border-marca', (variante) => {
-    expect(conOpciones(variante, { tamanio: 'estandar' })).not.toMatch(/aria-pressed:border-marca/);
-  });
+  it.each(['primaria', 'secundaria', 'peligro'] as const)(
+    'RF-003: %s no define aria-pressed:border-marca',
+    (variante) => {
+      expect(conOpciones(variante, { tamanio: 'estandar' })).not.toMatch(/aria-pressed:border-marca/);
+    },
+  );
 
   it.each(['--color-fondo', '--color-superficie', '--color-marca-suave'])(
     'WCAG 1.4.11: el borde activo (--color-marca) contrasta >= 3:1 contra %s',
@@ -298,5 +303,74 @@ describe('Terciaria activa con borde de marca (spec 005, T018)', () => {
       expect(clasesBoton(variante)).not.toMatch(/aria-pressed:/);
     }
     expect(clasesBoton('terciaria')).not.toMatch(/aria-pressed:/);
+  });
+});
+
+// T125 (spec 005, Fase 12, H6 esc. 5; RF-026; research D27 y D31 U7): el resaltado del sitio y del lienzo. Dos tokens
+// nuevos en tokens.css, `--color-resaltado` (fondo de `mark`) y `--color-resaltado-texto` (su texto), con contraste AA
+// comprobado acá, y la regla de `forced-colors` que usa los colores del sistema `Mark` y `MarkText`.
+// FASE ROJA: los tokens y la regla no existen todavía (T129).
+describe('Resaltado: tokens y contraste (spec 005, T125)', () => {
+  it.each(['--color-resaltado', '--color-resaltado-texto'])('existe %s en tokens.css', (nombre) => {
+    expect(tokens.has(nombre), `falta ${nombre}`).toBe(true);
+  });
+
+  it('H6-E5: el texto sobre el resaltado tiene contraste >= 4,5:1 (WCAG 1.4.3)', () => {
+    expect(contraste('--color-resaltado-texto', '--color-resaltado')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('H6-E5: la línea del enlace (decoration-marca) sobre el resaltado tiene contraste >= 3:1 (WCAG 1.4.11)', () => {
+    expect(contraste('--color-marca', '--color-resaltado')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('el resaltado se distingue del fondo de la página (no es el mismo color)', () => {
+    expect(valorDe('--color-resaltado')).not.toBe(valorDe('--color-fondo'));
+    expect(contraste('--color-resaltado', '--color-fondo')).toBeGreaterThan(1);
+  });
+
+  it('§VII.2: los dos tokens son colores oklch, sin hex', () => {
+    for (const nombre of ['--color-resaltado', '--color-resaltado-texto']) {
+      expect(valorDe(nombre), nombre).toMatch(/^oklch\(/);
+    }
+  });
+});
+
+describe('Resaltado en modo de alto contraste (forced-colors, D31 U7)', () => {
+  /** El texto de tokens.css sin comentarios. */
+  const css = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  /** El cuerpo del bloque `@media (forced-colors: active) { … }` (con llaves anidadas), o `undefined`. */
+  function bloqueForcedColors(): string | undefined {
+    const inicio = /@media\s*\(\s*forced-colors\s*:\s*active\s*\)\s*\{/.exec(css);
+    if (!inicio) return undefined;
+    let profundidad = 1;
+    let i = inicio.index + inicio[0].length;
+    for (; i < css.length && profundidad > 0; i++) {
+      if (css[i] === '{') profundidad++;
+      if (css[i] === '}') profundidad--;
+    }
+    return css.slice(inicio.index + inicio[0].length, i - 1);
+  }
+
+  it('tokens.css tiene un bloque @media (forced-colors: active)', () => {
+    expect(bloqueForcedColors(), 'falta @media (forced-colors: active) en tokens.css').toBeDefined();
+  });
+
+  it('en ese bloque, mark usa el fondo Mark y el texto MarkText (colores del sistema)', () => {
+    const regla = /(^|[\s,}])mark\s*\{([^}]*)\}/.exec(bloqueForcedColors() ?? '')?.[2] ?? '';
+
+    expect(regla, 'falta la regla de mark').not.toBe('');
+    expect(regla).toMatch(/(^|;|\s)background(-color)?\s*:\s*Mark\s*(;|$)/);
+    expect(regla).toMatch(/(^|;|\s)color\s*:\s*MarkText\s*(;|$)/);
+  });
+
+  it('la regla de forced-colors está fuera de @theme (no es un token)', () => {
+    const tema = /@theme\s*\{/.exec(css);
+    const media = /@media\s*\(\s*forced-colors/.exec(css);
+
+    expect(media).not.toBeNull();
+    // `@theme` cierra antes de la regla: entre el comienzo de @theme y la regla, las llaves están balanceadas.
+    const entre = css.slice(tema?.index ?? 0, media?.index ?? 0);
+    expect((entre.match(/\{/g) ?? []).length).toBe((entre.match(/\}/g) ?? []).length);
   });
 });

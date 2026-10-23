@@ -16,7 +16,7 @@
 //     llamada a la acción, video, código, cita, lista, título, párrafo, separador) en ambas variantes. Con un solo
 //     elemento especial o de texto, muestra el `EditorDeBloque` de su tipo; los de texto con `soloPropiedades` (sin el
 //     campo de texto, que se edita en el lienzo).
-//   - Párrafo y separador: "Este elemento no tiene propiedades. Escribe en el documento."
+//   - Separador (y, hasta la Fase 12, el párrafo): "Este elemento no tiene propiedades. Escribe en el documento."
 //   - Con más de un bloque en la selección: "N elementos seleccionados" y ningún campo.
 //   - Selección `{ tipo: 'texto' }` (o sin bloques): "Selecciona un elemento para editar sus propiedades".
 //   - Variante `hoja`: botón «Cerrar»; la `lateral` no lo tiene.
@@ -31,7 +31,7 @@
 import { crearElemento, type Elemento, type TipoElemento } from '@blog/bloques';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { etiquetaDe, etiquetasDe } from '../../../pruebas/html-estatico';
+import { ancestrosEn, etiquetaDe, etiquetasDe } from '../../../pruebas/html-estatico';
 import { PropiedadesDelElemento } from './PropiedadesDelElemento';
 
 type Props = Parameters<typeof PropiedadesDelElemento>[0];
@@ -205,7 +205,8 @@ describe('PropiedadesDelElemento: el adaptador entrega a los editores la forma d
 });
 
 describe('PropiedadesDelElemento: sin propiedades, varios y sin selección', () => {
-  it.each(['paragraph', 'horizontalRule'] as TipoElemento[])(
+  // Desde la Fase 12 (RF-020) el párrafo tiene una propiedad, la alineación: queda solo el separador.
+  it.each(['horizontalRule'] as TipoElemento[])(
     'H2-E4: %s muestra el aviso de sin propiedades y ningún campo',
     (tipo) => {
       const html = dibujar({ bloque: crearElemento(tipo) });
@@ -262,5 +263,111 @@ describe('PropiedadesDelElemento: nombre y variantes (H2-E6, H2-E7)', () => {
     const html = dibujar({ variante: 'hoja' });
     const modal = etiquetasDe(html).some((e) => e.atributos.role === 'dialog' || e.atributos['aria-modal'] === 'true');
     expect(modal).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T126 (spec 005, Fase 12; RF-020 y RF-024; contracts/componentes.md "PropiedadesDelElemento"): el panel de un párrafo
+// y el de un título muestran la alineación; el de una cita, una lista, un código, un separador o un elemento especial
+// no la ofrecen (no se guarda para ellos).
+//
+// Decisión de interfaz (T131): un grupo de opciones con el nombre «Alineación» (un `fieldset` con `legend`, o un
+// `role="radiogroup"` con ese nombre) y cuatro `input type="radio"` con las etiquetas «Izquierda», «Centro», «Derecha» y
+// «Justificado»; la marcada es la del elemento (sin `textAlign`, «Izquierda»). El párrafo deja de mostrar «Este
+// elemento no tiene propiedades»: ahora tiene una. FASE ROJA: el panel no tiene alineación.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const ALINEACIONES = ['Izquierda', 'Centro', 'Derecha', 'Justificado'];
+
+type Opcion = { etiqueta: string; marcada: boolean; enGrupo: boolean };
+
+/** Los `input type="radio"` con su etiqueta, si están marcados y si están dentro de un grupo llamado «Alineación». */
+function opcionesDeAlineacion(html: string): Opcion[] {
+  const textoDeEtiqueta = (inicio: number) => {
+    const resto = html.slice(inicio);
+    return sinEtiquetas(resto.slice(0, resto.indexOf('</label>'))).trim();
+  };
+  const grupoLlamadoAlineacion = (inicio: number) =>
+    ancestrosEn(html, inicio).some((ancestro) => {
+      if (ancestro.atributos.role === 'radiogroup' && ancestro.atributos['aria-label'] === 'Alineación') return true;
+      if (ancestro.nombre !== 'fieldset') return false;
+      const leyenda = /<legend[^>]*>([\s\S]*?)<\/legend>/.exec(html.slice(ancestro.inicio))?.[1] ?? '';
+      return sinEtiquetas(leyenda).trim() === 'Alineación';
+    });
+  return etiquetasDe(html)
+    .filter((e) => e.nombre === 'input' && e.atributos.type === 'radio')
+    .map((radio) => {
+      const id = radio.atributos.id;
+      const porFor = id ? etiquetasDe(html).find((e) => e.nombre === 'label' && e.atributos.for === id) : undefined;
+      const envolvente = ancestrosEn(html, radio.inicio)
+        .reverse()
+        .find((ancestro) => ancestro.nombre === 'label');
+      const etiqueta = porFor ?? envolvente;
+      return {
+        etiqueta: etiqueta ? textoDeEtiqueta(etiqueta.inicio) : '',
+        marcada: 'checked' in radio.atributos,
+        enGrupo: grupoLlamadoAlineacion(radio.inicio),
+      };
+    })
+    .filter((opcion) => ALINEACIONES.includes(opcion.etiqueta));
+}
+
+const alineadoCon = (tipo: 'paragraph' | 'heading', attrs: Record<string, unknown> = {}) => conAttrs(tipo, attrs);
+
+describe('PropiedadesDelElemento: alineación de párrafos y títulos (RF-020, RF-024)', () => {
+  it.each(['paragraph', 'heading'] as const)(
+    'H6-E4: %s muestra el grupo «Alineación» con sus cuatro opciones',
+    (tipo) => {
+      const opciones = opcionesDeAlineacion(dibujar({ bloque: alineadoCon(tipo) }));
+
+      expect(opciones.map((opcion) => opcion.etiqueta)).toEqual(ALINEACIONES);
+      expect(opciones.every((opcion) => opcion.enGrupo)).toBe(true);
+    },
+  );
+
+  it('H6-E4: sin textAlign la opción marcada es «Izquierda» (la de siempre)', () => {
+    const opciones = opcionesDeAlineacion(dibujar({ bloque: alineadoCon('paragraph') }));
+
+    expect(opciones.filter((opcion) => opcion.marcada).map((opcion) => opcion.etiqueta)).toEqual(['Izquierda']);
+  });
+
+  it.each([
+    ['center', 'Centro'],
+    ['right', 'Derecha'],
+    ['justify', 'Justificado'],
+  ])('H6-E4: un párrafo con textAlign %j marca «%s»', (textAlign, etiqueta) => {
+    const opciones = opcionesDeAlineacion(dibujar({ bloque: alineadoCon('paragraph', { textAlign }) }));
+
+    expect(opciones.filter((opcion) => opcion.marcada).map((opcion) => opcion.etiqueta)).toEqual([etiqueta]);
+  });
+
+  it('H6-E4: un título centrado muestra su nivel y la alineación «Centro»', () => {
+    const html = dibujar({ bloque: alineadoCon('heading', { level: 3, textAlign: 'center' }) });
+
+    expect(etiquetaDe(html, 'option', (e) => 'selected' in e.atributos)?.atributos.value).toBe('3');
+    expect(
+      opcionesDeAlineacion(html)
+        .filter((opcion) => opcion.marcada)
+        .map((opcion) => opcion.etiqueta),
+    ).toEqual(['Centro']);
+  });
+
+  it('RF-020: el párrafo ya no dice que no tiene propiedades (tiene la alineación)', () => {
+    expect(sinEtiquetas(dibujar({ bloque: crearElemento('paragraph') }))).not.toContain(SIN_PROPIEDADES);
+  });
+
+  it.each([
+    'blockquote',
+    'bulletList',
+    'orderedList',
+    'codeBlock',
+    'horizontalRule',
+    'imagen',
+    'cta',
+  ] as TipoElemento[])('RF-024: %s no ofrece alineación', (tipo) => {
+    const html = dibujar({ bloque: crearElemento(tipo) });
+
+    expect(opcionesDeAlineacion(html)).toEqual([]);
+    expect(sinEtiquetas(html)).not.toContain('Alineación');
   });
 });

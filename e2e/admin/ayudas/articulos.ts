@@ -27,10 +27,30 @@ const negrita: Marca = { type: 'bold' };
 const cursiva: Marca = { type: 'italic' };
 export const salto: NodoEnLinea = { type: 'hardBreak' };
 
+/** Los formatos en línea del contrato (spec 005, RF-009), para armar documentos en las pruebas. */
+export const MARCAS = {
+  negrita,
+  cursiva,
+  codigo: { type: 'code' } as Marca,
+  enlace: (href: string): Marca => ({ type: 'link', attrs: { href } }),
+  subrayado: { type: 'underline' } as Marca,
+  tachado: { type: 'strike' } as Marca,
+  resaltado: { type: 'highlight' } as Marca,
+  superindice: { type: 'superscript' } as Marca,
+  subindice: { type: 'subscript' } as Marca,
+};
+
+/** Un párrafo o título con alineación (spec 005, RF-024: la izquierda es la ausencia del atributo). */
+export const alineado = (elemento: Elemento, textAlign: 'center' | 'right' | 'justify'): Elemento => ({
+  ...elemento,
+  attrs: { ...elemento.attrs, textAlign },
+});
+
 /** Un tramo de texto con sus marcas. */
-const texto = (contenido: string, ...marcas: Marca[]): NodoEnLinea =>
+export const texto = (contenido: string, ...marcas: Marca[]): NodoEnLinea =>
   marcas.length > 0 ? { type: 'text', text: contenido, marks: marcas } : { type: 'text', text: contenido };
-const enLinea = (partes: (string | NodoEnLinea)[]) => partes.map((parte) => (typeof parte === 'string' ? texto(parte) : parte));
+const enLinea = (partes: (string | NodoEnLinea)[]) =>
+  partes.map((parte) => (typeof parte === 'string' ? texto(parte) : parte));
 const interno = (contenido: string) => ({ type: 'paragraph', content: [texto(contenido)] }) as unknown as Elemento;
 
 export const parrafo = (...partes: (string | NodoEnLinea)[]): Elemento => ({
@@ -85,7 +105,12 @@ export function diezElementos(imagen: ImagenSemilla): Elemento[] {
     cita('Una cita memorable', { autor: 'Alguien', fuente: 'https://example.com/fuente' }),
     lista(['Primero', 'Segundo', 'Tercero'], true),
     galeria([imagen, { ...imagen, alt: 'Otra imagen' }], 2),
-    cta({ titulo: 'Llamada a la acción', texto: 'Un texto de apoyo', etiquetaBoton: 'Ir al sitio', url: 'https://example.com/destino' }),
+    cta({
+      titulo: 'Llamada a la acción',
+      texto: 'Un texto de apoyo',
+      etiquetaBoton: 'Ir al sitio',
+      url: 'https://example.com/destino',
+    }),
     separador(),
     codigo('const x = 1;', 'ts'),
     video('dQw4w9WgXcQ', 'Un video de prueba'),

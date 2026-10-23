@@ -7,9 +7,16 @@
 //   type Documento = { type: 'doc'; content: Elemento[] }   (0 a 200 elementos, `attrs.id` uuid único)
 //   y los esquemas de campos de hoy (texto, urlHttps, nivelTitulo, lenguaje, camposImagen, camposGaleria,
 //   camposCta, camposVideo, camposCita), reutilizados con sus mensajes.
+//
+// T123 (spec 005, Fase 12, H6 esc. 1 a 4; RF-009 y RF-024; contracts/documento.md "Inline" y "Elementos"): al final
+// del archivo, las marcas `underline`, `strike`, `highlight` (sin `color`), `superscript` y `subscript` en párrafos,
+// títulos, citas e ítems; `code` excluye todas; `superscript` y `subscript` se excluyen entre sí; `textAlign` solo
+// `"center"`, `"right"` o `"justify"` y solo en `paragraph` y `heading` (la izquierda es la ausencia; `"left"` lo
+// quita la normalización y el esquema lo rechaza); sin `textAlign` en citas, ítems ni elementos especiales (las celdas
+// llegan con la tabla, T133). FASE ROJA: el esquema de hoy solo tiene link, bold, italic y code, y no tiene textAlign.
 import { describe, expect, it } from 'vitest';
 import { esquemaDocumento } from './esquema';
-import { imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
+import { alineado, CORPUS_DOCUMENTOS, imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
 const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador } = nodo;
 
@@ -539,4 +546,211 @@ describe('esquemaDocumento', () => {
       expect(esValido(doc(sinAttr(nodo.video('youtube', 'dQw4w9WgXcQ', 'Un video'), campo)))).toBe(false);
     });
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T123 (Fase 12, Historia 6): más formato y alineación.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const MARCAS_NUEVAS = [
+  ['underline', marca.subrayado],
+  ['strike', marca.tachado],
+  ['highlight', marca.resaltado],
+  ['superscript', marca.superindice],
+  ['subscript', marca.subindice],
+] as const;
+
+/** Las ocho marcas que no son `code`. */
+const MARCAS_NO_CODIGO = [
+  ['link', marca.enlace('/blog')],
+  ['bold', marca.negrita],
+  ['italic', marca.cursiva],
+  ...MARCAS_NUEVAS,
+] as const;
+
+/** Un texto con estas marcas dentro de cada elemento que admite formato en línea. */
+const dondeHayFormato = {
+  'un párrafo': (...marcas: NonNullable<NodoPrueba['marks']>) => parrafo(texto('Con formato', ...marcas)),
+  'un título': (...marcas: NonNullable<NodoPrueba['marks']>) => titulo(2, texto('Con formato', ...marcas)),
+  'una cita': (...marcas: NonNullable<NodoPrueba['marks']>) => cita({}, texto('Con formato', ...marcas)),
+  'un ítem de lista': (...marcas: NonNullable<NodoPrueba['marks']>) => vinetas(item(texto('Con formato', ...marcas))),
+};
+const LUGARES = Object.entries(dondeHayFormato);
+
+describe('esquemaDocumento: más formato (H6, RF-009)', () => {
+  describe('las cinco marcas nuevas', () => {
+    it.each(
+      MARCAS_NUEVAS.flatMap(([nombre, m]) => LUGARES.map(([lugar, armar]) => [nombre, lugar, armar, m] as const)),
+    )('H6-E1: acepta %s en %s', (_nombre, _lugar, armar, m) => {
+      expect(esValido(doc(armar(m)))).toBe(true);
+    });
+
+    it('H6-E3: negrita, cursiva, subrayado, tachado y resaltado se combinan entre sí y con un enlace', () => {
+      const combinado = texto(
+        'Todo junto',
+        marca.enlace('https://ejemplo.com/guia'),
+        marca.negrita,
+        marca.cursiva,
+        marca.subrayado,
+        marca.tachado,
+        marca.resaltado,
+      );
+
+      expect(esValido(doc(parrafo(combinado)))).toBe(true);
+      expect(esValido(doc(titulo(3, combinado)))).toBe(true);
+    });
+
+    it.each([
+      ['superscript', marca.superindice],
+      ['subscript', marca.subindice],
+    ])('%s se combina con negrita, cursiva, subrayado, tachado, resaltado y enlace', (_nombre, m) => {
+      expect(
+        esValido(
+          doc(
+            parrafo(
+              texto(
+                '2',
+                marca.enlace('/notas'),
+                marca.negrita,
+                marca.cursiva,
+                marca.subrayado,
+                marca.tachado,
+                marca.resaltado,
+                m,
+              ),
+            ),
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it('H6-PI: «m2» con el 2 en superíndice y «H2O» con el 2 en subíndice', () => {
+      const documento = doc(
+        parrafo(texto('m'), texto('2', marca.superindice), texto(' y H'), texto('2', marca.subindice), texto('O')),
+      );
+
+      expect(esValido(documento)).toBe(true);
+    });
+
+    it.each([
+      ['un color', { color: '#ffeb3b' }],
+      ['un color null', { color: null }],
+      ['cualquier atributo', { clase: 'amarillo' }],
+    ])('RF-009: el resaltado no lleva %s (un solo color, el del sitio)', (_caso, attrs) => {
+      expect(esValido(doc(parrafo(texto('Resaltado', { type: 'highlight', attrs }))))).toBe(false);
+    });
+
+    it.each(MARCAS_NUEVAS)('rechaza %s con atributos', (nombre) => {
+      expect(esValido(doc(parrafo(texto('Con formato', { type: nombre, attrs: { estilo: 'x' } }))))).toBe(false);
+    });
+
+    it.each(['textStyle', 'color', 'fontFamily', 'fontSize', 'mark', 'u', 's', 'sup', 'sub', 'strikethrough'])(
+      'RF-009: sigue rechazando la marca %j (colores, tipografías, tamaños y nombres que no son los del contrato)',
+      (type) => {
+        expect(esValido(doc(parrafo(texto('Con formato', { type }))))).toBe(false);
+      },
+    );
+  });
+
+  describe('exclusiones', () => {
+    it.each(MARCAS_NO_CODIGO)('H6-E3: code excluye cualquier otra marca: rechaza code con %s', (_nombre, otra) => {
+      expect(esValido(doc(parrafo(texto('npm install', otra, marca.codigo))))).toBe(false);
+      expect(esValido(doc(parrafo(texto('npm install', marca.codigo, otra))))).toBe(false);
+    });
+
+    it('H6-E3: code excluye otras marcas también en títulos, citas e ítems', () => {
+      for (const [lugar, armar] of LUGARES) {
+        expect(esValido(doc(armar(marca.codigo, marca.subrayado))), lugar).toBe(false);
+      }
+    });
+
+    it('H6-E3: code solo es válido', () => {
+      for (const [lugar, armar] of LUGARES) {
+        expect(esValido(doc(armar(marca.codigo))), lugar).toBe(true);
+      }
+    });
+
+    it('H6-E2: superscript y subscript se excluyen entre sí (en cualquier orden)', () => {
+      expect(esValido(doc(parrafo(texto('2', marca.superindice, marca.subindice))))).toBe(false);
+      expect(esValido(doc(parrafo(texto('2', marca.subindice, marca.superindice))))).toBe(false);
+    });
+
+    it('H6-E2: superscript y subscript seguidos en textos distintos son válidos', () => {
+      expect(esValido(doc(parrafo(texto('x'), texto('2', marca.superindice), texto('i', marca.subindice))))).toBe(true);
+    });
+  });
+});
+
+describe('esquemaDocumento: alineación de párrafos y títulos (H6-E4, RF-024)', () => {
+  it.each(['center', 'right', 'justify'])('acepta textAlign %j en un párrafo', (textAlign) => {
+    expect(esValido(doc(alineado(parrafo(texto('Alineado')), textAlign)))).toBe(true);
+  });
+
+  it.each(['center', 'right', 'justify'])('acepta textAlign %j en un título', (textAlign) => {
+    expect(esValido(doc(alineado(titulo(2, texto('Alineado')), textAlign)))).toBe(true);
+  });
+
+  it('un título alineado conserva el nivel y admite formato', () => {
+    const elemento = alineado(titulo(4, texto('Un '), texto('título', marca.subrayado)), 'center');
+    const salida = resultado(doc(elemento));
+
+    expect(salida.success).toBe(true);
+    expect(salida.data?.content[0]?.attrs).toMatchObject({ level: 4, textAlign: 'center' });
+  });
+
+  it.each(['left', 'start', 'end', 'centro', 'derecha', 'justificado', '', 'CENTER', 'center; color: red'])(
+    'rechaza textAlign %j (la izquierda es la ausencia del atributo; nunca se guarda "left")',
+    (textAlign) => {
+      expect(esValido(doc(alineado(parrafo(texto('Alineado')), textAlign)))).toBe(false);
+      expect(esValido(doc(alineado(titulo(2, texto('Alineado')), textAlign)))).toBe(false);
+    },
+  );
+
+  it.each([null, 1, true])('rechaza textAlign %j (no es un texto de la lista)', (textAlign) => {
+    expect(esValido(doc(conAttrs(parrafo(texto('Alineado')), { textAlign })))).toBe(false);
+  });
+
+  it('una cita no admite textAlign (ni en sus attrs ni en su párrafo)', () => {
+    const enAttrs = conAttrs(cita({}, texto('Cita')), { textAlign: 'center' });
+    const enElParrafo: NodoPrueba = {
+      ...cita({}, texto('Cita')),
+      content: [{ type: 'paragraph', attrs: { textAlign: 'center' }, content: [texto('Cita')] }],
+    };
+
+    expect(esValido(doc(enAttrs))).toBe(false);
+    expect(esValido(doc(enElParrafo))).toBe(false);
+  });
+
+  it('un ítem de lista no admite textAlign (ni la lista, ni el ítem, ni su párrafo)', () => {
+    const enLaLista = conAttrs(vinetas(item(texto('Uno'))), { textAlign: 'center' });
+    const enElItem = vinetas({ ...item(texto('Uno')), attrs: { textAlign: 'center' } });
+    const enElParrafo = numerada({
+      type: 'listItem',
+      content: [{ type: 'paragraph', attrs: { textAlign: 'right' }, content: [texto('Uno')] }],
+    });
+
+    expect(esValido(doc(enLaLista))).toBe(false);
+    expect(esValido(doc(enElItem))).toBe(false);
+    expect(esValido(doc(enElParrafo))).toBe(false);
+  });
+
+  it.each([
+    ['codeBlock', () => codigo('const a = 1;')],
+    ['horizontalRule', () => separador()],
+    ['imagen', () => nodo.imagen(imagenDePrueba('a', 'Alt'))],
+    ['galeria', () => nodo.galeria(2, imagenDePrueba('a', 'A'), imagenDePrueba('b', 'B'))],
+    ['cta', () => nodo.cta({ titulo: 'Hola', etiquetaBoton: 'Ir', url: '/contacto' })],
+    ['video', () => nodo.video('youtube', 'dQw4w9WgXcQ', 'Un video')],
+  ])('RF-024: %s no admite textAlign', (_tipo, armar) => {
+    expect(esValido(doc(conAttrs(armar(), { textAlign: 'center' })))).toBe(false);
+  });
+});
+
+describe('esquemaDocumento: el corpus de documentos canónicos es válido', () => {
+  it.each(CORPUS_DOCUMENTOS.map(({ nombre, documento }) => [nombre, documento] as const))(
+    'el documento "%s" pasa el esquema',
+    (_nombre, documento) => {
+      expect(mensajes(documento)).toEqual([]);
+    },
+  );
 });

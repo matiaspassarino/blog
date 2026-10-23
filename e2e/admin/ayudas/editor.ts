@@ -307,8 +307,9 @@ export const botonDeshacer = (page: Page) =>
 //     `role="textbox"` forzado. Cada elemento de texto es un nodo real (`p`, `h2`, `h3`, `h4`, `blockquote`, `ul`/`ol`
 //     con `li`, `pre`). Con el menú «/» abierto declara `aria-haspopup="listbox"`, `aria-controls` y
 //     `aria-activedescendant` (id de la opción activa).
-//   - Barra: `role="toolbar"` con nombre "Formato del texto"; botones "Negrita", "Cursiva", "Código", "Enlace" (los de
-//     estado con `aria-pressed`), "Lista con viñetas", "Lista numerada", "Insertar", "Deshacer" y "Rehacer".
+//   - Barra: `role="toolbar"` con nombre "Formato del texto"; botones "Negrita", "Cursiva", "Subrayado", "Enlace" (los de
+//     estado con `aria-pressed`), "Más formato" (con "Código" adentro desde la Fase 12), "Alineación", "Lista con
+//     viñetas", "Lista numerada", "Insertar", "Deshacer" y "Rehacer".
 //   - Selector de estilo de párrafo: botón de la barra cuyo nombre empieza con "Estilo de párrafo" y cuyo texto visible
 //     es el estilo vigente (Párrafo, Título 2, Título 3, Título 4, Cita); abre un menú con `menuitem` u `option` por estilo.
 //   - Campo de enlace: `input` con etiqueta "URL del enlace" (Enter aplica, Esc cierra y devuelve el foco al lienzo;
@@ -355,6 +356,64 @@ export async function elegirEstilo(page: Page, estilo: string) {
     .or(page.getByRole('menuitemradio', { name: estilo, exact: true }))
     .or(page.getByRole('option', { name: estilo, exact: true }))
     .click();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ayudas de más formato y alineación (spec 005, Fase 12, T127). FASE ROJA: no existen aún.
+//
+// CONTRATO DE INTERFAZ SUPUESTO (contracts/atajos.md "Roles y nombres", contracts/componentes.md y research D28 y D31
+// U10):
+//   - En la barra: "Negrita", "Cursiva", "Subrayado" (con `aria-pressed`) y "Enlace". «Código» deja la barra.
+//   - «Más formato»: botón de la barra (nombre "Más formato" o "Más formato, resaltado activo") con `aria-haspopup="menu"`
+//     que abre un `role="menu"` con `menuitemcheckbox` "Tachado", "Resaltado", "Código", "Superíndice" y "Subíndice"
+//     (`aria-checked`, con ícono de verificación). Elegir uno aplica o quita el formato y cierra el menú.
+//   - «Alineación»: botón con nombre "Alineación: <vigente>" (izquierda, centro, derecha, justificado o varias) y
+//     `aria-haspopup="menu"`; abre `menuitemradio` "Izquierda", "Centro", "Derecha" y "Justificado".
+//   - Un control no disponible lleva `aria-disabled="true"` y la razón por `aria-describedby`; al enfocarlo, la razón
+//     se ve como aviso (`role="tooltip"` o texto visible) y `Esc` lo cierra (WCAG 1.4.13).
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const botonMasFormato = (page: Page) => barraDeFormato(page).getByRole('button', { name: /^Más formato/ });
+export const botonAlineacion = (page: Page) => barraDeFormato(page).getByRole('button', { name: /^Alineación/ });
+
+/** Abre «Más formato» y devuelve su menú. */
+export async function abrirMasFormato(page: Page): Promise<Locator> {
+  await botonMasFormato(page).click();
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Una opción de «Más formato» ("Tachado", "Resaltado", "Código", "Superíndice", "Subíndice"). */
+export const opcionDeFormato = (page: Page, nombre: string) =>
+  page.getByRole('menuitemcheckbox', { name: nombre, exact: true });
+
+/** Aplica o quita un formato de «Más formato» con el ratón. */
+export async function elegirMasFormato(page: Page, nombre: string) {
+  await abrirMasFormato(page);
+  await opcionDeFormato(page, nombre).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+}
+
+/** Una opción del menú «Alineación» ("Izquierda", "Centro", "Derecha", "Justificado"). */
+export const opcionDeAlineacion = (page: Page, nombre: string) =>
+  page.getByRole('menuitemradio', { name: nombre, exact: true });
+
+/** Elige una alineación con el ratón. */
+export async function elegirAlineacion(page: Page, nombre: 'Izquierda' | 'Centro' | 'Derecha' | 'Justificado') {
+  await botonAlineacion(page).click();
+  await opcionDeAlineacion(page, nombre).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+}
+
+/** El texto del elemento que nombra el `aria-describedby` del control (la razón de un control no disponible). */
+export async function razonDe(control: Locator) {
+  const ids = ((await control.getAttribute('aria-describedby')) ?? '').split(/\s+/).filter(Boolean);
+  const textos: string[] = [];
+  for (const id of ids) {
+    textos.push(((await control.page().locator(`[id="${id}"]`).first().textContent()) ?? '').trim());
+  }
+  return textos.join(' ');
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

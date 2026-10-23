@@ -8,8 +8,8 @@
 //   - El elemento con error muestra el mensaje de `validarContenido` en el lienzo (la isla de un elemento especial, o junto
 //     al elemento de texto) o en su panel de propiedades; el campo del panel con error tiene `aria-invalid="true"` y, si
 //     es el primero, el foco. Un párrafo vacío no es un elemento (no se guarda): no tiene error.
-//   - Formato del texto: la barra de herramientas «Formato del texto» con Negrita, Cursiva, Código y Enlace (campo "URL
-//     del enlace"), sin subrayado ni tachado; se guardan como `**texto**`, `_texto_`, `` `texto` `` y `[texto](url)`.
+//   - Formato del texto: la barra de herramientas «Formato del texto» con Negrita, Cursiva, Subrayado y Enlace (campo "URL
+//     del enlace") y «Más formato» (con Código y tachado, spec 005 Fase 12); se guardan como marcas del documento.
 //   - Mover en los extremos con el teclado: `Esc` entra al modo elementos y `Alt+↑`/`Alt+↓` mueven; en el menú
 //     «Acciones», «Subir» y «Bajar» llevan `aria-disabled="true"` en los extremos y no hacen nada.
 //   - Indicador "Cambios sin guardar" (texto visible, spec 004: en la línea de estado de la barra "Acciones del artículo",
@@ -38,6 +38,7 @@ import {
   camposDe,
   completarBloque,
   elegirAccion,
+  elegirMasFormato,
   escribirEnElemento,
   esperarEditorListo,
   grupoDeBloque,
@@ -306,7 +307,9 @@ test.describe('Errores por elemento y campo (H2-E3, H5-E3, CE-004)', () => {
     expect(elementosDe(await articuloPorTitulo(nombre)).map(tipoVisible)).toEqual(['separador']);
   });
 
-  test('CE-004 / H5-E3: el foco va al primer campo inválido cuando hay varios elementos con error', async ({ page }) => {
+  test('CE-004 / H5-E3: el foco va al primer campo inválido cuando hay varios elementos con error', async ({
+    page,
+  }) => {
     await abrirNuevo(page, titulo('foco'));
     await agregarBloque(page, 'video', 1);
     await agregarBloque(page, 'cta', 2);
@@ -319,33 +322,39 @@ test.describe('Errores por elemento y campo (H2-E3, H5-E3, CE-004)', () => {
 });
 
 test.describe('Formato del texto (H2-E2, RF-003)', () => {
-  test('la barra aplica negrita, cursiva, código y enlace; se guardan como marcas del documento y no hay subrayado', async ({
+  // Spec 005, Fase 12 (D28): la barra suma «Subrayado» y «Código» pasa a «Más formato»; el tachado también vive ahí.
+  test('la barra aplica negrita, cursiva, subrayado, código y enlace; se guardan como marcas del documento', async ({
     page,
   }) => {
     const nombre = titulo('formato');
     await abrirNuevo(page, nombre);
     const barra = barraDeFormato(page);
-    await expect(barra.getByRole('button', { name: /subray|tachad/i })).toHaveCount(0);
+    await expect(barra.getByRole('button', { name: /tachad/i })).toHaveCount(0);
+    const aplicar = (boton: string) =>
+      boton === 'Código'
+        ? elegirMasFormato(page, 'Código')
+        : barra.getByRole('button', { name: boton, exact: true }).click();
 
-    for (const [i, boton] of ['Negrita', 'Cursiva', 'Código', 'Enlace'].entries()) {
+    for (const [i, boton] of ['Negrita', 'Cursiva', 'Subrayado', 'Código', 'Enlace'].entries()) {
       if (i > 0) await page.keyboard.press('Enter');
       else await lienzo(page).click();
       await page.keyboard.type('hola');
       await page.keyboard.press('Shift+Home');
-      await barra.getByRole('button', { name: boton, exact: true }).click();
+      await aplicar(boton);
       if (boton === 'Enlace') {
         await page.getByLabel('URL del enlace', { exact: true }).fill('https://example.com/destino');
         await page.keyboard.press('Enter');
       }
       await page.keyboard.press('End');
       // Sale de la marca antes del párrafo siguiente.
-      if (boton !== 'Enlace') await barra.getByRole('button', { name: boton, exact: true }).click();
+      if (boton !== 'Enlace') await aplicar(boton);
     }
     await guardarYEsperar(page);
 
     expect(elementosDe(await articuloPorTitulo(nombre)).map((elemento) => elemento.content)).toEqual([
       [{ type: 'text', text: 'hola', marks: [{ type: 'bold' }] }],
       [{ type: 'text', text: 'hola', marks: [{ type: 'italic' }] }],
+      [{ type: 'text', text: 'hola', marks: [{ type: 'underline' }] }],
       [{ type: 'text', text: 'hola', marks: [{ type: 'code' }] }],
       [{ type: 'text', text: 'hola', marks: [{ type: 'link', attrs: { href: 'https://example.com/destino' } }] }],
     ]);

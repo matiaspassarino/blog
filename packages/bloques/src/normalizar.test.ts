@@ -10,7 +10,7 @@
 //     canónico (link, bold, italic, underline, strike, highlight, code, superscript, subscript). Es idempotente.
 import { describe, expect, it } from 'vitest';
 import { normalizarDocumento } from './normalizar';
-import { CORPUS_DOCUMENTOS, idDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
+import { alineado, CORPUS_DOCUMENTOS, idDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
 const { doc, texto, salto, parrafo } = nodo;
 const ORDEN_DE_MARCAS = [
@@ -181,6 +181,119 @@ describe('normalizarDocumento', () => {
     });
   });
 
+  // T123 (Fase 12, H6): los nueve formatos y la alineación. `normalizarDocumento` ya tiene el orden canónico
+  // completo y quita `textAlign: 'left'` desde la Fase 10 (T100): estas pruebas lo fijan con las marcas nuevas.
+  describe('formatos nuevos y alineación (T123, RF-009 y RF-024)', () => {
+    it('ordena los nueve formatos en el orden canónico del contrato', () => {
+      const id = idDePrueba();
+      const desordenadas = [
+        marca.subindice,
+        marca.superindice,
+        marca.codigo,
+        marca.resaltado,
+        marca.tachado,
+        marca.subrayado,
+        marca.cursiva,
+        marca.negrita,
+        marca.enlace('/x'),
+      ];
+      const entrada = doc({ type: 'paragraph', attrs: { id }, content: [texto('Todo', ...desordenadas)] });
+
+      const marcas = (normalizar(entrada).content?.[0]?.content?.[0]?.marks ?? []).map((m) => m.type);
+
+      expect(marcas).toEqual(ORDEN_DE_MARCAS);
+    });
+
+    it.each([
+      ['subrayado y tachado', [marca.tachado, marca.subrayado], [marca.subrayado, marca.tachado]],
+      ['resaltado y negrita', [marca.resaltado, marca.negrita], [marca.negrita, marca.resaltado]],
+      ['superíndice y enlace', [marca.superindice, marca.enlace('/n')], [marca.enlace('/n'), marca.superindice]],
+      ['subíndice y cursiva', [marca.subindice, marca.cursiva], [marca.cursiva, marca.subindice]],
+    ])('ordena %s', (_caso, entrada, esperadas) => {
+      const id = idDePrueba();
+
+      expect(normalizar(doc({ type: 'paragraph', attrs: { id }, content: [texto('x', ...entrada)] }))).toEqual(
+        doc({ type: 'paragraph', attrs: { id }, content: [texto('x', ...esperadas)] }),
+      );
+    });
+
+    it('une dos textos con los mismos formatos nuevos en distinto orden', () => {
+      const id = idDePrueba();
+      const entrada = doc({
+        type: 'paragraph',
+        attrs: { id },
+        content: [texto('Uno ', marca.resaltado, marca.subrayado), texto('dos', marca.subrayado, marca.resaltado)],
+      });
+
+      expect(normalizar(entrada)).toEqual(
+        doc({ type: 'paragraph', attrs: { id }, content: [texto('Uno dos', marca.subrayado, marca.resaltado)] }),
+      );
+    });
+
+    it('no une un texto en superíndice con uno en subíndice', () => {
+      const entrada = doc(parrafo(texto('a', marca.superindice), texto('b', marca.subindice)));
+
+      expect(normalizar(entrada)).toEqual(entrada);
+    });
+
+    it('quita el color null del resaltado (la librería sin multicolor no lo usa)', () => {
+      const id = idDePrueba();
+      const entrada = doc({
+        type: 'paragraph',
+        attrs: { id },
+        content: [{ type: 'text', text: 'Ojo', marks: [{ type: 'highlight', attrs: { color: null } }] }],
+      });
+
+      expect(normalizar(entrada)).toEqual(
+        doc({ type: 'paragraph', attrs: { id }, content: [texto('Ojo', marca.resaltado)] }),
+      );
+    });
+
+    it.each(['center', 'right', 'justify'])('conserva textAlign %j en párrafos y títulos', (textAlign) => {
+      const entrada = doc(
+        alineado(parrafo(texto('Uno')), textAlign),
+        alineado(nodo.titulo(3, texto('Dos')), textAlign),
+      );
+
+      expect(normalizar(entrada)).toEqual(entrada);
+    });
+
+    it('quita textAlign "left" también de los títulos y deja el nivel', () => {
+      const id = idDePrueba();
+      const entrada = doc({ type: 'heading', attrs: { id, level: 2, textAlign: 'left' }, content: [texto('Título')] });
+
+      expect(normalizar(entrada)).toEqual(
+        doc({ type: 'heading', attrs: { id, level: 2 }, content: [texto('Título')] }),
+      );
+    });
+
+    it('el documento del editor con alineación y formatos (atributos de la librería en null) queda canónico', () => {
+      const id = idDePrueba();
+      const entrada = {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            attrs: { id, textAlign: 'justify' },
+            content: [
+              { type: 'text', text: 'Texto ', marks: [] },
+              { type: 'text', text: 'resaltado', marks: [{ type: 'highlight', attrs: { color: null } }] },
+            ],
+          },
+          { type: 'paragraph', attrs: { id: null, textAlign: 'left' } },
+        ],
+      };
+
+      expect(normalizar(entrada)).toEqual(
+        doc({
+          type: 'paragraph',
+          attrs: { id, textAlign: 'justify' },
+          content: [texto('Texto '), texto('resaltado', marca.resaltado)],
+        }),
+      );
+    });
+  });
+
   describe('párrafos vacíos y content vacío', () => {
     it('el documento vacío del editor (un párrafo vacío) queda como { type: "doc", content: [] }', () => {
       expect(normalizar({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: null } }] })).toEqual({
@@ -280,7 +393,16 @@ function generador(semilla: number) {
 type Azar = () => number;
 const elegir = <T>(azar: Azar, opciones: readonly T[]): T => opciones[Math.floor(azar() * opciones.length)] as T;
 
-const MARCAS_AL_AZAR = [marca.enlace('/x'), marca.enlace('https://ejemplo.com'), marca.negrita, marca.cursiva];
+const MARCAS_AL_AZAR = [
+  marca.enlace('/x'),
+  marca.enlace('https://ejemplo.com'),
+  marca.negrita,
+  marca.cursiva,
+  marca.subrayado,
+  marca.tachado,
+  marca.resaltado,
+  marca.superindice,
+];
 
 function inlineAlAzar(azar: Azar): NodoPrueba[] {
   const nodos: NodoPrueba[] = [];
@@ -305,7 +427,7 @@ function inlineAlAzar(azar: Azar): NodoPrueba[] {
 
 function elementoAlAzar(azar: Azar): NodoPrueba {
   const id = azar() < 0.1 ? null : idDePrueba();
-  const alineacion = elegir(azar, [undefined, null, 'left']);
+  const alineacion = elegir(azar, [undefined, null, 'left', 'center', 'right', 'justify']);
   const attrs = (propios: Record<string, unknown> = {}) => ({
     id,
     ...(alineacion === undefined ? {} : { textAlign: alineacion }),

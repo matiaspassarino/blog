@@ -11,8 +11,9 @@
 //   - La tipografía del lienzo se compara con la de la vista previa del propio panel (/articulos/<id>/vista-previa),
 //     que usa el renderer del sitio: mismo tipo de letra, tamaño, peso, interlineado y color.
 // El esc. 5 con toque no se prueba aquí (hace falta un dispositivo táctil; es de la prueba manual del quickstart).
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
+  alineado,
   articuloPorId,
   articuloPorTitulo,
   cita,
@@ -23,6 +24,7 @@ import {
   imagenElemento,
   imagenSemilla,
   limpiarArticulosE2E,
+  MARCAS,
   lista,
   parrafo,
   pasarAComoServicio,
@@ -30,12 +32,14 @@ import {
   salto,
   sembrarArticulo,
   separador,
+  texto,
   textoDe,
   titulo,
   type Elemento,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
 import {
+  abrirMasFormato,
   abrirMenuInsertar,
   accionDelMenu,
   anunciosDeSeleccion,
@@ -47,10 +51,14 @@ import {
   botonGuardar,
   botonPropiedades,
   botonAcciones,
+  botonAlineacion,
+  botonMasFormato,
   escribirEnElemento,
   irAlFinalDelDocumento,
   centroDe,
   elegirAccion,
+  elegirAlineacion,
+  elegirMasFormato,
   elementosDelLienzo,
   elementosSeleccionados,
   entrarAlModo,
@@ -69,9 +77,12 @@ import {
   insertarDesdeBarra,
   isla,
   lienzo,
+  opcionDeAlineacion,
+  opcionDeFormato,
   opcionDeInsercion,
   panelDePropiedades,
   pestana,
+  razonDe,
   selectorDeEstilo,
   subirImagenConAlt,
   type FormatoDeImagen,
@@ -133,10 +144,11 @@ test.describe('Escribir como documento', () => {
     await abrirNuevo(page);
     const barra = barraDeFormato(page);
 
+    // Desde la Fase 12 (D28), «Código» vive en «Más formato» y la barra suma «Subrayado» y «Alineación».
     for (const nombre of [
       'Negrita',
       'Cursiva',
-      'Código',
+      'Subrayado',
       'Enlace',
       'Lista con viñetas',
       'Lista numerada',
@@ -146,6 +158,8 @@ test.describe('Escribir como documento', () => {
     ]) {
       await expect(botonDeBarra(page, nombre), nombre).toBeVisible();
     }
+    await expect(botonMasFormato(page)).toBeVisible();
+    await expect(botonAlineacion(page)).toBeVisible();
     await expect(selectorDeEstilo(page)).toHaveText(/Párrafo/);
     // Roving tabindex: un solo control entra en el orden de tabulación; las flechas mueven entre los demás.
     await expect(barra.locator('[tabindex="0"]')).toHaveCount(1);
@@ -224,8 +238,10 @@ test.describe('Escribir como documento', () => {
 
     await page.keyboard.press(`${MOD}+e`);
     await expect(lienzo(page).locator('code')).toHaveText('palabra');
-    await expect(botonDeBarra(page, 'Código')).toHaveAttribute('aria-pressed', 'true');
-    await botonDeBarra(page, 'Código').click();
+    // Desde la Fase 12 (D28), «Código» está en «Más formato».
+    await abrirMasFormato(page);
+    await expect(opcionDeFormato(page, 'Código')).toHaveAttribute('aria-checked', 'true');
+    await opcionDeFormato(page, 'Código').click();
     await expect(lienzo(page).locator('code')).toHaveCount(0);
   });
 
@@ -522,7 +538,13 @@ test.describe('Escribir como documento', () => {
       'blockquote',
     ]);
     expect(elementos[0]?.attrs).toMatchObject({ level: 2 });
-    expect(elementos.map(textoDe)).toEqual(['Un título', 'Primer párrafo con negrita fin', 'Segundo párrafo', 'uno\ndos', 'Una cita']);
+    expect(elementos.map(textoDe)).toEqual([
+      'Un título',
+      'Primer párrafo con negrita fin',
+      'Segundo párrafo',
+      'uno\ndos',
+      'Una cita',
+    ]);
     expect(elementos[1]?.content).toEqual([
       { type: 'text', text: 'Primer párrafo con ' },
       { type: 'text', text: 'negrita', marks: [{ type: 'bold' }] },
@@ -558,7 +580,12 @@ const sembrarOchoElementos = (titulo: string) =>
       cita('Una cita', { autor: 'Alguien' }),
       lista(['a', 'b']),
       parrafo('Seis'),
-      cta({ titulo: 'Llamada', texto: 'Texto de apoyo', etiquetaBoton: 'Ir al sitio', url: 'https://example.com/destino' }),
+      cta({
+        titulo: 'Llamada',
+        texto: 'Texto de apoyo',
+        etiquetaBoton: 'Ir al sitio',
+        url: 'https://example.com/destino',
+      }),
       separador(),
     ],
   });
@@ -1040,11 +1067,7 @@ const sembrarCinco = (titulo: string) => sembrarArticulo({ titulo, contenido: CI
 const sembrarConImagenGuardada = (titulo: string) =>
   sembrarArticulo({
     titulo,
-    contenido: [
-      parrafo('Uno'),
-      imagenElemento(imagenSemilla('articulos/e2e-inexistente.png')),
-      parrafo('Tres'),
-    ],
+    contenido: [parrafo('Uno'), imagenElemento(imagenSemilla('articulos/e2e-inexistente.png')), parrafo('Tres')],
   });
 const enfocadoEnTexto = (page: Page, texto: string) =>
   page.evaluate((esperado) => {
@@ -1954,9 +1977,7 @@ test.describe('Nada se pierde', () => {
       test.slow();
       for (const real of await articulosDelSeed()) {
         // Sobre una copia: guardar el original cambiaría su versión y el resto de las pruebas lo usa.
-        await test.step(real.titulo, () =>
-          comprobarIdaYVuelta(page, 'seed', elementosDe(real)),
-        );
+        await test.step(real.titulo, () => comprobarIdaYVuelta(page, 'seed', elementosDe(real)));
       }
     });
 
@@ -2239,5 +2260,480 @@ test.describe('Nada se pierde', () => {
         await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(rol === 'admin' ? 1 : 0);
       });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T127 (spec 005, Fase 12, H6 esc. 1 a 5; RF-003, RF-009, RF-016, RF-020, RF-024 y RF-026; contracts/atajos.md;
+// research D28 y D31 U9, U10, U11 y U16). FASE ROJA: el editor no tiene subrayado, tachado, resaltado, superíndice,
+// subíndice ni alineación; «Código» todavía está en la barra.
+// Supuestos de interfaz: ver "Ayudas de más formato y alineación" en ./ayudas/editor.ts. Además:
+//   - El orden de «Más formato» es el de D28: Tachado, Resaltado, Código, Superíndice y Subíndice; el de «Alineación»:
+//     Izquierda, Centro, Derecha y Justificado. Los dos menús se abren con Enter y ponen el foco en su primera opción;
+//     Enter sobre una opción la aplica, cierra el menú y devuelve el foco al lienzo; Esc lo cierra y devuelve el foco
+//     al botón.
+//   - En el panel de propiedades de un párrafo o un título, la alineación es un grupo «Alineación» con cuatro opciones
+//     de radio (las mismas etiquetas).
+//   - La razón de un control no disponible se ve al enfocarlo como aviso (`role="tooltip"`, además del
+//     `aria-describedby`) y `Esc` lo oculta sin mover el foco (WCAG 1.4.13).
+// ---------------------------------------------------------------------------------------------------------------------
+
+const RAZON_CODIGO = 'El código no admite otros formatos';
+const RAZON_ALINEACION = 'La alineación es solo para párrafos y títulos';
+/** Opción de «Más formato», etiqueta HTML en el lienzo y nombre en minúsculas para "Más formato, … activo". */
+const MAS_FORMATO = [
+  ['Tachado', 's', 'tachado'],
+  ['Resaltado', 'mark', 'resaltado'],
+  ['Código', 'code', 'código'],
+  ['Superíndice', 'sup', 'superíndice'],
+  ['Subíndice', 'sub', 'subíndice'],
+] as const;
+const ALINEACIONES = [
+  ['Izquierda', 'izquierda', 'start'],
+  ['Centro', 'centro', 'center'],
+  ['Derecha', 'derecha', 'right'],
+  ['Justificado', 'justificado', 'justify'],
+] as const;
+
+const alineacionDe = (localizador: Locator) => localizador.evaluate((el) => getComputedStyle(el).textAlign);
+const parrafoDelLienzo = (page: Page, texto: string) => lienzo(page).locator('p').filter({ hasText: texto }).first();
+/** El texto visible de una razón (aviso) en la pantalla. */
+const razonVisible = (page: Page, razon: string) => page.getByRole('tooltip').filter({ hasText: razon });
+
+/** Selecciona con el teclado `largo` caracteres desde la posición `desde` del párrafo del lienzo que contiene `texto`. */
+async function seleccionarEnElParrafo(page: Page, texto: string, desde: number, largo: number) {
+  await parrafoDelLienzo(page, texto).click();
+  await page.waitForTimeout(100); // ProseMirror ignora la selección del navegador unos 50 ms después de escribir.
+  await page.keyboard.press('Home');
+  for (let i = 0; i < desde; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < largo; i++) await page.keyboard.press('Shift+ArrowRight');
+}
+
+/** Estilos que hacen ver un formato: comparar el lienzo con la vista previa (que usa el renderer del sitio). */
+const estilosDeFormato = (localizador: Locator) =>
+  localizador.evaluate((el) => {
+    const e = getComputedStyle(el);
+    return {
+      etiqueta: el.tagName.toLowerCase(),
+      linea: e.textDecorationLine,
+      colorDeLinea: e.textDecorationColor,
+      grosor: e.textDecorationThickness,
+      separacion: e.textUnderlineOffset,
+      fondo: e.backgroundColor,
+      color: e.color,
+      vertical: e.verticalAlign,
+      tamanio: e.fontSize,
+      alineacion: e.textAlign,
+      guiones: e.hyphens,
+    };
+  });
+
+test.describe('Más formato y alineación (H6)', () => {
+  test('H6-E1: «Subrayado» de la barra subraya el texto seleccionado, se marca activo y se quita', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirYSeleccionar(page, 'subrayado');
+
+    await botonDeBarra(page, 'Subrayado').click();
+    await expect(lienzo(page).locator('u')).toHaveText('subrayado');
+    await expect(botonDeBarra(page, 'Subrayado')).toHaveAttribute('aria-pressed', 'true');
+
+    await botonDeBarra(page, 'Subrayado').click();
+    await expect(lienzo(page).locator('u')).toHaveCount(0);
+    await expect(botonDeBarra(page, 'Subrayado')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('H6-E1: Mod+U subraya y el mismo atajo lo quita', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirYSeleccionar(page, 'palabra');
+
+    await page.keyboard.press(`${MOD}+u`);
+    await expect(lienzo(page).locator('u')).toHaveText('palabra');
+    await page.keyboard.press(`${MOD}+u`);
+    await expect(lienzo(page).locator('u')).toHaveCount(0);
+  });
+
+  for (const [opcion, etiqueta, nombre] of MAS_FORMATO) {
+    test(`H6-E1: «Más formato» → «${opcion}» aplica <${etiqueta}>, lo marca activo y repetirlo lo quita`, async ({
+      page,
+    }) => {
+      await abrirNuevo(page);
+      await escribirYSeleccionar(page, 'formato');
+
+      await elegirMasFormato(page, opcion);
+      await expect(lienzo(page).locator(etiqueta)).toHaveText('formato');
+      await expect(botonMasFormato(page)).toHaveAccessibleName(`Más formato, ${nombre} activo`);
+      await abrirMasFormato(page);
+      await expect(opcionDeFormato(page, opcion)).toHaveAttribute('aria-checked', 'true');
+
+      await opcionDeFormato(page, opcion).click();
+      await expect(lienzo(page).locator(etiqueta)).toHaveCount(0);
+      await expect(botonMasFormato(page)).toHaveAccessibleName('Más formato');
+    });
+  }
+
+  test('H6-E1: «Más formato» con el teclado: cinco opciones en orden, flechas, Enter aplica y Esc cierra', async ({
+    page,
+  }) => {
+    await abrirNuevo(page);
+    await escribirYSeleccionar(page, 'teclado');
+
+    await botonMasFormato(page).focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitemcheckbox')).toHaveText(MAS_FORMATO.map(([opcion]) => opcion));
+    await expect(opcionDeFormato(page, 'Tachado')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(opcionDeFormato(page, 'Resaltado')).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(menu).toHaveCount(0);
+    await expect(lienzo(page).locator('mark')).toHaveText('teclado');
+    expect(await lienzoTieneElFoco(page)).toBe(true);
+
+    await botonMasFormato(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(botonMasFormato(page)).toBeFocused();
+  });
+
+  test('H6-E1 / D31 U11: Ctrl+. es superíndice y Ctrl+, subíndice (fuera de macOS)', async ({ page }) => {
+    test.skip(process.platform === 'darwin', 'En macOS el superíndice y el subíndice no tienen atajo');
+    await abrirNuevo(page);
+    await escribirEnLienzo(page, 'm2');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Shift+ArrowLeft');
+
+    await page.keyboard.press('Control+Period');
+    await expect(lienzo(page).locator('sup')).toHaveText('2');
+    await page.keyboard.press('Control+Comma');
+    await expect(lienzo(page).locator('sub')).toHaveText('2');
+    await expect(lienzo(page).locator('sup')).toHaveCount(0);
+    await page.keyboard.press('Control+Comma');
+    await expect(lienzo(page).locator('sub')).toHaveCount(0);
+    await expect(lienzo(page).locator('p').first()).toHaveText('m2');
+  });
+
+  test('H6-E2: aplicar subíndice a un superíndice lo reemplaza (no se combinan)', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirYSeleccionar(page, 'x');
+
+    await elegirMasFormato(page, 'Superíndice');
+    await expect(lienzo(page).locator('sup')).toHaveText('x');
+    await elegirMasFormato(page, 'Subíndice');
+
+    await expect(lienzo(page).locator('sub')).toHaveText('x');
+    await expect(lienzo(page).locator('sup')).toHaveCount(0);
+    await abrirMasFormato(page);
+    await expect(opcionDeFormato(page, 'Superíndice')).toHaveAttribute('aria-checked', 'false');
+    await expect(opcionDeFormato(page, 'Subíndice')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('H6-E3: con código activo, los demás formatos y «Enlace» no están disponibles y lo explican; «Código» sí', async ({
+    page,
+  }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-codigo'),
+      contenido: [parrafo('Usa ', texto('npm install', MARCAS.codigo), ' y listo.')],
+    });
+    await abrirArticulo(page, articulo.id);
+    await lienzo(page).locator('code').click();
+
+    for (const nombre of ['Negrita', 'Cursiva', 'Subrayado', 'Enlace']) {
+      await expect(botonDeBarra(page, nombre), nombre).toHaveAttribute('aria-disabled', 'true');
+      expect(await razonDe(botonDeBarra(page, nombre)), nombre).toContain(RAZON_CODIGO);
+    }
+    await botonDeBarra(page, 'Negrita').click();
+    await expect(lienzo(page).locator('strong')).toHaveCount(0);
+    await expect(page.getByLabel('URL del enlace')).toHaveCount(0);
+
+    await expect(botonMasFormato(page)).not.toHaveAttribute('aria-disabled', 'true');
+    await abrirMasFormato(page);
+    for (const [opcion] of MAS_FORMATO.filter(([opcion]) => opcion !== 'Código')) {
+      await expect(opcionDeFormato(page, opcion), opcion).toHaveAttribute('aria-disabled', 'true');
+    }
+    await expect(opcionDeFormato(page, 'Código')).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(opcionDeFormato(page, 'Código')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('H6-E3 / WCAG 1.4.13: la razón se ve al enfocar el control no disponible y Esc la cierra sin mover el foco', async ({
+    page,
+  }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-razon'),
+      contenido: [parrafo('Usa ', texto('npm install', MARCAS.codigo), '.')],
+    });
+    await abrirArticulo(page, articulo.id);
+    await lienzo(page).locator('code').click();
+    await expect(razonVisible(page, RAZON_CODIGO)).toBeHidden();
+
+    await botonDeBarra(page, 'Negrita').focus();
+    await expect(razonVisible(page, RAZON_CODIGO).first()).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(razonVisible(page, RAZON_CODIGO)).toBeHidden();
+    await expect(botonDeBarra(page, 'Negrita')).toBeFocused();
+  });
+
+  test('H6-E3: negrita, subrayado y enlace se combinan y se guardan en el orden canónico', async ({ page }) => {
+    const nombre = nombreDePrueba('doc-h6-combinado');
+    await abrirNuevo(page);
+    await page.getByLabel('Título', { exact: true }).fill(nombre);
+    await escribirYSeleccionar(page, 'combinado');
+
+    await botonDeBarra(page, 'Subrayado').click();
+    await botonDeBarra(page, 'Negrita').click();
+    await botonDeBarra(page, 'Enlace').click();
+    await page.getByLabel('URL del enlace').fill('/blog');
+    await page.keyboard.press('Enter');
+    // Un enlace subrayado se ve solo como enlace (RF-026), también en el lienzo.
+    await expect(lienzo(page).locator('a strong')).toHaveText('combinado');
+    await guardarYEsperar(page);
+
+    expect(elementosDe(await articuloPorTitulo(nombre))[0]?.content).toEqual([
+      {
+        type: 'text',
+        text: 'combinado',
+        marks: [{ type: 'link', attrs: { href: '/blog' } }, { type: 'bold' }, { type: 'underline' }],
+      },
+    ]);
+  });
+
+  test('H6-E4: «Alineación» alinea el párrafo del cursor, dice la vigente y marca la opción', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirEnLienzo(page, 'Un párrafo para alinear');
+
+    for (const [opcion, vigente, css] of [...ALINEACIONES.slice(1), ALINEACIONES[0]]) {
+      await elegirAlineacion(page, opcion);
+      await expect(botonAlineacion(page), opcion).toHaveAccessibleName(`Alineación: ${vigente}`);
+      expect(await alineacionDe(parrafoDelLienzo(page, 'Un párrafo')), opcion).toBe(css);
+    }
+
+    await elegirAlineacion(page, 'Centro');
+    await botonAlineacion(page).click();
+    await expect(opcionDeAlineacion(page, 'Centro')).toHaveAttribute('aria-checked', 'true');
+    await expect(opcionDeAlineacion(page, 'Izquierda')).toHaveAttribute('aria-checked', 'false');
+    await page.keyboard.press('Escape');
+  });
+
+  test('H6-E4 / D31 U16: un título se puede centrar y justificar (con división de palabras)', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirEnLienzo(page, 'Un título alineado');
+    await elegirEstilo(page, 'Título 2');
+
+    await elegirAlineacion(page, 'Centro');
+    expect(await alineacionDe(lienzo(page).locator('h2'))).toBe('center');
+    await elegirAlineacion(page, 'Justificado');
+    expect(await alineacionDe(lienzo(page).locator('h2'))).toBe('justify');
+    expect(
+      await lienzo(page)
+        .locator('h2')
+        .evaluate((el) => getComputedStyle(el).hyphens),
+    ).toBe('auto');
+  });
+
+  test('H6-E4: «Alineación» con el teclado: cuatro opciones en orden y Enter aplica', async ({ page }) => {
+    await abrirNuevo(page);
+    await escribirEnLienzo(page, 'Con el teclado');
+
+    await botonAlineacion(page).focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitemradio')).toHaveText(ALINEACIONES.map(([opcion]) => opcion));
+    await expect(opcionDeAlineacion(page, 'Izquierda')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(opcionDeAlineacion(page, 'Derecha')).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(menu).toHaveCount(0);
+    expect(await alineacionDe(parrafoDelLienzo(page, 'Con el teclado'))).toBe('right');
+    expect(await lienzoTieneElFoco(page)).toBe(true);
+  });
+
+  test('H6-E4: en citas, listas, código y elementos especiales «Alineación» se ve pero no está disponible y lo explica', async ({
+    page,
+  }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-sin-alineacion'),
+      contenido: [
+        cita('Una cita'),
+        lista(['Un ítem']),
+        codigo('const a = 1;'),
+        cta({ titulo: 'Llamada', etiquetaBoton: 'Ir', url: '/contacto' }),
+        parrafo('Un párrafo'),
+      ],
+    });
+    await abrirArticulo(page, articulo.id);
+    const lugares = [
+      () => lienzo(page).getByText('Una cita', { exact: true }).click(),
+      () => lienzo(page).getByText('Un ítem', { exact: true }).click(),
+      () => lienzo(page).getByText('const a = 1;', { exact: true }).click(),
+      () => isla(page, /^Llamada a la acción, \d+ de \d+$/).click(),
+    ];
+
+    for (const [i, ir] of lugares.entries()) {
+      await ir();
+      await expect(botonAlineacion(page), `lugar ${i}`).toBeVisible();
+      await expect(botonAlineacion(page), `lugar ${i}`).toHaveAttribute('aria-disabled', 'true');
+      expect(await razonDe(botonAlineacion(page)), `lugar ${i}`).toContain(RAZON_ALINEACION);
+      await botonAlineacion(page).click();
+      await expect(page.getByRole('menuitemradio'), `lugar ${i}`).toHaveCount(0);
+    }
+
+    await botonAlineacion(page).focus();
+    await expect(razonVisible(page, RAZON_ALINEACION).first()).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(razonVisible(page, RAZON_ALINEACION)).toBeHidden();
+
+    await lienzo(page).getByText('Un párrafo', { exact: true }).click();
+    await expect(botonAlineacion(page)).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('RF-020: el panel de un párrafo ofrece la alineación y la aplica; el de una cita no', async ({ page }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-panel'),
+      contenido: [parrafo('Un párrafo del panel'), cita('Una cita del panel')],
+    });
+    await abrirArticulo(page, articulo.id);
+
+    await entrarAlModo(page, 'Un párrafo del panel');
+    await pestana(page, 'Elemento').click();
+    const grupo = panelDePropiedades(page)
+      .getByRole('group', { name: 'Alineación' })
+      .or(panelDePropiedades(page).getByRole('radiogroup', { name: 'Alineación' }));
+    await expect(grupo).toBeVisible();
+    await expect(grupo.getByRole('radio')).toHaveCount(4);
+    await expect(grupo.getByRole('radio', { name: 'Izquierda', exact: true })).toBeChecked();
+    await grupo.getByRole('radio', { name: 'Derecha', exact: true }).check();
+    expect(await alineacionDe(parrafoDelLienzo(page, 'Un párrafo del panel'))).toBe('right');
+
+    await entrarAlModo(page, 'Una cita del panel');
+    await pestana(page, 'Elemento').click();
+    await expect(panelDePropiedades(page)).toBeVisible();
+    await expect(panelDePropiedades(page).getByText('Alineación')).toHaveCount(0);
+  });
+
+  test('RF-016: convertir un párrafo centrado en cita avisa que se pierde la alineación', async ({ page }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-convertir'),
+      contenido: [alineado(parrafo('Centrado'), 'center')],
+    });
+    await abrirArticulo(page, articulo.id);
+    await lienzo(page).getByText('Centrado', { exact: true }).click();
+
+    await elegirAccion(page, 'Convertir en…');
+    await menuItem(page, 'Cita').click();
+    const aviso = page.getByRole('alertdialog');
+    await expect(aviso).toContainText(/alineación/i);
+    await aviso.getByRole('button', { name: 'Cancelar' }).click();
+    expect(await alineacionDe(parrafoDelLienzo(page, 'Centrado'))).toBe('center');
+  });
+
+  test('H6-PI: subrayar, tachar, resaltar, «m2», centrar un título y justificar un párrafo; se guarda así', async ({
+    page,
+  }) => {
+    const nombre = nombreDePrueba('doc-h6-prueba');
+    await abrirNuevo(page);
+    await page.getByLabel('Título', { exact: true }).fill(nombre);
+
+    await escribirEnLienzo(page, 'Un título');
+    await elegirEstilo(page, 'Título 2');
+    await elegirAlineacion(page, 'Centro');
+    await lienzo(page).locator('h2').click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await escribirEnLienzo(page, 'uno dos tres m2');
+    await elegirAlineacion(page, 'Justificado');
+    // Las posiciones son del párrafo «uno dos tres m2».
+    const PARRAFO_PI = 'uno dos tres m2';
+    await seleccionarEnElParrafo(page, PARRAFO_PI, 0, 3);
+    await botonDeBarra(page, 'Subrayado').click();
+    await seleccionarEnElParrafo(page, PARRAFO_PI, 4, 3);
+    await elegirMasFormato(page, 'Tachado');
+    await seleccionarEnElParrafo(page, PARRAFO_PI, 8, 4);
+    await elegirMasFormato(page, 'Resaltado');
+    await seleccionarEnElParrafo(page, PARRAFO_PI, 14, 1);
+    await elegirMasFormato(page, 'Superíndice');
+    await guardarYEsperar(page);
+
+    const [encabezado, cuerpo] = elementosDe(await articuloPorTitulo(nombre));
+    expect(encabezado).toMatchObject({ type: 'heading', attrs: { level: 2, textAlign: 'center' } });
+    expect(textoDe(encabezado)).toBe('Un título');
+    expect(cuerpo?.attrs).toMatchObject({ textAlign: 'justify' });
+    expect(cuerpo?.content).toEqual([
+      { type: 'text', text: 'uno', marks: [{ type: 'underline' }] },
+      { type: 'text', text: ' ' },
+      { type: 'text', text: 'dos', marks: [{ type: 'strike' }] },
+      { type: 'text', text: ' ' },
+      { type: 'text', text: 'tres', marks: [{ type: 'highlight' }] },
+      { type: 'text', text: ' m' },
+      { type: 'text', text: '2', marks: [{ type: 'superscript' }] },
+    ]);
+  });
+
+  test('H6-E5: la vista previa muestra los formatos y las alineaciones igual que el lienzo', async ({ page }) => {
+    const articulo = await sembrarArticulo({
+      titulo: nombreDePrueba('doc-h6-vista'),
+      contenido: [
+        { ...alineado(titulo(2, 'Título centrado'), 'center') },
+        alineado(
+          parrafo(
+            texto('subrayado', MARCAS.subrayado),
+            ' ',
+            texto('tachado', MARCAS.tachado),
+            ' ',
+            texto('resaltado', MARCAS.resaltado),
+            ' m',
+            texto('2', MARCAS.superindice),
+            ' H',
+            texto('2', MARCAS.subindice),
+            'O ',
+            texto('enlace', MARCAS.enlace('/blog')),
+          ),
+          'justify',
+        ),
+        alineado(parrafo('A la derecha'), 'right'),
+      ],
+    });
+    const casos = [
+      ['u', 'subrayado'],
+      ['s', 'tachado'],
+      ['mark', 'resaltado'],
+      ['sup', '2'],
+      ['sub', '2'],
+      ['a', 'enlace'],
+      ['h2', 'Título centrado'],
+      ['p', 'subrayado'],
+      ['p', 'A la derecha'],
+    ] as const;
+    const estilos = async (contenedor: Locator) => {
+      const salida = [];
+      for (const [etiqueta, buscado] of casos) {
+        salida.push(await estilosDeFormato(contenedor.locator(etiqueta).filter({ hasText: buscado }).first()));
+      }
+      return salida;
+    };
+
+    await page.goto(`/articulos/${articulo.id}/vista-previa`);
+    const enLaVistaPrevia = await estilos(page.getByRole('main'));
+    await abrirArticulo(page, articulo.id);
+    const enElLienzo = await estilos(lienzo(page));
+
+    expect(enElLienzo).toEqual(enLaVistaPrevia);
+    // El subrayado usa el color del texto; el enlace, el de marca (RF-026, D31 U9): no se confunden.
+    const [subrayado, , resaltado, superindice, subindice, enlace, encabezado, justificado, derecha] = enLaVistaPrevia;
+    expect(subrayado?.linea).toContain('underline');
+    expect(subrayado?.colorDeLinea).toBe(subrayado?.color);
+    expect(enlace?.colorDeLinea).not.toBe(enlace?.color);
+    expect(resaltado?.fondo).not.toBe('rgba(0, 0, 0, 0)');
+    expect(parseFloat(superindice?.tamanio ?? '0')).toBeLessThan(parseFloat(justificado?.tamanio ?? '0'));
+    expect(parseFloat(subindice?.tamanio ?? '0')).toBeLessThan(parseFloat(justificado?.tamanio ?? '0'));
+    expect(encabezado?.alineacion).toBe('center');
+    expect(justificado?.alineacion).toBe('justify');
+    expect(justificado?.guiones).toBe('auto');
+    expect(derecha?.alineacion).toBe('right');
   });
 });
