@@ -39,7 +39,7 @@ export function estadoInicial(datos: DatosArticulo, { nuevo }: { nuevo: boolean 
   return { datos: structuredClone(datos), guardado: structuredClone(datos), slugManual: !nuevo };
 }
 
-function iguales(a: unknown, b: unknown): boolean {
+export function iguales(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;

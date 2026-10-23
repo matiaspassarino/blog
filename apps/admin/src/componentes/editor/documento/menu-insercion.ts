@@ -2,6 +2,8 @@
 // «Insertar» de la barra y el botón de cada línea vacía. Los nombres salen de `nombreDeTipo`.
 import { crearBloque, type TipoBloque } from '@blog/bloques';
 import type { Editor, JSONContent } from '@tiptap/core';
+import type { Node as NodoPm } from '@tiptap/pm/model';
+import type { EditorState } from '@tiptap/pm/state';
 import { nombreDeTipo } from '../anuncios';
 
 export type ItemDeInsercion = {
@@ -18,14 +20,23 @@ const nombreDe = (tipo: TipoBloque, sufijo = '') => `${conMayuscula(nombreDeTipo
 const MAXIMO_DE_ELEMENTOS = 200;
 
 /**
+ * El elemento de primer nivel después del cual se inserta: el que tiene el cursor o, si hay elementos enteros
+ * seleccionados (una isla, el modo elementos), el último de ellos.
+ */
+export function elementoDeLaSeleccion({ selection, doc }: EditorState): { actual: NodoPm; inicio: number } {
+  const { $from, $to } = selection;
+  if ($from.depth > 0) return { actual: $from.node(1), inicio: $from.before(1) };
+  const actual = $to.nodeBefore ?? doc.firstChild!;
+  return { actual, inicio: $to.nodeBefore ? $to.pos - actual.nodeSize : 0 };
+}
+
+/**
  * Inserta un nodo: reemplaza la línea si está vacía o lo pone después del elemento actual, y deja el foco donde
  * corresponde (contracts/atajos.md): dentro del elemento de texto, en el párrafo siguiente al separador o, con un
  * elemento especial, seleccionado y con el panel abierto.
  */
 function insertarElemento(editor: Editor, nodo: JSONContent) {
-  const { $from } = editor.state.selection;
-  const actual = $from.node(1);
-  const inicio = $from.before(1);
+  const { actual, inicio } = elementoDeLaSeleccion(editor.state);
   const vacia = actual.type.name === 'paragraph' && actual.content.size === 0;
   if (!vacia && editor.state.doc.childCount >= MAXIMO_DE_ELEMENTOS) {
     editor.storage.atributosDelDocumento.anunciar(`Se alcanzó el máximo de ${MAXIMO_DE_ELEMENTOS} elementos`);

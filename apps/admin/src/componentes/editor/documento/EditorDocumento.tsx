@@ -54,6 +54,8 @@ export type AccionesDelLienzo = {
   seleccionarBloque: (bloqueId: string) => void;
   /** Devuelve el foco al lienzo conservando la selección. */
   enfocar: () => void;
+  /** Reemplaza el documento por lo que devolvió el servidor, en el mismo historial y con el cursor donde estaba. */
+  adoptarContenido: (contenido: Contenido) => void;
 };
 
 const ALTO_DEL_MENU_PX = 320;
@@ -284,6 +286,16 @@ export default function EditorDocumento({
       enfocar: () => {
         editor?.commands.focus();
       },
+      adoptarContenido: (nuevo) => {
+        if (!editor) return;
+        const { from, to } = editor.state.selection;
+        // Sin `emitUpdate`: el reductor ya tiene lo del servidor. `setTextSelection` acota al nuevo largo.
+        editor
+          .chain()
+          .setContent(bloquesADocumento(nuevo), { emitUpdate: false })
+          .setTextSelection({ from, to })
+          .run();
+      },
     }),
     [editor],
   );
@@ -316,12 +328,17 @@ export default function EditorDocumento({
 
   // El conteo del modo elementos se anuncia al entrar y al terminar de ampliar (no en cada paso) y se borra al salir.
   const cantidadEnModo = seleccion.tipo === 'elementos' && seleccion.modo ? seleccion.hasta - seleccion.desde : 0;
+  const huboModo = useRef(false);
   useEffect(() => {
     if (cantidadEnModo === 0) {
+      // Al montar (por ejemplo, tras «Reemplazar con la vigente») no se borra lo que se acaba de anunciar.
+      if (!huboModo.current) return;
+      huboModo.current = false;
       // Al salir del modo se borra el conteo, salvo que una acción (quitar, por ejemplo) acabe de anunciar algo.
       if (Date.now() - ultimaAccion.current > 400) ultimo.current.anunciar('');
       return;
     }
+    huboModo.current = true;
     const programado = Date.now();
     const espera = setTimeout(() => {
       if (ultimaAccion.current < programado) ultimo.current.anunciar(anuncioModoElementos(cantidadEnModo));
@@ -381,7 +398,7 @@ export default function EditorDocumento({
         <ConfirmarAccion
           abierto
           titulo={dialogo.cantidad === 1 ? '¿Quitar este elemento?' : `¿Quitar ${dialogo.cantidad} elementos?`}
-          descripcion="Incluye una imagen que ya está guardada en el artículo. Podés deshacerlo con Ctrl+Z hasta que guardes."
+          descripcion="Incluye una imagen que ya está guardada en el artículo. Puedes deshacerlo con Ctrl+Z hasta que guardes."
           etiquetaConfirmar={dialogo.cantidad === 1 ? 'Quitar elemento' : `Quitar ${dialogo.cantidad} elementos`}
           variante="peligro"
           onConfirmar={() => dialogo.reintentar()}

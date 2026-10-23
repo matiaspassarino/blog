@@ -30,7 +30,19 @@ import {
   subirObjeto,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
-import { agregarBloque, esperarEditorListo, grupoDeBloque } from './ayudas/editor';
+import {
+  accionDelMenu,
+  agregarBloque,
+  botonAcciones,
+  botonPropiedades,
+  esperarEditorListo,
+  irAlFinalDelDocumento,
+  isla,
+  lienzo,
+  panelDePropiedades,
+  pestana,
+  textosDelLienzo,
+} from './ayudas/editor';
 import { correoUnico, filaDelMiembro, estadoDeLaFila } from './ayudas/equipo';
 import { abrirDialogoProgramar } from './ayudas/estado';
 import { barraDelEditor } from './ayudas/jerarquia';
@@ -183,7 +195,10 @@ async function recorrerConTab(page: Page) {
     const marcados: string[] = [];
     document.querySelectorAll<HTMLElement>(selector).forEach((el) => {
       const estilo = getComputedStyle(el);
+      // `tabindex="-1"` saca a propósito un control del orden de Tab (spec 005): la barra de herramientas tiene un solo
+      // tope y se recorre con flechas, el asa es solo para ratón y toque y los botones de las islas no se tabulan.
       const oculto =
+        el.getAttribute('tabindex') === '-1' ||
         el.matches(':disabled') ||
         el.closest('[hidden], [inert], [aria-hidden="true"], nextjs-portal') !== null ||
         estilo.visibility === 'hidden' ||
@@ -305,30 +320,33 @@ test.describe('Recorridos solo con teclado (RF-025)', () => {
     await expect(page).toHaveURL(/\/articulos\/[0-9a-f-]{36}$/, { timeout: 15_000 });
   });
 
-  test('RF-025: reordenar bloques con "Bajar" y "Subir" desde el teclado, con el foco en un botón y el anuncio en voz', async ({
+  test('RF-025 / H5-E6: reordenar elementos solo con el teclado (modo elementos y menú «Acciones»), con el anuncio en voz', async ({
     page,
   }) => {
     await ingresar(page, USUARIOS.editor, `/articulos/${idTresParrafos}`);
     await esperarEditorListo(page);
-    const texto = (posicion: number) => grupoDeBloque(page, posicion, 'parrafo').getByLabel('Texto', { exact: true });
+    const anuncio = (texto: string) => page.getByRole('status').filter({ hasText: texto });
+    const focoEnElLienzo = () => lienzo(page).evaluate((el) => el.contains(document.activeElement));
 
-    await tabHasta(page, 'Bajar bloque 1, párrafo');
+    // El lienzo se alcanza con Tab; Esc entra al modo elementos y Alt+↓ baja el elemento.
+    await tabHasta(page, 'Contenido del artículo');
+    await page.keyboard.press('ControlOrMeta+Home');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Alt+ArrowDown');
+
+    expect(await textosDelLienzo(page)).toEqual(['Dos', 'Uno', 'Tres']);
+    await expect(anuncio('Elemento movido a la posición 2 de 3')).toBeAttached();
+    expect(await focoEnElLienzo(), 'tras mover, el foco debe seguir en el lienzo, no perderse en el body').toBe(true);
+
+    // El camino de los lectores de pantalla: el botón «Acciones» de la barra, con el teclado.
+    await page.keyboard.press('Escape');
+    await botonAcciones(page).focus();
+    await page.keyboard.press('Enter');
+    await accionDelMenu(page, 'Bajar').focus();
     await page.keyboard.press('Enter');
 
-    await expect(texto(1)).toHaveValue('Dos');
-    await expect(texto(2)).toHaveValue('Uno');
-    await expect(page.getByRole('status').filter({ hasText: 'Párrafo movido a la posición 2 de 3' })).toBeAttached();
-    const focoEnBoton = await page.evaluate(() => {
-      const el = document.activeElement;
-      return el?.tagName === 'BUTTON' && el.closest('[role="group"]') !== null;
-    });
-    expect(focoEnBoton, 'tras mover, el foco debe quedar en un botón del bloque, no perderse en el body').toBe(true);
-
-    await page.keyboard.press('Tab');
-    await tabHasta(page, 'Subir bloque 3, párrafo');
-    await page.keyboard.press('Space');
-    await expect(texto(2)).toHaveValue('Tres');
-    await expect(texto(3)).toHaveValue('Uno');
+    expect(await textosDelLienzo(page)).toEqual(['Dos', 'Tres', 'Uno']);
+    await expect(anuncio('Elemento movido a la posición 3 de 3')).toBeAttached();
   });
 });
 
@@ -377,7 +395,7 @@ test.describe('Todas las variantes de Badge y de AvisoEstado, a la vista y revis
     await esperarSinViolaciones(page, 'el aviso de éxito del perfil');
   });
 
-  test('CE-006: el aviso de error del título vacío y los errores por campo de un bloque pasan axe', async ({
+  test('CE-006: el aviso de error del título vacío y los errores por campo de un elemento pasan axe', async ({
     page,
   }) => {
     await ingresar(page, USUARIOS.editor, '/articulos/nuevo');
@@ -391,8 +409,8 @@ test.describe('Todas las variantes de Badge y de AvisoEstado, a la vista y revis
     await agregarBloque(page, 'cta', 1);
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await expect(page.locator('[aria-invalid="true"]').first()).toBeVisible();
-    await expect(page.getByRole('alert').filter({ hasText: /Revisa el bloque 1/ })).toBeVisible();
-    await esperarSinViolaciones(page, 'el editor con errores en los campos de un bloque');
+    await expect(page.getByRole('alert').filter({ hasText: /Revisa el elemento 1/ })).toBeVisible();
+    await esperarSinViolaciones(page, 'el editor con errores en los campos de un elemento');
   });
 
   test('CE-006: un título vacío se señala en el propio campo (aria-invalid) y el foco va a él (rutas.md, "Campos con error")', async ({
@@ -457,6 +475,54 @@ test.describe('Todas las variantes de Badge y de AvisoEstado, a la vista y revis
     await page.keyboard.press('Escape');
     await expect(dialogo).toHaveCount(0);
   });
+});
+
+// --- Editor de documento con sus capas abiertas (spec 005, T059, CE-004) ---------------------------------------------
+//
+// axe solo revisa lo que está en pantalla: el menú «/», el panel de propiedades (pestaña «Elemento» desde 1280 px) y la
+// hoja (por debajo de 1280 px) se abren de verdad sobre el artículo con los diez tipos, en los cuatro anchos.
+
+test.describe('El editor de documento con el menú «/», el panel y la hoja abiertos pasa axe (T059, CE-004)', () => {
+  for (const ancho of ANCHOS) {
+    test.describe(`${ancho} px`, () => {
+      test.use({ viewport: { width: ancho, height: 900 } });
+
+      async function abrirEditorDiez(page: Page) {
+        await ingresar(page, USUARIOS.editor, `/articulos/${idDiezBloques}`);
+        await esperarEditorListo(page);
+      }
+
+      test(`CE-004: el editor con los diez tipos no tiene violaciones (${ancho} px)`, async ({ page }) => {
+        await abrirEditorDiez(page);
+
+        await esperarSinViolaciones(page, `el editor a ${ancho} px`);
+      });
+
+      test(`CE-004: con el menú «/» abierto no hay violaciones (${ancho} px)`, async ({ page }) => {
+        await abrirEditorDiez(page);
+        await irAlFinalDelDocumento(page);
+
+        await page.keyboard.type('/');
+
+        await expect(page.getByRole('listbox')).toBeVisible();
+        await expect(lienzo(page)).toHaveAttribute('aria-activedescendant', /\S/);
+        await esperarSinViolaciones(page, `el menú «/» a ${ancho} px`);
+      });
+
+      const capa = ancho >= 1280 ? 'el panel' : 'la hoja';
+      test(`CE-004: con ${capa} de propiedades abierto no hay violaciones (${ancho} px)`, async ({ page }) => {
+        await abrirEditorDiez(page);
+        await isla(page, /^Imagen, 3 de \d+$/).click();
+        if (ancho < 1280) await botonPropiedades(page).click();
+
+        await expect(panelDePropiedades(page)).toBeVisible();
+        await expect(panelDePropiedades(page)).toHaveAccessibleName('Propiedades del elemento 3, imagen');
+        if (ancho >= 1280) await expect(pestana(page, 'Elemento')).toHaveAttribute('aria-selected', 'true');
+        else await expect(panelDePropiedades(page).getByRole('button', { name: 'Cerrar', exact: true })).toBeVisible();
+        await esperarSinViolaciones(page, `${capa} de propiedades a ${ancho} px`);
+      });
+    });
+  }
 });
 
 // --- Barrido de voseo -------------------------------------------------------------------------------------------------

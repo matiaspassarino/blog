@@ -84,6 +84,8 @@ export function MenuInsertar({
         className,
       )}
       style={estilo}
+      // La lista se desplaza: tiene que poder recorrerse con el teclado aunque el foco quede en el lienzo («/»).
+      tabIndex={0}
     >
       <div
         ref={lista}

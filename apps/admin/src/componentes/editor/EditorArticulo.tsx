@@ -42,7 +42,7 @@ import { primerErrorDelDocumento } from './documento/mapa-errores';
 import { PropiedadesDelElemento } from './documento/PropiedadesDelElemento';
 import type { CambiosDeBloque } from './bloques/tipos';
 import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
-import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
+import { estaSucio, estadoInicial, iguales, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
 import { TituloSeccion } from '../estructura/TituloSeccion';
 
@@ -273,11 +273,17 @@ export function EditorArticulo({
 
       if (resultado.ok) {
         const guardado = resultado.datos;
-        despachar({ tipo: 'guardado', articulo: aDatosArticulo(guardado, actual.etiquetas) });
+        const datos = aDatosArticulo(guardado, actual.etiquetas);
+        despachar({ tipo: 'guardado', articulo: datos });
         setPublicacion(publicacionDe(guardado));
         setGuardadoOk(true);
         // Si el sistema agregó un sufijo al slug escrito, se avisa cuál quedó (RF-008).
         setSlugAjustado(actual.slug && guardado.slug !== actual.slug ? guardado.slug : null);
+        // Si el servidor devolvió otro contenido (por ejemplo, normalizado), el lienzo lo adopta y se avisa.
+        if (!iguales(datos.contenido, campos.contenido)) {
+          acciones.current?.adoptarContenido(datos.contenido);
+          setAnuncio('El servidor ajustó el contenido al guardar');
+        }
         if (!id) {
           setId(guardado.id);
           // El editor sigue montado: solo cambia la dirección, sin recargar ni perder el foco.

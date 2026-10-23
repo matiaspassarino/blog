@@ -315,13 +315,28 @@ const MarcasDeError = Extension.create({
             estado.doc.forEach((nodo, desplazamiento) => {
               const mensajes = errores.get(String(nodo.attrs.bloqueId));
               if (!mensajes) return;
+              const idMensaje = `error-${String(nodo.attrs.bloqueId)}`;
               decoraciones.push(
                 Decoration.node(
                   desplazamiento,
                   desplazamiento + nodo.nodeSize,
-                  { class: 'rounded-md outline-2 outline-offset-4 outline-error', 'data-con-error': 'si' },
+                  {
+                    class: 'rounded-md outline-2 outline-offset-4 outline-error',
+                    'data-con-error': 'si',
+                    // Las islas muestran su propio mensaje; los elementos de texto lo llevan debajo.
+                    ...(nodo.isAtom ? {} : { 'aria-describedby': idMensaje }),
+                  },
                   { errores: mensajes },
                 ),
+              );
+              if (nodo.isAtom) return;
+              const texto = `Error: ${mensajes.join('. ')}`;
+              decoraciones.push(
+                Decoration.widget(desplazamiento + nodo.nodeSize, () => mensajeDeError(idMensaje, texto), {
+                  key: `${idMensaje}:${texto}`,
+                  side: -1,
+                  ignoreSelection: true,
+                }),
               );
             });
             return DecorationSet.create(estado.doc, decoraciones);
@@ -331,6 +346,16 @@ const MarcasDeError = Extension.create({
     ];
   },
 });
+
+/** El mensaje de error bajo un elemento de texto (como el de las islas en `NodoBloque`). */
+function mensajeDeError(id: string, texto: string) {
+  const parrafo = document.createElement('p');
+  parrafo.id = id;
+  parrafo.contentEditable = 'false';
+  parrafo.className = 'mt-2 text-sm font-semibold text-error';
+  parrafo.textContent = texto;
+  return parrafo;
+}
 
 /** Ícono de verificación de la marca de selección (no depende del color). */
 function iconoDeSeleccion() {

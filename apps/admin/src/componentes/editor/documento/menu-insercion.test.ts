@@ -15,7 +15,9 @@
 import type { TipoBloque } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
 import { nombreDeTipo } from '../anuncios';
-import { filtrarItems, ITEMS } from './menu-insercion';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
+import { estadoDe, imagen, parrafo, posDe } from './esquema-prueba';
+import { elementoDeLaSeleccion, filtrarItems, ITEMS } from './menu-insercion';
 
 const sinTildes = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const ids = (items: { id: string }[]) => items.map((item) => item.id);
@@ -118,5 +120,25 @@ describe('filtrarItems: sin tildes ni mayúsculas, por nombre y descripción (RF
     filtrarItems('zzz');
 
     expect(ids(ITEMS)).toEqual(antes);
+  });
+});
+
+describe('elementoDeLaSeleccion: después de qué elemento se inserta', () => {
+  const base = () => estadoDe(parrafo('a', 'Uno'), imagen('b', 'medios/b.webp'), parrafo('c', 'Tres'));
+
+  it('con el cursor en un párrafo, es ese párrafo', () => {
+    const estado = base();
+    const conCursor = estado.apply(estado.tr.setSelection(TextSelection.create(estado.doc, posDe(estado, 2) + 2)));
+    const { actual, inicio } = elementoDeLaSeleccion(conCursor);
+    expect(actual.attrs.bloqueId).toBe('c');
+    expect(inicio).toBe(posDe(estado, 2));
+  });
+
+  it('con una isla seleccionada entera (profundidad 0), es la isla', () => {
+    const estado = base();
+    const conIsla = estado.apply(estado.tr.setSelection(NodeSelection.create(estado.doc, posDe(estado, 1))));
+    const { actual, inicio } = elementoDeLaSeleccion(conIsla);
+    expect(actual.attrs.bloqueId).toBe('b');
+    expect(inicio).toBe(posDe(estado, 1));
   });
 });

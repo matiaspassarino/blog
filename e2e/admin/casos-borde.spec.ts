@@ -10,6 +10,9 @@
 //   - Guardado de un artículo nuevo con slug repetido: el campo "Slug" pasa al slug definitivo con sufijo numérico.
 //   - Un publicado al que se le quitan todos los bloques no puede quedar publicado: o se rechaza el guardado, o hay que
 //     volver a borrador antes; en ningún caso la base queda con un publicado sin bloques.
+//   - Spec 005 (T058): el contenido es el lienzo del editor de documento. Vaciarlo es Mod+A y Supr (un documento vacío
+//     se guarda como contenido `[]`); la imagen de un elemento se sube desde su panel de propiedades, que explica una
+//     subida fallida en un `role="alert"` y deja el elemento sin imagen.
 import { expect, test, type Page } from '@playwright/test';
 import {
   articuloPorId,
@@ -19,7 +22,17 @@ import {
   sembrarArticulo,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
-import { botonGuardar, elegirImagen, guardarYEsperar } from './ayudas/editor';
+import {
+  agregarBloque,
+  botonGuardar,
+  elegirImagen,
+  escribirEnLienzo,
+  esperarEditorListo,
+  grupoDeBloque,
+  guardarYEsperar,
+  panelDePropiedades,
+  vaciarDocumento,
+} from './ayudas/editor';
 import {
   botonDeEstado,
   errorDelPanel,
@@ -148,6 +161,29 @@ test.describe('Casos borde: la subida de una imagen falla (RF-007)', () => {
         .single();
       expect(data?.imagen_destacada).toBeNull();
     });
+
+    test(`CB-subida: si ${nombre}, el elemento de imagen queda sin imagen, el panel explica el motivo y el lienzo se conserva`, async ({
+      page,
+    }) => {
+      await ingresar(page, USUARIOS.editor);
+      await page.goto('/articulos/nuevo');
+      await esperarEditorListo(page);
+      await campoTitulo(page).fill(titulo('subida fallida elemento'));
+      await escribirEnLienzo(page, 'Un texto del lienzo que debe conservarse');
+      await page.route('**/storage/v1/object/upload/sign/**', simular);
+      const imagen = await agregarBloque(page, 'imagen', 2);
+
+      await elegirImagen(page, imagen, png);
+
+      const panel = panelDePropiedades(page);
+      await expect(panel.getByRole('alert')).toContainText(/\S+/);
+      await expect(panel.getByRole('button', { name: /Quitar imagen/ })).toHaveCount(0);
+      await expect(panel.getByLabel('Texto alternativo', { exact: true })).toHaveCount(0);
+      await expect(imagen.locator('img')).toHaveCount(0);
+      await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText('Un texto del lienzo que debe conservarse');
+      // La subida terminó (con error): guardar ya no está bloqueado.
+      await expect(botonGuardar(page)).not.toHaveAttribute('aria-disabled', 'true');
+    });
   }
 });
 
@@ -254,15 +290,19 @@ test.describe('Casos borde: un slug manual que ya existe (RF-008)', () => {
     await sembrarArticulo({ titulo: titulo('slug dueño'), slug: ocupado });
     await ingresar(page, USUARIOS.editor);
     await page.goto('/articulos/nuevo');
+    await esperarEditorListo(page);
     const nombre = titulo('slug repetido');
     await campoTitulo(page).fill(nombre);
     await page.getByLabel('Slug', { exact: true }).fill(ocupado);
+    await escribirEnLienzo(page, 'El contenido del lienzo se guarda con el slug ajustado');
 
     await guardarYEsperar(page);
 
-    const { data } = await servicio().from('articulos').select('slug').eq('titulo', nombre).single();
+    const { data } = await servicio().from('articulos').select('slug, contenido').eq('titulo', nombre).single();
     expect(data?.slug).toMatch(new RegExp(`^${ocupado}-\\d+$`));
+    expect(data?.contenido).toMatchObject([{ texto: 'El contenido del lienzo se guarda con el slug ajustado' }]);
     await expect(page.getByLabel('Slug', { exact: true })).toHaveValue(data!.slug);
+    await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText('El contenido del lienzo se guarda con el slug ajustado');
   });
 
   test('CB-slug: el mensaje de éxito nombra el slug final cuando difiere del escrito (contracts/acciones.md, guardarArticulo)', async ({
@@ -293,7 +333,7 @@ test.describe('Casos borde: un publicado sin bloques', () => {
     await botonDeEstado(page, 'Volver a borrador').click();
     await esperarEstado(page, 'borrador');
 
-    await page.getByRole('button', { name: 'Quitar bloque 1, párrafo' }).click();
+    await vaciarDocumento(page);
     await guardarYEsperar(page);
     await botonDeEstado(page, 'Publicar').click();
 
@@ -309,8 +349,9 @@ test.describe('Casos borde: un publicado sin bloques', () => {
     await ingresar(page, USUARIOS.editor);
     await page.goto(urlDelArticulo(articulo.id));
     await expect(panelPublicacion(page)).toBeVisible();
+    await esperarEditorListo(page);
 
-    await page.getByRole('button', { name: 'Quitar bloque 1, párrafo' }).click();
+    await vaciarDocumento(page);
     await botonGuardar(page).click();
     // Sea cual sea la respuesta (rechazo del guardado o aviso), se espera a que la pantalla la muestre.
     await expect(page.getByRole('alert').or(page.getByRole('status').filter({ hasText: /guardad/i }))).toBeVisible();

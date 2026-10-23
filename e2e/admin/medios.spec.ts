@@ -8,6 +8,8 @@
 //     5 MB" (el de más de 5 MB lo rechaza el cliente nombrando el límite); el bloque queda sin imagen (sin "Quitar
 //     imagen" ni "Texto alternativo") y el resto del formulario no se toca.
 //   - "Quitar imagen" de una imagen ya guardada pide confirmación en un `alertdialog` con un botón que empieza con "Quitar".
+//   - Spec 005 (T058): la imagen de un elemento se elige en su panel de propiedades (la isla del lienzo no tiene campos);
+//     mientras sube, «Guardar» queda con `aria-disabled="true"` igual que con la imagen destacada.
 // Los archivos se arman en memoria (packages/db/src/pruebas/imagenes.ts): no hay binarios en el repo.
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
@@ -31,7 +33,16 @@ import {
   subirObjeto,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
-import { agregarBloque, elegirImagen, guardarYEsperar, type ArchivoDePrueba } from './ayudas/editor';
+import {
+  agregarBloque,
+  elegirImagen,
+  escribirEnElemento,
+  esperarEditorListo,
+  grupoDeBloque,
+  guardarYEsperar,
+  panelDePropiedades,
+  type ArchivoDePrueba,
+} from './ayudas/editor';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 
 const PREFIJO = 'e2e-me-';
@@ -53,7 +64,23 @@ const destacada = (page: Page) => page.getByRole('group', { name: 'Imagen destac
 
 async function abrirNuevo(page: Page, tituloArticulo: string) {
   await page.goto('/articulos/nuevo');
+  await esperarEditorListo(page);
   await page.getByLabel('Título', { exact: true }).fill(tituloArticulo);
+}
+
+/** Retarda la subida directa a Storage para poder observar el estado intermedio. */
+const demorarSubidas = (page: Page) =>
+  page.route('**/storage/v1/object/upload/sign/**', async (ruta) => {
+    await new Promise((resolver) => setTimeout(resolver, 1500));
+    await ruta.continue();
+  });
+
+async function esperarGuardarBloqueadoMientrasSube(page: Page) {
+  const guardar = page.getByRole('button', { name: 'Guardar', exact: true });
+  await expect(guardar).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByRole('status').filter({ hasText: 'Subiendo imagen' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Imagen subida' })).toBeVisible();
+  await expect(guardar).not.toHaveAttribute('aria-disabled', 'true');
 }
 
 const FORMATOS = [
@@ -65,7 +92,7 @@ const FORMATOS = [
 
 test.describe('Subida de imágenes válidas (H2-E4)', () => {
   for (const formato of FORMATOS) {
-    test(`H2-E4: un ${formato.nombre} sirve como imagen destacada y en un bloque de imagen; se registran ancho y alto`, async ({
+    test(`H2-E4 / H5: un ${formato.nombre} sirve como imagen destacada y en un elemento de imagen; se registran ancho y alto`, async ({
       page,
     }) => {
       const nombre = titulo(`valida-${formato.nombre}`);
@@ -76,9 +103,10 @@ test.describe('Subida de imágenes válidas (H2-E4)', () => {
       await expect(destacada(page).getByLabel('Imagen decorativa')).toBeVisible();
       await destacada(page).getByLabel('Texto alternativo', { exact: true }).fill('Imagen destacada de prueba');
 
-      const bloque = await agregarBloque(page, 'imagen', 1);
-      await elegirImagen(page, bloque, formato.archivo);
-      await bloque.getByLabel('Texto alternativo', { exact: true }).fill('Imagen del bloque');
+      const elemento = await agregarBloque(page, 'imagen', 1);
+      await elegirImagen(page, elemento, formato.archivo);
+      await panelDePropiedades(page).getByLabel('Texto alternativo', { exact: true }).fill('Imagen del elemento');
+      await expect(elemento.locator('img')).toBeVisible();
       await guardarYEsperar(page);
 
       const guardado = await articuloPorTitulo(nombre);
@@ -109,21 +137,24 @@ test.describe('Subida de imágenes válidas (H2-E4)', () => {
 
   test('H2-E4: mientras sube, el botón de guardar queda deshabilitado con aviso', async ({ page }) => {
     await abrirNuevo(page, titulo('subiendo'));
-    // Retarda la subida directa a Storage para poder observar el estado intermedio.
-    await page.route('**/storage/v1/object/upload/sign/**', async (ruta) => {
-      await new Promise((resolver) => setTimeout(resolver, 1500));
-      await ruta.continue();
-    });
+    await demorarSubidas(page);
 
     await elegirImagen(page, destacada(page), FORMATOS[1]!.archivo);
 
-    await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveAttribute('aria-disabled', 'true');
-    await expect(page.getByRole('status').filter({ hasText: 'Subiendo imagen' })).toBeVisible();
-    await expect(page.getByRole('status').filter({ hasText: 'Imagen subida' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Guardar', exact: true })).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    await esperarGuardarBloqueadoMientrasSube(page);
+  });
+
+  test('H5 / RF-013: mientras sube la imagen de un elemento desde el panel, guardar queda deshabilitado con aviso', async ({
+    page,
+  }) => {
+    await abrirNuevo(page, titulo('subiendo-elemento'));
+    await demorarSubidas(page);
+    const elemento = await agregarBloque(page, 'imagen', 1);
+
+    await elegirImagen(page, elemento, FORMATOS[1]!.archivo);
+
+    await esperarGuardarBloqueadoMientrasSube(page);
+    await expect(elemento.locator('img')).toBeVisible();
   });
 });
 
@@ -147,23 +178,25 @@ test.describe('Archivos rechazados (H2-E4, casos borde)', () => {
   ];
 
   for (const { nombre, archivo: rechazado, motivo } of RECHAZADOS) {
-    test(`H2-E4: ${nombre} se rechaza con su motivo, el bloque queda sin imagen y el resto no se afecta`, async ({
+    test(`H2-E4: ${nombre} se rechaza con su motivo, el elemento queda sin imagen y el resto no se afecta`, async ({
       page,
     }) => {
       const nombreArticulo = titulo('rechazo');
       await abrirNuevo(page, nombreArticulo);
-      const parrafoBloque = await agregarBloque(page, 'parrafo', 1);
-      await parrafoBloque.getByLabel('Texto', { exact: true }).fill('Este texto no se pierde');
-      const bloque = await agregarBloque(page, 'imagen', 2);
+      const primero = await agregarBloque(page, 'parrafo', 1);
+      await escribirEnElemento(page, primero, 'Este texto no se pierde');
+      const elemento = await agregarBloque(page, 'imagen', 2);
 
-      await elegirImagen(page, bloque, rechazado);
+      await elegirImagen(page, elemento, rechazado);
 
-      await expectAlertaDeImagen(bloque, motivo);
-      await expect(bloque.getByRole('button', { name: /Quitar imagen/ })).toHaveCount(0);
-      await expect(bloque.getByLabel('Texto alternativo', { exact: true })).toHaveCount(0);
-      await expect(bloque.getByRole('button', { name: /Elegir imagen/ })).toBeFocused();
+      const panel = panelDePropiedades(page);
+      await expectAlertaDeImagen(panel, motivo);
+      await expect(panel.getByRole('button', { name: /Quitar imagen/ })).toHaveCount(0);
+      await expect(panel.getByLabel('Texto alternativo', { exact: true })).toHaveCount(0);
+      await expect(panel.getByRole('button', { name: /Elegir imagen/ })).toBeFocused();
+      await expect(elemento.locator('img')).toHaveCount(0);
       await expect(page.getByLabel('Título', { exact: true })).toHaveValue(nombreArticulo);
-      await expect(parrafoBloque.getByLabel('Texto', { exact: true })).toHaveValue('Este texto no se pierde');
+      await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText('Este texto no se pierde');
     });
   }
 });

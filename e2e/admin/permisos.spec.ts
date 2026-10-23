@@ -26,7 +26,7 @@ import {
 } from './ayudas/articulos';
 import { actualizarPerfilPorApi, eliminarArticuloPorApi, llamarApi, tokenDe } from './ayudas/api';
 import { fechaFutura, nombreDePrueba } from './ayudas/datos';
-import { elegirImagen, guardarYEsperar } from './ayudas/editor';
+import { agregarBloque, elegirImagen, esperarEditorListo, guardarYEsperar, subirImagenConAlt } from './ayudas/editor';
 import {
   correoUnico,
   filaDelMiembro,
@@ -382,9 +382,12 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
       await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(rol === 'admin' ? 1 : 0);
     });
 
-    test(`T099-F7: el ${rol} sube una imagen destacada y queda registrada con su ancho y alto`, async ({ page }) => {
+    test(`T099-F7 / H5: el ${rol} sube una imagen destacada y la de un elemento; quedan registradas con su ancho y alto`, async ({
+      page,
+    }) => {
       await ingresar(page, USUARIOS[rol]);
       await page.goto('/articulos/nuevo');
+      await esperarEditorListo(page);
       const nombre = tituloT099(`imagen ${rol}`);
       await page.getByLabel('Título', { exact: true }).fill(nombre);
       const destacada = page.getByRole('group', { name: 'Imagen destacada' });
@@ -395,10 +398,18 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
         buffer: Buffer.from(pngDecodificable(4, 3)),
       });
       await destacada.getByLabel('Texto alternativo', { exact: true }).fill('Imagen de la prueba de permisos');
+      // La imagen de un elemento del lienzo se sube desde su panel de propiedades (spec 005).
+      const elemento = await agregarBloque(page, 'imagen', 1);
+      await subirImagenConAlt(page, elemento, 'Imagen del elemento');
       await guardarYEsperar(page);
 
-      const { data } = await servicio().from('articulos').select('imagen_destacada').eq('titulo', nombre).single();
+      const { data } = await servicio()
+        .from('articulos')
+        .select('imagen_destacada, contenido')
+        .eq('titulo', nombre)
+        .single();
       expect(data?.imagen_destacada).toMatchObject({ ancho: 4, alto: 3 });
+      expect(data?.contenido).toMatchObject([{ tipo: 'imagen', imagen: { ancho: 4, alto: 3, alt: 'Imagen del elemento' } }]);
     });
   }
 });

@@ -19,6 +19,8 @@ import {
   imagenSemilla,
   limpiarArticulosE2E,
   parrafo,
+  pasarAComoServicio,
+  publicarComoServicio,
   sembrarArticulo,
 } from './ayudas/articulos';
 import { nombreDePrueba } from './ayudas/datos';
@@ -30,8 +32,12 @@ import {
   arrastrarConRaton,
   asaDeElemento,
   barraDeFormato,
+  botonDeshacer,
   botonGuardar,
+  botonPropiedades,
   botonAcciones,
+  escribirEnElemento,
+  irAlFinalDelDocumento,
   centroDe,
   elegirAccion,
   elementosDelLienzo,
@@ -59,7 +65,10 @@ import {
   subirImagenConAlt,
   type FormatoDeImagen,
 } from './ayudas/editor';
+import { botonDeEstado, esperarEstado, panelPublicacion } from './ayudas/estado';
+import { areaTactil, barraDelEditor } from './ayudas/jerarquia';
 import { ingresar, USUARIOS } from './ayudas/sesion';
+import { servicio } from './ayudas/servicio';
 
 const PREFIJO = 'e2e-doc-';
 const MOD = 'ControlOrMeta';
@@ -568,7 +577,6 @@ const ELEMENTOS_DEL_MENU = [
 ];
 
 const IMAGEN = /^Imagen, \d+ de \d+$/;
-const botonPropiedades = (page: Page) => barraDeFormato(page).getByRole('button', { name: 'Propiedades', exact: true });
 const contenidoDe = (guardado: { contenido: unknown } | null | undefined) =>
   (guardado?.contenido ?? []) as Record<string, unknown>[];
 
@@ -1837,5 +1845,340 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
     await expect(page.getByRole('status').filter({ hasText: /guardad/i })).toBeVisible();
     const textos = contenidoDe(await articuloPorId(cinco.id)).map((b) => b.texto);
     expect(textos).toEqual(['Cinco', 'Uno', 'Dos', 'Tres', 'Cuatro']);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T056 (spec 005, H5 esc. 1 a 6, CE-002, RF-011, RF-018). FASE ROJA: «Que nada se pierda». Supuestos de interfaz, además
+// de los de ./ayudas/editor.ts y ./ayudas/estado.ts:
+//   - Abrir un artículo sin tocarlo no lo ensucia: no aparece "Cambios sin guardar" y «Guardar» queda con
+//     `aria-disabled="true"` (spec 004), así que la versión no cambia. Para pasar el documento por la conversión de ida y
+//     vuelta sin cambiar nada se escribe una letra al final y se borra; para poder guardar se cambia solo el extracto: el
+//     contenido guardado tiene que ser idéntico al original.
+//   - Los artículos del seed son los que no empiezan con `e2e-` (después de `pnpm db:reset`).
+//   - `guardado` (Guardar, Publicar o Archivar desde la barra) no vuelve a crear el documento: el cursor sigue donde estaba
+//     (al devolver el foco al lienzo, lo que se escribe entra ahí) y Deshacer sigue llegando a lo de antes de guardar.
+//   - «Reemplazar con la vigente» (`adoptar_vigente`) sí lo vuelve a crear: muestra lo vigente y el historial queda
+//     vacío («Deshacer» con `aria-disabled="true"`).
+//   - Si la respuesta del servidor al guardar trae un contenido distinto del enviado (se simula cambiando la respuesta de
+//     la acción), el editor lo adopta sin perder el cursor, no queda con "Cambios sin guardar" y lo avisa en la región de
+//     estado con un texto que menciona al servidor o el ajuste (/servidor|ajust/i).
+// ---------------------------------------------------------------------------------------------------------------------
+
+const avisoSinGuardar = (page: Page) => barraDelEditor(page).getByText('Cambios sin guardar');
+const primerParrafo = (page: Page) => lienzo(page).locator('p').first();
+
+/** Los artículos del seed (supabase/seed.sql): todos los que no sembró un E2E. */
+async function articulosDelSeed() {
+  const { data, error } = await servicio()
+    .from('articulos')
+    .select('id, titulo, version, contenido')
+    .not('titulo', 'like', 'e2e-%')
+    .order('titulo');
+  if (error) throw new Error(`No se pudieron leer los artículos del seed: ${error.message}`);
+  return data;
+}
+
+/** Abierto y sin tocar: no hay nada que guardar y la base no cambió. */
+async function comprobarAbiertoSinCambios(page: Page, articulo: { id: string; version: number; contenido: unknown }) {
+  await abrirArticulo(page, articulo.id);
+  // Margen para las transacciones del editor al montar (ids, normalización de marcas): no deben ensuciar.
+  await page.waitForTimeout(600);
+  await expect(avisoSinGuardar(page)).toHaveCount(0);
+  await expect(botonGuardar(page)).toHaveAttribute('aria-disabled', 'true');
+  const enBase = await articuloPorId(articulo.id);
+  expect(enBase.version).toBe(articulo.version);
+  expect(enBase.contenido).toEqual(articulo.contenido);
+}
+
+/** Pasa el documento por la conversión (una letra que se escribe y se borra) y guarda cambiando solo el extracto. */
+async function guardarSinTocarElContenido(page: Page, id: string) {
+  await irAlFinalDelDocumento(page);
+  await page.keyboard.type('x');
+  await page.keyboard.press('Backspace');
+  await page.waitForTimeout(300);
+  await expect(avisoSinGuardar(page)).toHaveCount(0);
+  await page.getByLabel('Extracto', { exact: true }).fill(`Extracto cambiado ${crypto.randomUUID().slice(0, 6)}`);
+  await guardarYEsperar(page);
+  return articuloPorId(id);
+}
+
+/** CE-002 sobre un contenido: abrir sin cambios y guardar con el contenido idéntico (mismo orden, ids y campos). */
+async function comprobarIdaYVuelta(page: Page, etiqueta: string, contenido: object[]) {
+  const articulo = await sembrarArticulo({ titulo: nombreDePrueba(`doc-ce002-${etiqueta}`), contenido });
+  await comprobarAbiertoSinCambios(page, articulo);
+  const guardado = await guardarSinTocarElContenido(page, articulo.id);
+  expect(guardado.contenido).toEqual(articulo.contenido);
+}
+
+const CON_CARACTERES_PROPIOS = () => [
+  parrafo('Cuesta 2 * 3 pesos, el archivo mi_archivo_final.txt, la nota [1] y la tecla ` sola.'),
+  parrafo('Dos asteriscos ** sueltos, un guion bajo _ suelto, [corchetes sin enlace] (aparte) y `` dobles.'),
+  parrafo('Un _guion_bajo_ en medio, un *asterisco* simple y una [etiqueta]sin(url).'),
+  { id: crypto.randomUUID(), tipo: 'titulo', nivel: 3, texto: 'Un título con *asterisco*, _guion_ y `comilla`' },
+  { id: crypto.randomUUID(), tipo: 'lista', ordenada: false, items: ['Con * asterisco', 'Con [corchetes]', 'Con ` sola'] },
+  { id: crypto.randomUUID(), tipo: 'cita', texto: 'Una cita con _guiones_bajos_ y ** sueltos', autor: 'A_lguien' },
+  { id: crypto.randomUUID(), tipo: 'codigo', codigo: 'const a = b * c; // [x] `y` _z_ **w**', lenguaje: 'ts' },
+];
+
+test.describe('Nada se pierde', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test.describe('abrir y guardar sin tocar (H5-E1, H5-E2, CE-002)', () => {
+    test('H5-E1 / CE-002: cada artículo del seed se abre sin cambios: nada que guardar y la versión no cambia', async ({
+      page,
+    }) => {
+      test.slow();
+      const reales = await articulosDelSeed();
+      expect(reales.length, 'el seed debería tener artículos (¿falta `pnpm db:reset`?)').toBeGreaterThan(0);
+      for (const real of reales) {
+        await test.step(real.titulo, () => comprobarAbiertoSinCambios(page, real));
+      }
+    });
+
+    test('H5-E1 / CE-002: el contenido de cada artículo del seed se guarda idéntico tras pasar por el editor', async ({
+      page,
+    }) => {
+      test.slow();
+      for (const real of await articulosDelSeed()) {
+        // Sobre una copia: guardar el original cambiaría su versión y el resto de las pruebas lo usa.
+        await test.step(real.titulo, () =>
+          comprobarIdaYVuelta(page, 'seed', real.contenido as unknown as object[]),
+        );
+      }
+    });
+
+    test('H5-E1 / CE-002: un artículo con los diez tipos y párrafos con líneas en blanco se guarda idéntico', async ({
+      page,
+    }) => {
+      await comprobarIdaYVuelta(page, 'diez', [
+        ...diezBloques(imagenSemilla('articulos/e2e-inexistente.png')),
+        parrafo('Primer tramo\n\n\nSegundo tramo tras dos líneas en blanco'),
+        parrafo('Una línea\ny otra con salto simple'),
+      ]);
+    });
+
+    test('H5-E2 / CE-002: asteriscos, guiones bajos, corchetes y comillas invertidas propios se conservan exactos', async ({
+      page,
+    }) => {
+      await comprobarIdaYVuelta(page, 'literales', CON_CARACTERES_PROPIOS());
+    });
+  });
+
+  test.describe('guardar no reinicia el documento; adoptar la vigente sí (RF-011)', () => {
+    test('H5-E1 / RF-011: tras guardar, el servidor devuelve lo mismo y el documento no se toca (cursor e historial)', async ({
+      page,
+    }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-guardado-intacto'),
+        contenido: [parrafo('Texto inicial')],
+      });
+      await abrirArticulo(page, articulo.id);
+      await escribirEnElemento(page, primerParrafo(page), ' uno');
+      await guardarYEsperar(page);
+      expect(contenidoDe(await articuloPorId(articulo.id))[0]).toMatchObject({ texto: 'Texto inicial uno' });
+
+      await lienzo(page).focus();
+      // Más que el agrupamiento del historial (500 ms): lo escrito después de guardar es otro paso de Deshacer.
+      await page.waitForTimeout(600);
+      await page.keyboard.type(' dos');
+      await expect(primerParrafo(page)).toHaveText('Texto inicial uno dos');
+
+      await page.keyboard.press(`${MOD}+z`);
+      await expect(primerParrafo(page)).toHaveText('Texto inicial uno');
+      await page.keyboard.press(`${MOD}+z`);
+      await expect(primerParrafo(page)).toHaveText('Texto inicial');
+    });
+
+    const CAMBIOS_DE_ESTADO = [
+      { accion: 'Publicar', inicial: 'borrador', final: 'publicado' },
+      { accion: 'Archivar', inicial: 'publicado', final: 'archivado' },
+    ] as const;
+    for (const { accion, inicial, final } of CAMBIOS_DE_ESTADO) {
+      test(`H5-E1 / RF-011: «${accion}» desde la barra no reinicia el documento: se conservan el cursor y el historial`, async ({
+        page,
+      }) => {
+        const articulo = await sembrarArticulo({
+          titulo: nombreDePrueba(`doc-${accion.toLowerCase()}-intacto`),
+          contenido: [parrafo('Texto inicial')],
+        });
+        if (inicial === 'publicado') await publicarComoServicio(articulo.id);
+        await abrirArticulo(page, articulo.id);
+        await escribirEnElemento(page, primerParrafo(page), ' añadido');
+        await guardarYEsperar(page);
+        // El cursor queda después de "Texto".
+        await primerParrafo(page).click();
+        await page.keyboard.press('Home');
+        for (let i = 0; i < 'Texto'.length; i += 1) await page.keyboard.press('ArrowRight');
+
+        await botonDeEstado(page, accion).click();
+        await esperarEstado(page, final);
+
+        await lienzo(page).focus();
+        await page.waitForTimeout(100);
+        await page.keyboard.type('X');
+        await expect(primerParrafo(page)).toHaveText('TextoX inicial añadido');
+        await page.keyboard.press(`${MOD}+z`);
+        await expect(primerParrafo(page)).toHaveText('Texto inicial añadido');
+        await page.keyboard.press(`${MOD}+z`);
+        await expect(primerParrafo(page)).toHaveText('Texto inicial');
+      });
+    }
+
+    test('H5-E4 / RF-011: «Reemplazar con la vigente» sí reinicia el documento: muestra lo vigente y vacía el historial', async ({
+      page,
+    }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-adoptar-vigente'),
+        contenido: [parrafo('Texto original')],
+      });
+      await abrirArticulo(page, articulo.id);
+      await escribirEnElemento(page, primerParrafo(page), ' propio');
+      // Otra persona guarda antes (como servicio): cambia el contenido y sube la versión.
+      const { error } = await servicio()
+        .from('articulos')
+        .update({ contenido: [parrafo('Texto vigente')] as never, version: articulo.version })
+        .eq('id', articulo.id);
+      expect(error).toBeNull();
+
+      await botonGuardar(page).click();
+      await expect(page.getByRole('alert').filter({ hasText: 'Alguien guardó cambios más nuevos' })).toBeVisible();
+      await page.getByRole('button', { name: 'Reemplazar con la vigente' }).click();
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: /^Reemplazar/ })
+        .click();
+
+      await expect(primerParrafo(page)).toHaveText('Texto vigente');
+      await expect(botonDeshacer(page)).toHaveAttribute('aria-disabled', 'true');
+      await lienzo(page).focus();
+      await page.keyboard.press(`${MOD}+z`);
+      await expect(primerParrafo(page)).toHaveText('Texto vigente');
+      await expect(lienzo(page)).not.toContainText('propio');
+      await expect(avisoSinGuardar(page)).toHaveCount(0);
+    });
+
+    test('H5-E1: si el servidor devuelve otro contenido al guardar, el editor lo adopta, conserva el cursor y lo avisa', async ({
+      page,
+    }) => {
+      const articulo = await sembrarArticulo({
+        titulo: nombreDePrueba('doc-servidor-distinto'),
+        contenido: [parrafo('Texto MARCA-ORIGINAL')],
+      });
+      await abrirArticulo(page, articulo.id);
+      // Un servidor que "normaliza": la respuesta de la acción de guardar trae otro texto del mismo largo.
+      await page.route(`**/articulos/${articulo.id}`, async (ruta) => {
+        const pedido = ruta.request();
+        if (pedido.method() !== 'POST' || !pedido.headers()['next-action']) return ruta.continue();
+        const respuesta = await ruta.fetch();
+        const cuerpo = (await respuesta.text()).replaceAll('MARCA-ORIGINAL', 'MARCA-SERVIDOR');
+        await ruta.fulfill({ response: respuesta, body: cuerpo });
+      });
+      await escribirEnElemento(page, primerParrafo(page), ' fin');
+
+      await guardarYEsperar(page);
+
+      await expect(primerParrafo(page)).toHaveText('Texto MARCA-SERVIDOR fin');
+      await expect(regionDeEstado(page).filter({ hasText: /servidor|ajust/i })).toHaveCount(1);
+      await expect(avisoSinGuardar(page)).toHaveCount(0);
+      // El cursor sigue al final del párrafo.
+      await lienzo(page).focus();
+      await page.waitForTimeout(100);
+      await page.keyboard.type('!');
+      await expect(primerParrafo(page)).toHaveText('Texto MARCA-SERVIDOR fin!');
+    });
+  });
+
+  test.describe('a 360 px (H5-E5)', () => {
+    test.use({ viewport: { width: 360, height: 800 } });
+
+    test('H5-E5: la barra se reacomoda sin cortes con «Más», «Insertar» a la vista y controles de 44 × 44 px', async ({
+      page,
+    }) => {
+      const articulo = await sembrarCinco(nombreDePrueba('doc-360'));
+      await abrirArticulo(page, articulo.id);
+      await lienzo(page).getByText('Dos', { exact: true }).click();
+      const barra = barraDeFormato(page);
+      const insertar = barra.getByRole('button', { name: 'Insertar', exact: true });
+      const mas = barra.getByRole('button', { name: 'Más acciones', exact: true });
+
+      await expect(insertar).toBeVisible();
+      await expect(mas).toBeVisible();
+      const cortes = await barra.evaluate((el) => {
+        const caja = el.getBoundingClientRect();
+        const fuera = [...el.querySelectorAll<HTMLElement>('button')]
+          .filter((b) => b.getClientRects().length > 0 && getComputedStyle(b).visibility !== 'hidden')
+          .filter((b) => {
+            const r = b.getBoundingClientRect();
+            return r.left < caja.left - 1 || r.right > caja.right + 1;
+          })
+          .map((b) => b.getAttribute('aria-label') ?? b.textContent);
+        const pagina = document.documentElement;
+        return { fuera, desborda: el.scrollWidth > el.clientWidth + 1 || pagina.scrollWidth > pagina.clientWidth };
+      });
+      expect(cortes).toEqual({ fuera: [], desborda: false });
+      const botones = barra.getByRole('button');
+      for (let i = 0; i < (await botones.count()); i += 1) {
+        const medida = await areaTactil(botones.nth(i));
+        expect(medida.ok, `${await botones.nth(i).getAttribute('aria-label')}: ${medida.ancho} × ${medida.alto}`).toBe(
+          true,
+        );
+      }
+
+      // «Insertar» es alcanzable sin escribir «/» y lo que no entra está en «Más».
+      await abrirMenuInsertar(page);
+      await expect(opcionDeInsercion(page, 'Imagen')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await mas.click();
+      await expect(barra.getByRole('button', { name: 'Deshacer', exact: true })).toBeVisible();
+    });
+  });
+
+  test('H5-E6: la barra se anuncia como barra de herramientas con su estado y el lienzo como área de edición', async ({
+    page,
+  }) => {
+    const articulo = await sembrarCinco(nombreDePrueba('doc-lector'));
+    await abrirArticulo(page, articulo.id);
+
+    await expect(barraDeFormato(page)).toBeVisible();
+    await expect(lienzo(page)).toHaveAttribute('contenteditable', 'true');
+    await expect(lienzo(page)).toHaveAttribute('aria-multiline', 'true');
+    const negrita = barraDeFormato(page).getByRole('button', { name: 'Negrita', exact: true });
+    await lienzo(page).getByText('Dos', { exact: true }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Shift+Home');
+    await expect(negrita).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press(`${MOD}+b`);
+    await expect(negrita).toHaveAttribute('aria-pressed', 'true');
+
+    await guardarYEsperar(page);
+    await expect(page.getByRole('status').filter({ hasText: /guardad/i })).toBeVisible();
+  });
+
+  test.describe('RF-018: la columna lateral, la barra de acciones y los permisos no cambian', () => {
+    for (const rol of ['editor', 'admin'] as const) {
+      test(`RF-018: con la pestaña «Elemento» activa, «Publicación» y la barra siguen a la vista y el ${rol} conserva sus permisos`, async ({
+        page,
+      }) => {
+        const articulo = await sembrarConImagenGuardada(nombreDePrueba(`doc-rf018-${rol}`));
+        await publicarComoServicio(articulo.id);
+        await pasarAComoServicio(articulo.id, 'archivado');
+        if (rol === 'admin') {
+          await page.context().clearCookies();
+          await ingresar(page, USUARIOS.admin);
+        }
+        await abrirArticulo(page, articulo.id);
+
+        await isla(page, 'Imagen, 2 de 3').click();
+        await expect(pestana(page, 'Elemento')).toHaveAttribute('aria-selected', 'true');
+        await expect(panelDePropiedades(page)).toBeVisible();
+        await expect(panelPublicacion(page)).toBeVisible();
+        await expect(panelPublicacion(page)).toContainText(/Estado:\s*archivado/i);
+        await expect(barraDelEditor(page)).toBeVisible();
+        await expect(barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
+        await expect(botonDeEstado(page, 'Volver a borrador')).toBeVisible();
+        await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(rol === 'admin' ? 1 : 0);
+      });
+    }
   });
 });
