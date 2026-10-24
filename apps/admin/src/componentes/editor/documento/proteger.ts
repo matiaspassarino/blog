@@ -60,9 +60,12 @@ function idsMovidos(antes: string[], despues: string[]): Set<string> {
 }
 
 const rutasDe = (nodo: NodoPm): string[] => {
-  const { imagen, imagenes } = nodo.attrs as { imagen?: { ruta?: string } | null; imagenes?: { ruta?: string }[] | null };
-  return [imagen?.ruta, ...(imagenes?.map((actual) => actual.ruta) ?? [])].filter(
-    (ruta): ruta is string => Boolean(ruta),
+  const { imagen, imagenes } = nodo.attrs as {
+    imagen?: { ruta?: string } | null;
+    imagenes?: { ruta?: string }[] | null;
+  };
+  return [imagen?.ruta, ...(imagenes?.map((actual) => actual.ruta) ?? [])].filter((ruta): ruta is string =>
+    Boolean(ruta),
   );
 };
 

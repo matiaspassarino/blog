@@ -73,10 +73,7 @@ describe('cuadricula: regularidad y dimensiones', () => {
   });
 
   it('calcula dimensiones con celdas combinadas verticales (rowspan)', () => {
-    const t = tabla([
-      fila(celda('tableCell', { rowspan: 2 }), celda(), celda()),
-      fila(celda(), celda()),
-    ]);
+    const t = tabla([fila(celda('tableCell', { rowspan: 2 }), celda(), celda()), fila(celda(), celda())]);
     const res = cuadricula(t);
     expect(res.esRegular).toBe(true);
     expect(res.filas).toBe(2);
@@ -94,10 +91,7 @@ describe('cuadricula: regularidad y dimensiones', () => {
 
   it('detecta irregularidad por superposición de celdas combinadas', () => {
     // La celda (0,0) tiene colspan: 2 y la segunda celda también se declara ocupando la columna 1
-    const t = tabla([
-      fila(celda('tableCell', { colspan: 2 }), celda(), celda()),
-      fila(celda(), celda(), celda()),
-    ]);
+    const t = tabla([fila(celda('tableCell', { colspan: 2 }), celda(), celda()), fila(celda(), celda(), celda())]);
     const res = cuadricula(t);
     // 1 (colspan 2) + 1 + 1 = 4 columnas en la fila 0 frente a 3 en la fila 1
     expect(res.esRegular).toBe(false);
@@ -126,10 +120,7 @@ describe('cuadricula: regularidad y dimensiones', () => {
     ]);
     expect(cuadricula(conEncabezado).tieneEncabezado).toBe(true);
 
-    const mixto = tabla([
-      fila(celda('tableHeader'), celda('tableCell')),
-      fila(celda('tableCell'), celda('tableCell')),
-    ]);
+    const mixto = tabla([fila(celda('tableHeader'), celda('tableCell')), fila(celda('tableCell'), celda('tableCell'))]);
     expect(cuadricula(mixto).tieneEncabezado).toBe(false);
   });
 
@@ -154,7 +145,11 @@ describe('cuadricula: regularidad y dimensiones', () => {
   it('asocia los encabezados (headers H43) correspondientes a cada celda', () => {
     const t = tabla([
       fila(celda('tableHeader', { colspan: 2 }, 'Cabecera 1 y 2'), celda('tableHeader', undefined, 'Cabecera 3')),
-      fila(celda('tableCell', undefined, 'Dato 1'), celda('tableCell', undefined, 'Dato 2'), celda('tableCell', undefined, 'Dato 3')),
+      fila(
+        celda('tableCell', undefined, 'Dato 1'),
+        celda('tableCell', undefined, 'Dato 2'),
+        celda('tableCell', undefined, 'Dato 3'),
+      ),
     ]);
     const res = cuadricula(t);
     expect(res.esRegular).toBe(true);

@@ -36,7 +36,10 @@ const crearEditor = (contenido?: Record<string, unknown>) =>
   new Editor({
     element: null,
     extensions: crearExtensiones(devoluciones),
-    content: contenido ?? { type: 'doc', content: [{ type: 'paragraph', attrs: { id: '00000000-0000-4000-9000-000000000001' } }] },
+    content: contenido ?? {
+      type: 'doc',
+      content: [{ type: 'paragraph', attrs: { id: '00000000-0000-4000-9000-000000000001' } }],
+    },
   });
 
 describe('Comandos de tabla en el editor (T135)', () => {

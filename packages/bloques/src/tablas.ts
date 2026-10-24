@@ -149,10 +149,7 @@ export function cuadricula(tabla: TablaEstructural): ResultadoCuadricula {
 
   // Encabezados
   const primeraFila = filasRaw[0]?.content ?? [];
-  const tieneEncabezado =
-    R > 0 &&
-    primeraFila.length > 0 &&
-    primeraFila.every((c) => c.type === 'tableHeader');
+  const tieneEncabezado = R > 0 && primeraFila.length > 0 && primeraFila.every((c) => c.type === 'tableHeader');
 
   const encabezadoValido = !hayTableHeaderEnCuerpo && !tableHeaderConRowspan;
 

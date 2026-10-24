@@ -35,7 +35,8 @@ function bloquesSinEquivalente(contenido: unknown[]): string[] {
   return contenido.flatMap((bloque, indice): string[] => {
     const { id, tipo } = (bloque ?? {}) as { id?: unknown; tipo?: unknown };
     if (typeof id !== 'string' || id === '') return [`el bloque ${indice + 1} no tiene id`];
-    if (!TIPOS_DE_BLOQUE.has(String(tipo) as never)) return [`el bloque ${indice + 1} es de un tipo desconocido: ${String(tipo)}`];
+    if (!TIPOS_DE_BLOQUE.has(String(tipo) as never))
+      return [`el bloque ${indice + 1} es de un tipo desconocido: ${String(tipo)}`];
     return [];
   });
 }
@@ -75,7 +76,9 @@ function sqlDeConversion(filas: { id: string; version: number; documento: Docume
       : [
           '  update public.articulos a set contenido = v.contenido',
           '  from (values',
-          filas.map(({ id, version, documento }) => `    ('${id}'::uuid, ${version}, ${literalJson(documento)})`).join(',\n'),
+          filas
+            .map(({ id, version, documento }) => `    ('${id}'::uuid, ${version}, ${literalJson(documento)})`)
+            .join(',\n'),
           '  ) as v(id, version, contenido)',
           '  where a.id = v.id and a.version = v.version;',
           '  get diagnostics actualizados = row_count;',

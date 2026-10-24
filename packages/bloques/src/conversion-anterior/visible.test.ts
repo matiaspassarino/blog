@@ -62,7 +62,11 @@ describe('visibleDeBloques: lo que mostraba el renderer de bloques (D26, D31 C2)
 
   it('D26: un enlace inseguro no es un enlace: queda su texto', () => {
     const visible = visibleDeBloques([
-      { id: '11111111-1111-4111-8111-111111111111', tipo: 'parrafo', texto: 'Un [clic](javascript:alert(1)) y [bien](/x)' },
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        tipo: 'parrafo',
+        texto: 'Un [clic](javascript:alert(1)) y [bien](/x)',
+      },
     ]);
 
     expect(visible.enlaces).toEqual([{ href: '/x', texto: 'bien' }]);

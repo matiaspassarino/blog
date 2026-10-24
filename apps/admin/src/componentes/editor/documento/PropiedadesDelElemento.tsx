@@ -187,12 +187,7 @@ export function PropiedadesDelElemento({
               >
                 Combinar celdas
               </Button>
-              <Button
-                type="button"
-                variante="secundaria"
-                tamanio="compacto"
-                onClick={() => alAccionTabla?.('separar')}
-              >
+              <Button type="button" variante="secundaria" tamanio="compacto" onClick={() => alAccionTabla?.('separar')}>
                 Separar celdas
               </Button>
             </div>

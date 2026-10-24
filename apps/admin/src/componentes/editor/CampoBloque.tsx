@@ -43,7 +43,6 @@ export function CampoTexto({ valor, alCambiar, ...base }: ConValor & { type?: 't
   );
 }
 
-
 export function CampoSelect({
   valor,
   alCambiar,

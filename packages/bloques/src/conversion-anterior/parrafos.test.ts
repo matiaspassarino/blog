@@ -81,16 +81,12 @@ describe('unirParrafos(partirParrafos(x)) === x (CE-002)', () => {
     },
   );
 
-  it.each([
-    ['A\n\nB'],
-    ['A\n\n\nB'],
-    ['A\n\n'],
-    ['A\n\n  \n\nB'],
-    ['\n\n\n\n'],
-    ['A\n\n\n\n\n\n\nB'],
-  ])('CE-002: ida y vuelta de %j', (texto) => {
-    expect(unirParrafos(partirParrafos(texto))).toBe(texto);
-  });
+  it.each([['A\n\nB'], ['A\n\n\nB'], ['A\n\n'], ['A\n\n  \n\nB'], ['\n\n\n\n'], ['A\n\n\n\n\n\n\nB']])(
+    'CE-002: ida y vuelta de %j',
+    (texto) => {
+      expect(unirParrafos(partirParrafos(texto))).toBe(texto);
+    },
+  );
 
   it('CE-002: ida y vuelta de los párrafos del corpus de contenidos', () => {
     const parrafos = CORPUS_CONTENIDOS.flatMap(({ contenido }) =>
@@ -110,7 +106,10 @@ describe('unirParrafos(partirParrafos(x)) === x (CE-002)', () => {
     const piezas = ['a', 'b', ' ', '\n', '\n', '\n\n', '  ', '**', 'ñ'];
 
     for (let i = 0; i < 500; i++) {
-      const texto = Array.from({ length: Math.floor(azar() * 16) }, () => piezas[Math.floor(azar() * piezas.length)]).join('');
+      const texto = Array.from(
+        { length: Math.floor(azar() * 16) },
+        () => piezas[Math.floor(azar() * piezas.length)],
+      ).join('');
 
       expect(unirParrafos(partirParrafos(texto)), JSON.stringify(texto)).toBe(texto);
     }

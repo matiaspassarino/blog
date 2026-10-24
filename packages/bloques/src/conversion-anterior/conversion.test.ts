@@ -69,7 +69,8 @@ const parrafoDoc = (id: string, ...content: Nodo[]): Nodo => ({
 });
 const documento = (...content: Nodo[]) => ({ type: 'doc', content }) as unknown as Documento;
 
-const aDocumento = (contenido: Contenido) => bloquesADocumento(contenido) as unknown as { type: string; content: Nodo[] };
+const aDocumento = (contenido: Contenido) =>
+  bloquesADocumento(contenido) as unknown as { type: string; content: Nodo[] };
 const primerNivel = (contenido: Contenido) => aDocumento(contenido).content;
 const aBloques = (doc: Documento) => documentoABloques(doc);
 const parrafo = (id: string, valor: string): Bloque => ({ id, tipo: 'parrafo', texto: valor });
@@ -242,21 +243,24 @@ describe('bloquesADocumento: la forma del contrato (contracts/documento.md)', ()
   it.each([
     [false, 'bulletList'],
     [true, 'orderedList'],
-  ] as const)('RF-023: una lista con ordenada=%s es una %s con un listItem > paragraph sin atributos por ítem', (ordenada, tipo) => {
-    expect(primerNivel([{ id: ID_A, tipo: 'lista', ordenada, items: ['Uno', 'Con **fuerte**'] }])).toEqual([
-      {
-        type: tipo,
-        attrs: { id: ID_A },
-        content: [
-          { type: 'listItem', content: [{ type: 'paragraph', content: [texto('Uno')] }] },
-          {
-            type: 'listItem',
-            content: [{ type: 'paragraph', content: [texto('Con '), texto('fuerte', { type: 'bold' })] }],
-          },
-        ],
-      },
-    ]);
-  });
+  ] as const)(
+    'RF-023: una lista con ordenada=%s es una %s con un listItem > paragraph sin atributos por ítem',
+    (ordenada, tipo) => {
+      expect(primerNivel([{ id: ID_A, tipo: 'lista', ordenada, items: ['Uno', 'Con **fuerte**'] }])).toEqual([
+        {
+          type: tipo,
+          attrs: { id: ID_A },
+          content: [
+            { type: 'listItem', content: [{ type: 'paragraph', content: [texto('Uno')] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [texto('Con '), texto('fuerte', { type: 'bold' })] }],
+            },
+          ],
+        },
+      ]);
+    },
+  );
 
   it('RF-023: un bloque de código es un codeBlock con lenguaje y el texto sin leer marcas', () => {
     expect(primerNivel([{ id: ID_A, tipo: 'codigo', codigo: 'a **b**\nc', lenguaje: 'ts' }])).toEqual([
@@ -300,7 +304,15 @@ describe('bloquesADocumento: la forma del contrato (contracts/documento.md)', ()
   it.each(CASOS_DEL_CORPUS)('D31: "%s" no deja nada de la forma del editor anterior', (_nombre, contenido) => {
     const json = JSON.stringify(bloquesADocumento(contenido));
 
-    for (const clave of ['bloqueId', 'continuacion', '"bloque"', 'imagenBloque', 'galeriaBloque', 'ctaBloque', 'videoBloque']) {
+    for (const clave of [
+      'bloqueId',
+      'continuacion',
+      '"bloque"',
+      'imagenBloque',
+      'galeriaBloque',
+      'ctaBloque',
+      'videoBloque',
+    ]) {
       expect(json).not.toContain(clave);
     }
   });
@@ -391,7 +403,11 @@ describe('ida y vuelta: documentoABloques(bloquesADocumento(c)) es reducirTramos
 
   it('D25: un paragraph con el id de un tramo de otro bloque (no el anterior) es su propio bloque', () => {
     const tramo = idDeTramo(ID_A, 1);
-    const doc = documento(parrafoDoc(ID_A, texto('Uno')), parrafoDoc(ID_B, texto('Dos')), parrafoDoc(tramo, texto('Tres')));
+    const doc = documento(
+      parrafoDoc(ID_A, texto('Uno')),
+      parrafoDoc(ID_B, texto('Dos')),
+      parrafoDoc(tramo, texto('Tres')),
+    );
 
     expect(aBloques(doc)).toEqual([parrafo(ID_A, 'Uno'), parrafo(ID_B, 'Dos'), parrafo(tramo, 'Tres')]);
   });
@@ -452,11 +468,11 @@ describe('ida y vuelta: documentoABloques(bloquesADocumento(c)) es reducirTramos
   );
 
   it('los ids existentes se conservan y el orden del documento manda', () => {
-    const doc = documento(
-      { type: 'horizontalRule', attrs: { id: ID_C } },
-      parrafoDoc(ID_A, texto('Uno')),
-      { type: 'heading', attrs: { id: ID_B, level: 2 }, content: [texto('Título')] },
-    );
+    const doc = documento({ type: 'horizontalRule', attrs: { id: ID_C } }, parrafoDoc(ID_A, texto('Uno')), {
+      type: 'heading',
+      attrs: { id: ID_B, level: 2 },
+      content: [texto('Título')],
+    });
 
     expect(aBloques(doc).map((bloque) => bloque.id)).toEqual([ID_C, ID_A, ID_B]);
   });

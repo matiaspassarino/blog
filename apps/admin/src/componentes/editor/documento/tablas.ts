@@ -125,10 +125,7 @@ export function insertarTabla(editor: Editor): boolean {
 }
 
 /** Agrega una columna a la derecha de la actual (máximo 10 columnas). */
-export function agregarColumna(
-  editor: Editor,
-  opciones?: { alAvisar?: (mensaje: string) => void },
-): boolean {
+export function agregarColumna(editor: Editor, opciones?: { alAvisar?: (mensaje: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -140,10 +137,7 @@ export function agregarColumna(
 }
 
 /** Agrega una columna a la izquierda de la actual (máximo 10 columnas). */
-export function agregarColumnaAntes(
-  editor: Editor,
-  opciones?: { alAvisar?: (mensaje: string) => void },
-): boolean {
+export function agregarColumnaAntes(editor: Editor, opciones?: { alAvisar?: (mensaje: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -155,10 +149,7 @@ export function agregarColumnaAntes(
 }
 
 /** Agrega una fila debajo de la actual (máximo 50 filas). */
-export function agregarFila(
-  editor: Editor,
-  opciones?: { alAvisar?: (mensaje: string) => void },
-): boolean {
+export function agregarFila(editor: Editor, opciones?: { alAvisar?: (mensaje: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -170,10 +161,7 @@ export function agregarFila(
 }
 
 /** Agrega una fila arriba de la actual (máximo 50 filas). */
-export function agregarFilaAntes(
-  editor: Editor,
-  opciones?: { alAvisar?: (mensaje: string) => void },
-): boolean {
+export function agregarFilaAntes(editor: Editor, opciones?: { alAvisar?: (mensaje: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -208,10 +196,7 @@ export function conmutarEncabezado(editor: Editor): boolean {
 }
 
 /** Elimina la columna actual (al menos debe quedar 1 columna). */
-export function eliminarColumna(
-  editor: Editor,
-  opciones?: { alNoDisponible?: (razon: string) => void },
-): boolean {
+export function eliminarColumna(editor: Editor, opciones?: { alNoDisponible?: (razon: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -223,10 +208,7 @@ export function eliminarColumna(
 }
 
 /** Elimina la fila actual (al menos debe quedar 1 fila). */
-export function eliminarFila(
-  editor: Editor,
-  opciones?: { alNoDisponible?: (razon: string) => void },
-): boolean {
+export function eliminarFila(editor: Editor, opciones?: { alNoDisponible?: (razon: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const grid = cuadricula(ctx.tableNode.toJSON() as TablaEstructural);
@@ -238,10 +220,7 @@ export function eliminarFila(
 }
 
 /** Combina las celdas seleccionadas (solo rectángulos y sin mezclar encabezado y cuerpo). */
-export function combinarCeldas(
-  editor: Editor,
-  opciones?: { alFallar?: (mensaje: string) => void },
-): boolean {
+export function combinarCeldas(editor: Editor, opciones?: { alFallar?: (mensaje: string) => void }): boolean {
   const ctx = prepararContextoDeTabla(editor);
   if (!ctx) return false;
   const { selection } = editor.state;

@@ -285,9 +285,12 @@ const encabezadoTabla = celdaDeTabla('tableHeader');
 const filaDeTabla = estricto('La fila', {
   type: tipo('tableRow'),
   content: z
-    .array(z.discriminatedUnion('type', [celdaTabla, encabezadoTabla], { error: 'Solo se admiten celdas y encabezados' }), {
-      error: 'La fila debe tener celdas',
-    })
+    .array(
+      z.discriminatedUnion('type', [celdaTabla, encabezadoTabla], { error: 'Solo se admiten celdas y encabezados' }),
+      {
+        error: 'La fila debe tener celdas',
+      },
+    )
     .min(1, 'La fila debe tener al menos una celda')
     .max(LIMITES_TABLA.MAX_COLUMNAS, `La fila admite hasta ${LIMITES_TABLA.MAX_COLUMNAS} celdas`),
 });

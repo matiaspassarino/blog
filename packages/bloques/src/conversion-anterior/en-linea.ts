@@ -80,10 +80,7 @@ function analizar(texto: string, inicios?: number[]): NodoEnLinea[] {
       const cierre = texto.indexOf('](', i + 1);
       const fin = cierre === -1 ? -1 : finDeUrl(texto, cierre + 2);
       if (cierre > i + 1 && fin !== -1) {
-        empujar(
-          { tipo: 'enlace', href: texto.slice(cierre + 2, fin), hijos: analizar(texto.slice(i + 1, cierre)) },
-          i,
-        );
+        empujar({ tipo: 'enlace', href: texto.slice(cierre + 2, fin), hijos: analizar(texto.slice(i + 1, cierre)) }, i);
         i = fin + 1;
         continue;
       }
@@ -120,7 +117,12 @@ const urlBalanceada = (href: string) => finDeUrl(`${href})`, 0) === href.length;
 
 const primerCaracter = (nodo: NodoEnLinea | undefined) => (nodo?.tipo === 'texto' ? nodo.texto[0] : undefined);
 
-function serializarLista(nodos: NodoEnLinea[], anterior: string, siguiente: string | undefined, dentro: string[]): string {
+function serializarLista(
+  nodos: NodoEnLinea[],
+  anterior: string,
+  siguiente: string | undefined,
+  dentro: string[],
+): string {
   let salida = '';
   nodos.forEach((nodo, i) => {
     const previo = salida ? salida.slice(-1) : anterior;
@@ -150,7 +152,10 @@ function serializarNodo(nodo: NodoEnLinea, previo: string, proximo: string | und
   // Los espacios de los bordes salen del marcador: `**palabra **` → `**palabra** `.
   const inicio = interior.slice(0, interior.indexOf(nucleo));
   const fin = interior.slice(inicio.length + nucleo.length);
-  if (nodo.tipo === 'cursiva' && (esPalabra((inicio || previo).slice(-1)) || esPalabra((fin || (proximo ?? '')).charAt(0)))) {
+  if (
+    nodo.tipo === 'cursiva' &&
+    (esPalabra((inicio || previo).slice(-1)) || esPalabra((fin || (proximo ?? '')).charAt(0)))
+  ) {
     return interior; // la cursiva no abre ni cierra pegada a una palabra
   }
   const marca = nodo.tipo === 'negrita' ? '**' : '_';

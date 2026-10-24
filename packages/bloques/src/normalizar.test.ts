@@ -395,9 +395,7 @@ describe('normalizarDocumento', () => {
       const entrada = doc(
         tabla(
           undefined,
-          fila(
-            { type: 'tableCell', attrs: { colspan: 2, rowspan: 3 }, content: [parrafoSimple(texto('A'))] },
-          ),
+          fila({ type: 'tableCell', attrs: { colspan: 2, rowspan: 3 }, content: [parrafoSimple(texto('A'))] }),
         ),
       );
       const salida = normalizar(entrada);
@@ -410,9 +408,11 @@ describe('normalizarDocumento', () => {
       const entrada = doc(
         tabla(
           undefined,
-          fila(
-            { type: 'tableCell', attrs: { colwidth: [120, 240], colspan: 2 }, content: [parrafoSimple(texto('A'))] },
-          ),
+          fila({
+            type: 'tableCell',
+            attrs: { colwidth: [120, 240], colspan: 2 },
+            content: [parrafoSimple(texto('A'))],
+          }),
         ),
       );
       const salida = normalizar(entrada);
@@ -422,14 +422,7 @@ describe('normalizarDocumento', () => {
     });
 
     it('conserva párrafos vacíos dentro de celdas (no se descartan como en el primer nivel)', () => {
-      const entrada = doc(
-        tabla(
-          undefined,
-          fila(
-            { type: 'tableCell', content: [{ type: 'paragraph' }] },
-          ),
-        ),
-      );
+      const entrada = doc(tabla(undefined, fila({ type: 'tableCell', content: [{ type: 'paragraph' }] })));
       const salida = normalizar(entrada);
       const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
       const celdas = (primeraFila?.content ?? []) as NodoPrueba[];
@@ -440,27 +433,22 @@ describe('normalizarDocumento', () => {
       const entrada = doc(
         tabla(
           undefined,
-          fila(
-            {
-              type: 'tableCell',
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [texto('Hola '), texto('mundo', marca.negrita), texto('!', marca.negrita)],
-                },
-              ],
-            },
-          ),
+          fila({
+            type: 'tableCell',
+            content: [
+              {
+                type: 'paragraph',
+                content: [texto('Hola '), texto('mundo', marca.negrita), texto('!', marca.negrita)],
+              },
+            ],
+          }),
         ),
       );
       const salida = normalizar(entrada);
       const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
       const celdaActual = ((primeraFila?.content ?? []) as NodoPrueba[])[0];
       const parrafoActual = celdaActual?.content?.[0] as NodoPrueba;
-      expect(parrafoActual?.content).toEqual([
-        texto('Hola '),
-        texto('mundo!', marca.negrita),
-      ]);
+      expect(parrafoActual?.content).toEqual([texto('Hola '), texto('mundo!', marca.negrita)]);
     });
 
     it('es idempotente sobre tablas', () => {

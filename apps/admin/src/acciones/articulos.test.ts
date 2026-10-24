@@ -537,7 +537,10 @@ describe.skipIf(sinSupabase)('Server Actions de artículos (H2)', () => {
     it('un fallo del borrado no revierte el guardado (la ruta quitada ni siquiera existe en el bucket)', async () => {
       const { guardarArticulo } = await import('./articulos');
       const fantasma = `${carpetaMedios}/nunca-subida.png`;
-      const articulo = await sembrar(editor, { titulo: titulo('borrado falla'), contenido: doc(bloqueImagen(fantasma)) });
+      const articulo = await sembrar(editor, {
+        titulo: titulo('borrado falla'),
+        contenido: doc(bloqueImagen(fantasma)),
+      });
       await comoMiembro('editor');
       const registrarError = vi.spyOn(console, 'error').mockImplementation(() => {});
 

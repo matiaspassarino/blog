@@ -74,8 +74,7 @@ function calcularEstadoTabla(editor: Editor | null): EstadoTabla {
 
   const { state } = editor;
   const { selection } = state;
-  const esTablaSeleccionada =
-    selection instanceof NodeSelection && selection.node.type.name === 'table';
+  const esTablaSeleccionada = selection instanceof NodeSelection && selection.node.type.name === 'table';
 
   const pos = selection.from;
   const $pos = state.doc.resolve(pos);
@@ -146,9 +145,7 @@ function calcularEstadoTabla(editor: Editor | null): EstadoTabla {
 
   const primeraFila = tableNode.childCount > 0 ? tableNode.child(0) : null;
   const tieneEncabezado = Boolean(
-    primeraFila &&
-      primeraFila.childCount > 0 &&
-      primeraFila.child(0).type.name === 'tableHeader',
+    primeraFila && primeraFila.childCount > 0 && primeraFila.child(0).type.name === 'tableHeader',
   );
 
   return {
@@ -166,7 +163,12 @@ function calcularEstadoTabla(editor: Editor | null): EstadoTabla {
   };
 }
 
-export function BarraTabla({ editor, deshabilitada = false, alPropiedades: _alPropiedades, anunciar }: PropsBarraTabla) {
+export function BarraTabla({
+  editor,
+  deshabilitada = false,
+  alPropiedades: _alPropiedades,
+  anunciar,
+}: PropsBarraTabla) {
   const [esMenor768, setEsMenor768] = useState(false);
   const [activo, setActivo] = useState('fila-arriba');
   const [avisoDeshacer, setAvisoDeshacer] = useState(false);
@@ -180,8 +182,7 @@ export function BarraTabla({ editor, deshabilitada = false, alPropiedades: _alPr
   const idRazonSeparar = useId();
 
   const estado =
-    useEditorState({ editor, selector: ({ editor: e }) => calcularEstadoTabla(e) }) ??
-    calcularEstadoTabla(null);
+    useEditorState({ editor, selector: ({ editor: e }) => calcularEstadoTabla(e) }) ?? calcularEstadoTabla(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -196,7 +197,7 @@ export function BarraTabla({ editor, deshabilitada = false, alPropiedades: _alPr
 
   const ctl = (id: string, razonId?: string) => ({
     'data-barra': id,
-    tabIndex: (activo === id || (esMenor768 && id === 'quitar-tabla')) ? 0 : -1,
+    tabIndex: activo === id || (esMenor768 && id === 'quitar-tabla') ? 0 : -1,
     onFocus: () => setActivo(id),
     onPointerDown: (e: React.PointerEvent) => e.preventDefault(),
     ...(razonId ? { 'aria-describedby': razonId } : {}),
@@ -297,9 +298,7 @@ export function BarraTabla({ editor, deshabilitada = false, alPropiedades: _alPr
         onKeyDown={alTeclear}
         className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-fondo p-1 text-xs text-texto-suave @container"
       >
-        <span className="flex-1 px-1">
-          Para cambiar filas, columnas o combinar celdas, usa una pantalla más ancha
-        </span>
+        <span className="flex-1 px-1">Para cambiar filas, columnas o combinar celdas, usa una pantalla más ancha</span>
         <Button
           variante="terciaria"
           tamanio="compacto"
@@ -412,9 +411,7 @@ export function BarraTabla({ editor, deshabilitada = false, alPropiedades: _alPr
         'sticky top-0 z-10 flex flex-wrap items-center gap-1 rounded-md border border-borde bg-fondo p-1 @container',
       )}
     >
-      <span className="px-2 text-xs font-semibold text-texto-suave">
-        Esc: salir de la tabla
-      </span>
+      <span className="px-2 text-xs font-semibold text-texto-suave">Esc: salir de la tabla</span>
       {accionesPrincipales}
       <Button
         variante="terciaria"

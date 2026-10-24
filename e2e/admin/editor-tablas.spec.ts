@@ -7,12 +7,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { limpiarArticulosE2E } from './ayudas/articulos';
-import {
-  abrirMenuInsertar,
-  esperarEditorListo,
-  lienzo,
-  opcionDeInsercion,
-} from './ayudas/editor';
+import { abrirMenuInsertar, esperarEditorListo, lienzo, opcionDeInsercion } from './ayudas/editor';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 
 const PREFIJO = 'e2e-tbl-';
@@ -142,7 +137,9 @@ test.describe('Editor: tablas (Historia 7)', () => {
 
     // A 360px muestra el texto explicativo de RF-029 y solo Quitar tabla
     const barraTabla = page.getByRole('toolbar', { name: 'Tabla' });
-    await expect(barraTabla).toContainText('Para cambiar filas, columnas o combinar celdas, usa una pantalla más ancha');
+    await expect(barraTabla).toContainText(
+      'Para cambiar filas, columnas o combinar celdas, usa una pantalla más ancha',
+    );
     await expect(barraTabla.getByRole('button', { name: 'Insertar fila' })).toHaveCount(0);
     await expect(barraTabla.getByRole('button', { name: 'Quitar tabla' })).toBeVisible();
   });
@@ -160,9 +157,7 @@ test.describe('Editor: tablas (Historia 7)', () => {
     await page.keyboard.press('Tab');
     await page.keyboard.type('Encabezado 3');
 
-    const resultados = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-      .analyze();
+    const resultados = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(resultados.violations).toEqual([]);
   });
 });

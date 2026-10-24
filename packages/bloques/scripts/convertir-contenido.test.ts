@@ -75,9 +75,7 @@ const ENTRADA_CORPUS: ArticuloExportado[] = CORPUS_CONTENIDOS.map(({ contenido }
 
 const DOCUMENTO_VIGENTE = {
   type: 'doc',
-  content: [
-    { type: 'paragraph', attrs: { id: ID_BLOQUE }, content: [{ type: 'text', text: 'Ya convertido' }] },
-  ],
+  content: [{ type: 'paragraph', attrs: { id: ID_BLOQUE }, content: [{ type: 'text', text: 'Ya convertido' }] }],
 };
 
 function convertir(entrada: ArticuloExportado[]) {
@@ -98,8 +96,7 @@ function enOrden(texto: string, fragmentos: (string | RegExp)[]) {
   let desde = 0;
   return fragmentos.map((fragmento) => {
     const resto = texto.slice(desde);
-    const posicion =
-      typeof fragmento === 'string' ? resto.indexOf(fragmento) : (resto.match(fragmento)?.index ?? -1);
+    const posicion = typeof fragmento === 'string' ? resto.indexOf(fragmento) : (resto.match(fragmento)?.index ?? -1);
     expect(posicion, `falta (o está fuera de orden): ${String(fragmento)}`).toBeGreaterThanOrEqual(0);
     desde += Math.max(posicion, 0) + 1;
     return desde - 1;
@@ -205,10 +202,7 @@ describe('convertirArticulos: el SQL de la conversión (data-model, paso 3; D31 
   });
 
   it('D25: un artículo que ya es un documento no se toca (la conversión es repetible)', () => {
-    const resultado = convertir([
-      ...ENTRADA_FIXTURE,
-      { id: ID_DOCUMENTO, version: 7, contenido: DOCUMENTO_VIGENTE },
-    ]);
+    const resultado = convertir([...ENTRADA_FIXTURE, { id: ID_DOCUMENTO, version: 7, contenido: DOCUMENTO_VIGENTE }]);
 
     expect(resultado.convertidos).toBe(ENTRADA_FIXTURE.length);
     expect(resultado.sql).not.toContain(ID_DOCUMENTO);
@@ -241,7 +235,9 @@ describe('convertirArticulos: pérdida (bloquea) y validez (informa) (D25 y D26)
   });
 
   it('D25: un bloque sin id es una pérdida (no tendría attrs.id)', () => {
-    const resultado = convertirArticulos([{ id: ID_BORRADOR, version: 1, contenido: [{ tipo: 'parrafo', texto: 'Sin id' }] }]);
+    const resultado = convertirArticulos([
+      { id: ID_BORRADOR, version: 1, contenido: [{ tipo: 'parrafo', texto: 'Sin id' }] },
+    ]);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;

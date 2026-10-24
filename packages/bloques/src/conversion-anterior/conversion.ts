@@ -108,7 +108,10 @@ function enLineaADocumento(texto: string, saltos: boolean): NodoDocumento[] {
 const parrafoADocumento = (texto: string): NodoDocumento[] =>
   texto
     .split('\n')
-    .flatMap((linea, i): NodoDocumento[] => [...(i > 0 ? [{ type: 'hardBreak' }] : []), ...enLineaADocumento(linea, false)]);
+    .flatMap((linea, i): NodoDocumento[] => [
+      ...(i > 0 ? [{ type: 'hardBreak' }] : []),
+      ...enLineaADocumento(linea, false),
+    ]);
 
 function tramosDeDocumento(hijos: NodoDocumento[]): Tramo[] {
   return hijos.flatMap((hijo): Tramo[] => {
@@ -259,7 +262,12 @@ function bloqueDeDocumento(nodo: NodoDocumento): Bloque {
         items: (nodo.content ?? []).map((item) => enLineaDeDocumento(primerParrafo(item)?.content)),
       };
     case 'codeBlock':
-      return { id, tipo: 'codigo', codigo: textoSinMarcas(nodo.content), ...opcional('lenguaje', atributos.lenguaje) } as Bloque;
+      return {
+        id,
+        tipo: 'codigo',
+        codigo: textoSinMarcas(nodo.content),
+        ...opcional('lenguaje', atributos.lenguaje),
+      } as Bloque;
     case 'horizontalRule':
       return { id, tipo: 'separador' };
     default: {

@@ -101,11 +101,9 @@ export const anuncioPrimeraCelda = () => 'Primera celda';
 export const anuncioSeleccionCeldas = (filas: number, columnas: number) =>
   `Celdas seleccionadas: ${filas} ${filas === 1 ? 'fila' : 'filas'} por ${columnas} ${columnas === 1 ? 'columna' : 'columnas'}`;
 
-export const anuncioFilaAgregada = (total: number) =>
-  `Fila agregada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
+export const anuncioFilaAgregada = (total: number) => `Fila agregada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
 
-export const anuncioFilaQuitada = (total: number) =>
-  `Fila quitada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
+export const anuncioFilaQuitada = (total: number) => `Fila quitada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
 
 export const anuncioColumnaAgregada = (total: number) =>
   `Columna agregada, ${total} ${total === 1 ? 'columna' : 'columnas'}`;

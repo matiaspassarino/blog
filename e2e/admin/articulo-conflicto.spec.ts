@@ -47,7 +47,8 @@ async function dosPersonasEnElMismoArticulo(browser: Browser) {
 
 const campoTitulo = (page: Page) => page.getByLabel('Título', { exact: true });
 const parrafoDelLienzo = (page: Page) => grupoDeBloque(page, 1, 'parrafo');
-const avisoDeConflicto = (page: Page) => page.getByRole('alert').filter({ hasText: 'Alguien guardó cambios más nuevos' });
+const avisoDeConflicto = (page: Page) =>
+  page.getByRole('alert').filter({ hasText: 'Alguien guardó cambios más nuevos' });
 
 async function reemplazarConLaVigente(page: Page) {
   await page.getByRole('button', { name: 'Reemplazar con la vigente' }).click();

@@ -304,7 +304,9 @@ test.describe('Casos borde: un slug manual que ya existe (RF-008)', () => {
     expect(data?.slug).toMatch(new RegExp(`^${ocupado}-\\d+$`));
     expect(elementosDe(data).map(textoDe)).toEqual(['El contenido del lienzo se guarda con el slug ajustado']);
     await expect(page.getByLabel('Slug', { exact: true })).toHaveValue(data!.slug);
-    await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText('El contenido del lienzo se guarda con el slug ajustado');
+    await expect(grupoDeBloque(page, 1, 'parrafo')).toHaveText(
+      'El contenido del lienzo se guarda con el slug ajustado',
+    );
   });
 
   test('CB-slug: el mensaje de éxito nombra el slug final cuando difiere del escrito (contracts/acciones.md, guardarArticulo)', async ({
@@ -341,7 +343,10 @@ test.describe('Casos borde: un publicado sin bloques', () => {
 
     await expect(errorDelPanel(page)).toContainText(/sin bloques/i);
     await esperarEstado(page, 'borrador');
-    expect(await articuloPorId(articulo.id)).toMatchObject({ estado: 'borrador', contenido: { type: 'doc', content: [] } });
+    expect(await articuloPorId(articulo.id)).toMatchObject({
+      estado: 'borrador',
+      contenido: { type: 'doc', content: [] },
+    });
   });
 
   test('CB-sin-bloques: quitar todos los bloques de un publicado nunca deja la base con un publicado vacío', async ({

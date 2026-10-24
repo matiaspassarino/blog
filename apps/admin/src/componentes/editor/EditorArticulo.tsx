@@ -156,12 +156,9 @@ export function EditorArticulo({
     },
     [elemento],
   );
-  const alAccionTabla = useCallback(
-    (accion: AccionTabla) => {
-      acciones.current?.ejecutarAccionTabla?.(accion);
-    },
-    [],
-  );
+  const alAccionTabla = useCallback((accion: AccionTabla) => {
+    acciones.current?.ejecutarAccionTabla?.(accion);
+  }, []);
   const alCerrarHoja = useCallback(() => setHojaAbierta(false), []);
   const alPropiedades = useCallback(() => {
     setPestania('elemento');

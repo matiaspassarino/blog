@@ -108,9 +108,7 @@ export function limpiarIdsDeNodos<T extends Record<string, unknown>>(nodo: T): T
   }
 
   if (Array.isArray(copia.content)) {
-    copia.content = (copia.content as Record<string, unknown>[]).map((hijo) =>
-      limpiarIdsDeNodos(hijo),
-    );
+    copia.content = (copia.content as Record<string, unknown>[]).map((hijo) => limpiarIdsDeNodos(hijo));
   }
 
   return copia as T;

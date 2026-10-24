@@ -53,7 +53,8 @@ function validarCampos(datos: CamposValidables): CamposValidables {
 
   if (datos.contenido !== undefined) {
     const erroresDelDocumento = validarDocumento(datos.contenido);
-    if (erroresDelDocumento.length === 0) validados.contenido = esquemaDocumento.parse(datos.contenido) as NonNullable<Json>;
+    if (erroresDelDocumento.length === 0)
+      validados.contenido = esquemaDocumento.parse(datos.contenido) as NonNullable<Json>;
     else errores.push(...erroresDelDocumento);
   }
 

@@ -22,9 +22,29 @@ function crearAzar(semilla: number) {
   };
 }
 
-const elegir = <T>(azar: () => number, opciones: readonly T[]): T => opciones[Math.floor(azar() * opciones.length)] as T;
+const elegir = <T>(azar: () => number, opciones: readonly T[]): T =>
+  opciones[Math.floor(azar() * opciones.length)] as T;
 
-const PIEZAS_DE_TEXTO = ['a', 'b', 'foo', 'bar', ' ', '  ', '**', '*', '_', '`', '[', ']', '](', '(', ')', '\n', 'https://x.com', 'ñ'];
+const PIEZAS_DE_TEXTO = [
+  'a',
+  'b',
+  'foo',
+  'bar',
+  ' ',
+  '  ',
+  '**',
+  '*',
+  '_',
+  '`',
+  '[',
+  ']',
+  '](',
+  '(',
+  ')',
+  '\n',
+  'https://x.com',
+  'ñ',
+];
 
 function textoAlAzar(azar: () => number): string {
   const largo = Math.floor(azar() * 14);
@@ -37,10 +57,12 @@ const HREFS = ['/x', '/blog/otro', 'https://a.com/b', 'https://es.wikipedia.org/
 function arbolAlAzar(azar: () => number, profundidad: number): NodoEnLinea[] {
   const cantidad = 1 + Math.floor(azar() * 3);
   return Array.from({ length: cantidad }, (): NodoEnLinea => {
-    const tipo = profundidad <= 0 ? 'texto' : elegir(azar, ['texto', 'texto', 'negrita', 'cursiva', 'codigo', 'enlace'] as const);
+    const tipo =
+      profundidad <= 0 ? 'texto' : elegir(azar, ['texto', 'texto', 'negrita', 'cursiva', 'codigo', 'enlace'] as const);
     if (tipo === 'texto') return { tipo: 'texto', texto: elegir(azar, FRAGMENTOS) };
     if (tipo === 'codigo') return { tipo: 'codigo', texto: elegir(azar, FRAGMENTOS) };
-    if (tipo === 'enlace') return { tipo: 'enlace', href: elegir(azar, HREFS), hijos: arbolAlAzar(azar, profundidad - 1) };
+    if (tipo === 'enlace')
+      return { tipo: 'enlace', href: elegir(azar, HREFS), hijos: arbolAlAzar(azar, profundidad - 1) };
     return { tipo, hijos: arbolAlAzar(azar, profundidad - 1) };
   });
 }
@@ -220,7 +242,9 @@ describe('casos de la revisión (research D3)', () => {
     ];
 
     expect(normalizarMarcas(arbol)).toEqual([{ tipo: 'texto', texto: 'foobar' }]);
-    expect(todosLosNodos(analizarEnLinea(serializarEnLinea(arbol))).some((nodo) => nodo.tipo === 'cursiva')).toBe(false);
+    expect(todosLosNodos(analizarEnLinea(serializarEnLinea(arbol))).some((nodo) => nodo.tipo === 'cursiva')).toBe(
+      false,
+    );
   });
 
   it('código que contiene una comilla invertida: se degrada a texto plano', () => {
@@ -245,7 +269,13 @@ describe('casos de la revisión (research D3)', () => {
 
   it('marcas del mismo tipo anidadas (negrita dentro de negrita) quedan bien formadas', () => {
     const arbol: NodoEnLinea[] = [
-      { tipo: 'negrita', hijos: [{ tipo: 'texto', texto: 'a ' }, { tipo: 'negrita', hijos: [{ tipo: 'texto', texto: 'b' }] }] },
+      {
+        tipo: 'negrita',
+        hijos: [
+          { tipo: 'texto', texto: 'a ' },
+          { tipo: 'negrita', hijos: [{ tipo: 'texto', texto: 'b' }] },
+        ],
+      },
     ];
 
     expect(analizarEnLinea(serializarEnLinea(arbol))).toEqual(normalizarMarcas(arbol));

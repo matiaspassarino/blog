@@ -100,9 +100,7 @@ const parrafosDe = (elemento: Elemento): (readonly Inline[] | undefined)[] => {
     case 'blockquote':
       return [elemento.content[0].content];
     case 'table':
-      return elemento.content.flatMap((fila) =>
-        fila.content.flatMap((celda) => celda.content.map((p) => p.content)),
-      );
+      return elemento.content.flatMap((fila) => fila.content.flatMap((celda) => celda.content.map((p) => p.content)));
     default:
       return [];
   }
@@ -197,7 +195,8 @@ export function visibleDeDocumento(documento: Documento): Visible {
       case 'blockquote': {
         const { autor } = elemento.attrs;
         const fuente = hrefSeguro(elemento.attrs.fuente);
-        const pie = autor || fuente ? ` — ${autor ?? ''}${autor && fuente ? ', ' : ''}${fuente ? 'ver la fuente' : ''}` : '';
+        const pie =
+          autor || fuente ? ` — ${autor ?? ''}${autor && fuente ? ', ' : ''}${fuente ? 'ver la fuente' : ''}` : '';
         if (fuente) visible.enlaces.push({ href: fuente, texto: 'ver la fuente' });
         visible.textos.push(limpiar(texto + pie));
         break;
@@ -210,14 +209,22 @@ export function visibleDeDocumento(documento: Documento): Visible {
         visible.textos.push('');
         if (elemento.type === 'galeria') {
           for (const imagen of elemento.attrs.imagenes) {
-            visible.imagenes.push({ src: imagen.ruta, alt: imagen.decorativa ? '' : (imagen.alt ?? ''), leyenda: null });
+            visible.imagenes.push({
+              src: imagen.ruta,
+              alt: imagen.decorativa ? '' : (imagen.alt ?? ''),
+              leyenda: null,
+            });
           }
         }
         break;
       case 'imagen': {
         const { imagen, leyenda } = elemento.attrs;
         const mostrada = imagen.decorativa ? '' : limpiar(leyenda ?? '');
-        visible.imagenes.push({ src: imagen.ruta, alt: imagen.decorativa ? '' : (imagen.alt ?? ''), leyenda: mostrada || null });
+        visible.imagenes.push({
+          src: imagen.ruta,
+          alt: imagen.decorativa ? '' : (imagen.alt ?? ''),
+          leyenda: mostrada || null,
+        });
         visible.textos.push(mostrada);
         break;
       }

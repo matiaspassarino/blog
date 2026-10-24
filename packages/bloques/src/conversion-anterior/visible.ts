@@ -51,7 +51,8 @@ export function visibleDeBloques(contenido: Contenido): Visible {
         const cita = enLinea(bloque.texto);
         const fuente = hrefSeguro(bloque.fuente);
         const { autor } = bloque;
-        const pie = autor || fuente ? ` — ${autor ?? ''}${autor && fuente ? ', ' : ''}${fuente ? 'ver la fuente' : ''}` : '';
+        const pie =
+          autor || fuente ? ` — ${autor ?? ''}${autor && fuente ? ', ' : ''}${fuente ? 'ver la fuente' : ''}` : '';
         visible.enlaces.push(...cita.enlaces);
         if (fuente) visible.enlaces.push({ href: fuente, texto: 'ver la fuente' });
         visible.textos.push(limpiar(cita.texto + pie));

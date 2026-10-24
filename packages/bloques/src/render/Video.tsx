@@ -15,7 +15,6 @@ const escaparHtml = (texto: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-
 // El srcdoc es un documento aislado: no hereda los tokens de la página, así que usa los
 // colores convencionales de un reproductor (negro y blanco).
 function documentoVistaPrevia(titulo: string, reproductor: string, miniatura: string | null) {

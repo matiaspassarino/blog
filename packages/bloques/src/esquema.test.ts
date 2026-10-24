@@ -18,7 +18,24 @@ import { describe, expect, it } from 'vitest';
 import { esquemaDocumento } from './esquema';
 import { alineado, CORPUS_DOCUMENTOS, imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
-const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, encabezado, fila, tabla, parrafoSimple } = nodo;
+const {
+  doc,
+  texto,
+  salto,
+  parrafo,
+  titulo,
+  item,
+  vinetas,
+  numerada,
+  cita,
+  codigo,
+  separador,
+  celda,
+  encabezado,
+  fila,
+  tabla,
+  parrafoSimple,
+} = nodo;
 
 const MENSAJE_SIN_ALT = 'La imagen necesita un texto alternativo o marcarse como decorativa';
 const letras = (largo: number) => 'a'.repeat(largo);
@@ -781,14 +798,8 @@ describe('Fase 13 (Historia 7): nodo table en esquemaDocumento (T133)', () => {
   });
 
   it('rechaza descripción vacía o de más de 150 caracteres', () => {
-    const vacia = tabla(
-      { descripcion: '' },
-      fila(celda(undefined, parrafoSimple(texto('A')))),
-    );
-    const muyLarga = tabla(
-      { descripcion: letras(151) },
-      fila(celda(undefined, parrafoSimple(texto('A')))),
-    );
+    const vacia = tabla({ descripcion: '' }, fila(celda(undefined, parrafoSimple(texto('A')))));
+    const muyLarga = tabla({ descripcion: letras(151) }, fila(celda(undefined, parrafoSimple(texto('A')))));
     expect(esValido(doc(vacia))).toBe(false);
     expect(esValido(doc(muyLarga))).toBe(false);
   });
@@ -842,16 +853,10 @@ describe('Fase 13 (Historia 7): nodo table en esquemaDocumento (T133)', () => {
   });
 
   it('colspan y rowspan deben ser >= 2 cuando están presentes (1 se quita al normalizar)', () => {
-    const conUno = tabla(
-      undefined,
-      fila(celda({ colspan: 1 }, parrafoSimple(texto('A')))),
-    );
+    const conUno = tabla(undefined, fila(celda({ colspan: 1 }, parrafoSimple(texto('A')))));
     expect(esValido(doc(conUno))).toBe(false);
 
-    const conCero = tabla(
-      undefined,
-      fila(celda({ colspan: 0 }, parrafoSimple(texto('A')))),
-    );
+    const conCero = tabla(undefined, fila(celda({ colspan: 0 }, parrafoSimple(texto('A')))));
     expect(esValido(doc(conCero))).toBe(false);
   });
 

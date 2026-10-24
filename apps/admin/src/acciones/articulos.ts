@@ -200,7 +200,11 @@ export async function eliminarArticuloAccion(entrada: unknown): Promise<Resultad
 
     const anterior = await obtenerArticuloParaEditar(cliente, id);
     await eliminarArticulo(cliente, id);
-    if (anterior) await borrarImagenesSinUso(cliente, imagenesDe(anterior), { contenido: { type: 'doc', content: [] }, imagen_destacada: null });
+    if (anterior)
+      await borrarImagenesSinUso(cliente, imagenesDe(anterior), {
+        contenido: { type: 'doc', content: [] },
+        imagen_destacada: null,
+      });
 
     revalidatePath('/articulos');
     return exito(undefined);

@@ -6,9 +6,7 @@ export function Lista({ elemento }: { elemento: ElementoDe<'bulletList' | 'order
   const ordenada = elemento.type === 'orderedList';
   const Etiqueta = ordenada ? 'ol' : 'ul';
   return (
-    <Etiqueta
-      className={`${CLASES_LISTA} ${ordenada ? CLASES_LISTA_NUMERADA : CLASES_LISTA_VINETAS}`}
-    >
+    <Etiqueta className={`${CLASES_LISTA} ${ordenada ? CLASES_LISTA_NUMERADA : CLASES_LISTA_VINETAS}`}>
       {elemento.content.map((item, i) => (
         <li key={i}>
           <EnLinea contenido={item.content[0].content} />

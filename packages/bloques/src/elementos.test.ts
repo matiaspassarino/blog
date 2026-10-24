@@ -32,7 +32,24 @@ import {
   type NodoPrueba,
 } from './pruebas/corpus-documento';
 
-const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, encabezado, fila, tabla, parrafoSimple } = nodo;
+const {
+  doc,
+  texto,
+  salto,
+  parrafo,
+  titulo,
+  item,
+  vinetas,
+  numerada,
+  cita,
+  codigo,
+  separador,
+  celda,
+  encabezado,
+  fila,
+  tabla,
+  parrafoSimple,
+} = nodo;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SALIDA_ANTERIOR = JSON.parse(
   readFileSync(fileURLToPath(new URL('./pruebas/salida-anterior.json', import.meta.url)), 'utf8'),

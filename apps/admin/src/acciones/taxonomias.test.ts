@@ -104,7 +104,9 @@ describe.skipIf(sinSupabase)('Server Actions de categorías y etiquetas (H5)', (
       slug: '',
       contenido: {
         type: 'doc',
-        content: [{ type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] }],
+        content: [
+          { type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] },
+        ],
       },
       categoriaId: tipo === 'categoria' ? taxonomiaId : categoriaBaseId,
       etiquetas: tipo === 'etiqueta' ? [taxonomiaId] : [],
@@ -431,9 +433,11 @@ describe.skipIf(sinSupabase)('Server Actions de categorías y etiquetas (H5)', (
         titulo: `${PREFIJO} articulo ${(contador += 1)}`,
         slug: '',
         contenido: {
-        type: 'doc',
-        content: [{ type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] }],
-      },
+          type: 'doc',
+          content: [
+            { type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] },
+          ],
+        },
         categoriaId: categoriaBaseId,
         etiquetas: [etiqueta.id, otra.id],
         publicar: true,

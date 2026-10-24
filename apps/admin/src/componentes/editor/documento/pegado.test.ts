@@ -9,12 +9,7 @@
 //
 // FASE ROJA: este test se escribe antes de implementar `pegado.ts` (T148).
 import { describe, expect, it } from 'vitest';
-import {
-  limpiarIdsDeNodos,
-  partirTexto,
-  procesarTablaPegada,
-  restringirTextoPorTipo,
-} from './pegado';
+import { limpiarIdsDeNodos, partirTexto, procesarTablaPegada, restringirTextoPorTipo } from './pegado';
 
 describe('partirTexto: divide párrafos que superan 5000 caracteres (RF-015, D28)', () => {
   it('un texto de hasta 5000 caracteres no se divide', () => {
@@ -222,7 +217,9 @@ describe('procesarTablaPegada: reglas de tablas pegadas (RF-015, RF-028, D28)', 
   it('una tabla pegada con más de 50 filas se convierte a párrafos de texto con aviso', () => {
     const filas55 = Array.from({ length: 55 }, (_, i) => ({
       type: 'tableRow',
-      content: [{ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Fila ${i + 1}` }] }] }],
+      content: [
+        { type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Fila ${i + 1}` }] }] },
+      ],
     }));
     const tabla55Filas = { type: 'table', content: filas55 };
 
@@ -241,15 +238,17 @@ describe('procesarTablaPegada: reglas de tablas pegadas (RF-015, RF-028, D28)', 
         {
           type: 'tableRow',
           content: [
-            { type: 'tableHeader', attrs: { rowspan: 2 }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'H1' }] }] },
+            {
+              type: 'tableHeader',
+              attrs: { rowspan: 2 },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'H1' }] }],
+            },
             { type: 'tableHeader', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'H2' }] }] },
           ],
         },
         {
           type: 'tableRow',
-          content: [
-            { type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'D2' }] }] },
-          ],
+          content: [{ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'D2' }] }] }],
         },
       ],
     };

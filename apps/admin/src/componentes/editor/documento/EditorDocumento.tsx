@@ -331,8 +331,7 @@ export default function EditorDocumento({
       setSeleccion(nueva);
       ultimo.current.alSeleccionar(nueva, elemento);
 
-      const esTablaSeleccionada =
-        selection instanceof NodeSelection && selection.node.type.name === 'table';
+      const esTablaSeleccionada = selection instanceof NodeSelection && selection.node.type.name === 'table';
       const table = findTable(doc.resolve(selection.from));
       const enTabla = Boolean(table || esTablaSeleccionada);
 
@@ -384,11 +383,7 @@ export default function EditorDocumento({
         if (!editor) return;
         const { from, to } = editor.state.selection;
         // Sin `emitUpdate`: el reductor ya tiene lo del servidor. `setTextSelection` acota al nuevo largo.
-        editor
-          .chain()
-          .setContent(paraElEditor(nuevo), { emitUpdate: false })
-          .setTextSelection({ from, to })
-          .run();
+        editor.chain().setContent(paraElEditor(nuevo), { emitUpdate: false }).setTextSelection({ from, to }).run();
       },
       ejecutarAccionTabla: (accion) => {
         if (!editor) return false;
@@ -539,12 +534,7 @@ export default function EditorDocumento({
         alPropiedades={alPropiedades}
         contextoDeAcciones={contextoDeAcciones}
       />
-      <BarraTabla
-        editor={editor}
-        deshabilitada={bloqueado}
-        alPropiedades={alPropiedades}
-        anunciar={anunciarAccion}
-      />
+      <BarraTabla editor={editor} deshabilitada={bloqueado} alPropiedades={alPropiedades} anunciar={anunciarAccion} />
       <div ref={contenedor} className="relative">
         <EditorContent editor={editor} className="mx-auto w-full max-w-lectura" />
         {editor && !bloqueado && (

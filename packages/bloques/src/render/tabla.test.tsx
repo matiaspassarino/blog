@@ -58,10 +58,7 @@ describe('<Tabla>', () => {
         encabezado(undefined, parrafoSimple(texto('Columna A'))),
         encabezado(undefined, parrafoSimple(texto('Columna B'))),
       ),
-      fila(
-        celda(undefined, parrafoSimple(texto('Dato 1'))),
-        celda(undefined, parrafoSimple(texto('Dato 2'))),
-      ),
+      fila(celda(undefined, parrafoSimple(texto('Dato 1'))), celda(undefined, parrafoSimple(texto('Dato 2')))),
     );
     const html = renderToStaticMarkup(<Tabla elemento={t as never} />);
 
@@ -96,17 +93,12 @@ describe('<Tabla>', () => {
   it('soporta celdas combinadas con rowspan en las filas del cuerpo', () => {
     const t = tabla(
       undefined,
-      fila(
-        encabezado(undefined, parrafoSimple(texto('A'))),
-        encabezado(undefined, parrafoSimple(texto('B'))),
-      ),
+      fila(encabezado(undefined, parrafoSimple(texto('A'))), encabezado(undefined, parrafoSimple(texto('B')))),
       fila(
         celda({ rowspan: 2 }, parrafoSimple(texto('Combinado Vertical'))),
         celda(undefined, parrafoSimple(texto('Fila 1'))),
       ),
-      fila(
-        celda(undefined, parrafoSimple(texto('Fila 2'))),
-      ),
+      fila(celda(undefined, parrafoSimple(texto('Fila 2')))),
     );
     const html = renderToStaticMarkup(<Tabla elemento={t as never} />);
 

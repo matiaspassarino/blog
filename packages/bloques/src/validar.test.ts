@@ -13,7 +13,22 @@ import { describe, expect, it } from 'vitest';
 import { imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 import { validarDocumento, type ErrorElemento } from './validar';
 
-const { doc, texto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, fila, tabla, parrafoSimple } = nodo;
+const {
+  doc,
+  texto,
+  parrafo,
+  titulo,
+  item,
+  vinetas,
+  numerada,
+  cita,
+  codigo,
+  separador,
+  celda,
+  fila,
+  tabla,
+  parrafoSimple,
+} = nodo;
 
 const MENSAJE_SIN_ALT = 'La imagen necesita un texto alternativo o marcarse como decorativa';
 // Mensajes por defecto de Zod en inglés: no deben llegar a la persona.
@@ -233,10 +248,7 @@ describe('validarDocumento', () => {
     });
 
     it('con publicar: true, una tabla sin texto en ninguna celda da "La tabla no tiene contenido"', () => {
-      const tablaVacia = tabla(
-        undefined,
-        fila(celda(undefined, parrafoSimple()), celda(undefined, parrafoSimple())),
-      );
+      const tablaVacia = tabla(undefined, fila(celda(undefined, parrafoSimple()), celda(undefined, parrafoSimple())));
       const errores = validarDocumento(doc(tablaVacia), { publicar: true });
       expect(errores).toContainEqual(
         expect.objectContaining({

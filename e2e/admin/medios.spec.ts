@@ -117,8 +117,7 @@ test.describe('Subida de imágenes válidas (H2-E4)', () => {
         alt: 'Imagen destacada de prueba',
       });
       const imagenDelBloque = elementosDe(guardado)[0]?.attrs.imagen as
-        | { ruta: string; ancho: number; alto: number }
-        | undefined;
+        { ruta: string; ancho: number; alto: number } | undefined;
       expect(imagenDelBloque).toMatchObject({ ancho: formato.ancho, alto: formato.alto });
       expect(imagenDelBloque?.ruta).toMatch(/^articulos\/\d{4}\/\d{2}\/[0-9a-f-]{36}\.\w+$/);
       expect(await existeObjeto(imagenDelBloque!.ruta)).toBe(true);

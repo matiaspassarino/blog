@@ -26,12 +26,20 @@ export const esquemaBloque = z.discriminatedUnion(
       ...base,
       tipo: z.literal('lista'),
       ordenada: z.boolean(),
-      items: z.array(texto('El item', 1, 500)).min(1).max(50),
+      items: z
+        .array(texto('El item', 1, 500))
+        .min(1)
+        .max(50),
     }),
     z.object({ ...base, tipo: z.literal('galeria'), ...camposGaleria, columnas: camposGaleria.columnas.default(3) }),
     z.object({ ...base, tipo: z.literal('cta'), ...camposCta }),
     z.object({ ...base, tipo: z.literal('separador') }),
-    z.object({ ...base, tipo: z.literal('codigo'), codigo: texto('El código', 0, 20000), lenguaje: lenguaje.optional() }),
+    z.object({
+      ...base,
+      tipo: z.literal('codigo'),
+      codigo: texto('El código', 0, 20000),
+      lenguaje: lenguaje.optional(),
+    }),
     z.object({ ...base, tipo: z.literal('video'), ...camposVideo.youtube }),
     z.object({ ...base, tipo: z.literal('video'), ...camposVideo.vimeo }),
   ],

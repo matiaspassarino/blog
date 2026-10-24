@@ -401,4 +401,3 @@ describe('Tablas: tokens y contraste (spec 005, T134)', () => {
     expect(contraste('--color-marca', '--color-marca-suave')).toBeGreaterThanOrEqual(3);
   });
 });
-

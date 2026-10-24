@@ -339,8 +339,7 @@ const reglasDeTabla = (devoluciones: DevolucionesDelEditor) => {
           if (!isInTable(editor.state)) return false;
           const puedeAvanzar = goToNextCell(1)(editor.state, undefined);
           if (!puedeAvanzar) {
-            const anchoValido =
-              typeof window === 'undefined' ? true : window.matchMedia('(min-width: 48rem)').matches;
+            const anchoValido = typeof window === 'undefined' ? true : window.matchMedia('(min-width: 48rem)').matches;
             if (!anchoValido) {
               return true;
             }
