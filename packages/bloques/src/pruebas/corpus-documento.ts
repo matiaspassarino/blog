@@ -3,6 +3,7 @@
 // los once tipos de la Fase 10, marcas, saltos de línea y campos opcionales ausentes, y los constructores de nodos
 // que usan las pruebas. Queda después del corte (D31 C3): lo usan `normalizar.test.ts`, `elementos.test.ts` y
 // `render/documento.test.tsx`. No se exporta desde `index.ts`.
+import type { Documento } from '../esquema';
 import type { Imagen } from '../imagen';
 
 export type NodoPrueba = {
