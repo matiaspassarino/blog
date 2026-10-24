@@ -318,13 +318,19 @@ export default function EditorDocumento({
       const pendiente = actual.storage.atributosDelDocumento.abrirPanel;
       const origen = pendiente === 'foco' ? 'insertar' : pendiente === 'pestana' ? 'insertar-texto' : 'puntero';
       const [nueva, elemento] = leerSeleccion(actual, origen);
-      idElementoFoco.current = elemento?.id ?? null;
+      const { selection, doc } = actual.state;
+      const nodoTop =
+        selection instanceof NodeSelection
+          ? selection.node
+          : selection.$from.depth >= 1
+            ? selection.$from.node(1)
+            : null;
+      idElementoFoco.current = (nodoTop?.attrs?.id as string) ?? elemento?.id ?? null;
       // El pedido de «Insertar» se consume con la primera selección que ya es el elemento nuevo.
       if (elemento && pendiente) actual.storage.atributosDelDocumento.abrirPanel = false;
       setSeleccion(nueva);
       ultimo.current.alSeleccionar(nueva, elemento);
 
-      const { selection, doc } = actual.state;
       const esTablaSeleccionada =
         selection instanceof NodeSelection && selection.node.type.name === 'table';
       const table = findTable(doc.resolve(selection.from));

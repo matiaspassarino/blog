@@ -586,8 +586,15 @@ export async function arrastrarConRaton(page: Page, desde: Punto, hasta: Punto, 
 /** Un toque con el dedo (eventos táctiles reales por CDP: Chromium). `mover` son los puntos intermedios y final. */
 export async function gestoTactil(page: Page, inicio: Punto, mover: Punto[], soltar = true) {
   const sesion = await page.context().newCDPSession(page);
-  await sesion.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [inicio] });
-  for (const punto of mover) await sesion.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [punto] });
-  if (soltar) await sesion.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await sesion.send('Emulation.setTouchEmulationEnabled', { enabled: true, configuration: 'mobile' });
+  await sesion.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...inicio, id: 0 }] });
+  for (const punto of mover) {
+    await new Promise((r) => setTimeout(r, 20));
+    await sesion.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...punto, id: 0 }] });
+  }
+  if (soltar) {
+    await new Promise((r) => setTimeout(r, 20));
+    await sesion.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
   return sesion;
 }

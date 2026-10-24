@@ -506,6 +506,7 @@ test.describe('El editor de documento con el menú «/», el panel y la hoja abi
 
         await expect(page.getByRole('listbox')).toBeVisible();
         await expect(lienzo(page)).toHaveAttribute('aria-activedescendant', /\S/);
+        await page.waitForTimeout(200);
         await esperarSinViolaciones(page, `el menú «/» a ${ancho} px`);
       });
 

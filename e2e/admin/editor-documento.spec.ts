@@ -613,6 +613,7 @@ const ELEMENTOS_DEL_MENU = [
   'Video',
   'Código',
   'Separador',
+  'Tabla',
 ];
 
 const IMAGEN = /^Imagen, \d+ de \d+$/;
@@ -1705,7 +1706,7 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
   test.describe('subida en curso', () => {
     test('H3-E7: con una subida en curso no se puede mover ni quitar, y se anuncia por qué', async ({ page }) => {
       await page.route('**/storage/v1/object/upload/sign/**', async (ruta) => {
-        await new Promise((resolver) => setTimeout(resolver, 3000));
+        await new Promise((resolver) => setTimeout(resolver, 8000));
         await ruta.continue();
       });
       const articulo = await sembrarCinco(nombreDePrueba('doc-subida'));
@@ -1720,6 +1721,8 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
       for (const nombre of ['Subir', 'Bajar', 'Quitar']) {
         await expect(accionDelMenu(page, nombre), nombre).toHaveAttribute('aria-disabled', 'true');
       }
+      await page.keyboard.press('Escape');
+      await isla(page, IMAGEN).click();
       await page.keyboard.press('Escape');
 
       await page.keyboard.press('Alt+ArrowUp');
@@ -1770,8 +1773,8 @@ test.describe('Mover, duplicar, quitar y seleccionar', () => {
     test('H3-E3: arrastrar el asa con el dedo reordena el elemento', async ({ page }) => {
       const articulo = await sembrarCinco(nombreDePrueba('doc-tactil-asa'));
       await abrirArticulo(page, articulo.id);
-      await lienzo(page).getByText('Tres', { exact: true }).tap();
-      const asa = asaDeElemento(page);
+      await lienzo(page).getByText('Tres', { exact: true }).click();
+      const asa = page.getByRole('button', { name: 'Acciones del elemento 3, párrafo' }).last();
       await expect(asa).toBeVisible();
       const inicio = await centroDe(asa);
       const cajaUno = (await lienzo(page).getByText('Uno', { exact: true }).boundingBox())!;
@@ -2228,6 +2231,7 @@ test.describe('Nada se pierde', () => {
     await lienzo(page).getByText('Dos', { exact: true }).click();
     await page.keyboard.press('End');
     await page.keyboard.press('Shift+Home');
+    await page.waitForTimeout(100);
     await expect(negrita).toHaveAttribute('aria-pressed', 'false');
     await page.keyboard.press(`${MOD}+b`);
     await expect(negrita).toHaveAttribute('aria-pressed', 'true');
@@ -2789,6 +2793,7 @@ test.describe('Más formato y alineación (H6)', () => {
       await escribirEnLienzo(page, 'Párrafo a conservar');
       await page.keyboard.press('Enter');
       await escribirEnLienzo(page, 'Párrafo a borrar');
+      await page.waitForTimeout(600);
 
       // Selecciona y quita el segundo párrafo
       await entrarAlModo(page, 'Párrafo a borrar');

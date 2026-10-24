@@ -113,6 +113,7 @@ export function insertarTabla(editor: Editor): boolean {
       try {
         const tr = editor.state.tr.setSelection(TextSelection.near(res));
         editor.view.dispatch(tr);
+        editor.view.focus();
       } catch {
         // En caso de que la posición no admita TextSelection
       }

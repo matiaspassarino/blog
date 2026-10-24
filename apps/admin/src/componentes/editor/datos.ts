@@ -1,7 +1,7 @@
 // Del artículo de la base a los datos que edita el formulario (y de vuelta). Puro: lo usan las páginas del
 // servidor y el editor del cliente.
 import type { Documento, ErrorElemento, Imagen } from '@blog/bloques';
-import { esquemaImagen, validarDocumento } from '@blog/bloques';
+import { esquemaImagen, normalizarDocumento, validarDocumento } from '@blog/bloques';
 import type { ArticuloParaEditar } from '@blog/db';
 import type { DatosArticulo } from './reductor';
 
@@ -41,7 +41,7 @@ export function aDatosArticulo(articulo: ConEtiquetas, etiquetas: string[]): Dat
     descripcion_seo: articulo.descripcion_seo,
     imagen_destacada: articulo.imagen_destacada as Imagen | null,
     categoria_id: articulo.categoria_id,
-    contenido: articulo.contenido as Documento,
+    contenido: normalizarDocumento(articulo.contenido as Documento),
     etiquetas,
   };
 }

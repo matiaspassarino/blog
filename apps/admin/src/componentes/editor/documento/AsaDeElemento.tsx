@@ -207,7 +207,7 @@ export function AsaDeElemento({ editor, contexto, contenedor }: Props) {
             if (!evento.shiftKey) setMenuAbierto((abierto) => !abierto);
           }}
         >
-          <Icono nombre="asa" className="size-5" />
+          <Icono nombre="asa" className="size-5 pointer-events-none" />
         </button>
         {menuAbierto && (
           <MenuAcciones

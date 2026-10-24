@@ -21,7 +21,7 @@ import { Superscript } from '@tiptap/extension-superscript';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
-import { findTable, goToNextCell, isInTable, selectionCell, TableMap } from '@tiptap/pm/tables';
+import { goToNextCell, isInTable } from '@tiptap/pm/tables';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   CLASE_ENLACE,
@@ -328,12 +328,8 @@ const reglasDeTabla = (devoluciones: DevolucionesDelEditor) => {
       return {
         'Shift-Tab': ({ editor }) => {
           if (!isInTable(editor.state)) return false;
-          const pos = editor.state.selection.from;
-          const t = findTable(editor.state.doc.resolve(pos));
-          if (!t) return false;
-          const map = TableMap.get(t.node);
-          const cell = selectionCell(editor.state);
-          if (cell.pos - t.start === map.map[0]) {
+          const puedeRetroceder = goToNextCell(-1)(editor.state, undefined);
+          if (!puedeRetroceder) {
             devoluciones.anunciar(anuncioPrimeraCelda());
             return true;
           }
@@ -341,12 +337,8 @@ const reglasDeTabla = (devoluciones: DevolucionesDelEditor) => {
         },
         Tab: ({ editor }) => {
           if (!isInTable(editor.state)) return false;
-          const pos = editor.state.selection.from;
-          const t = findTable(editor.state.doc.resolve(pos));
-          if (!t) return false;
-          const map = TableMap.get(t.node);
-          const cell = selectionCell(editor.state);
-          if (cell.pos - t.start === map.map[map.map.length - 1]) {
+          const puedeAvanzar = goToNextCell(1)(editor.state, undefined);
+          if (!puedeAvanzar) {
             const anchoValido =
               typeof window === 'undefined' ? true : window.matchMedia('(min-width: 48rem)').matches;
             if (!anchoValido) {

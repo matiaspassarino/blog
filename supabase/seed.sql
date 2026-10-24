@@ -151,26 +151,26 @@ create function pg_temp.tabla(descripcion text, variadic filas jsonb[]) returns 
   )
 $$;
 create function pg_temp.th(texto text, colspan int default null, rowspan int default null) returns jsonb language sql as $$
-  select jsonb_build_object(
+  select jsonb_strip_nulls(jsonb_build_object(
     'type', 'tableHeader',
-    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'attrs', case when colspan is not null or rowspan is not null then jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)) else null end,
     'content', jsonb_build_array(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(texto))))
-  )
+  ))
 $$;
 create function pg_temp.td(texto text, colspan int default null, rowspan int default null) returns jsonb language sql as $$
-  select jsonb_build_object(
+  select jsonb_strip_nulls(jsonb_build_object(
     'type', 'tableCell',
-    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'attrs', case when colspan is not null or rowspan is not null then jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)) else null end,
     'content', jsonb_build_array(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(texto))))
-  )
+  ))
 $$;
 create function pg_temp.td_parrafos(parrafos text[], colspan int default null, rowspan int default null) returns jsonb language sql as $$
-  select jsonb_build_object(
+  select jsonb_strip_nulls(jsonb_build_object(
     'type', 'tableCell',
-    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'attrs', case when colspan is not null or rowspan is not null then jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)) else null end,
     'content', (select jsonb_agg(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(p))) order by i)
                 from unnest(parrafos) with ordinality as x(p, i))
-  )
+  ))
 $$;
 create function pg_temp.tr(variadic celdas jsonb[]) returns jsonb language sql as $$
   select jsonb_build_object(

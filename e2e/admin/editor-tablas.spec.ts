@@ -6,33 +6,28 @@
 // FASE ROJA: este archivo se escribe antes de implementar las tablas en el editor (T138-T143).
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import {
-  articuloPorId,
-  limpiarArticulosE2E,
-  parrafo,
-  sembrarArticulo,
-  texto,
-} from './ayudas/articulos';
-import { nombreDePrueba } from './ayudas/datos';
+import { limpiarArticulosE2E } from './ayudas/articulos';
 import {
   abrirMenuInsertar,
-  barraDeFormato,
-  campoDeTitulo,
   esperarEditorListo,
-  guardarConBoton,
-  iniciarSesionAdmin,
   lienzo,
-  visitarNuevoArticulo,
+  opcionDeInsercion,
 } from './ayudas/editor';
+import { ingresar, USUARIOS } from './ayudas/sesion';
+
+const PREFIJO = 'e2e-tbl-';
+
+async function visitarNuevoArticulo(page: Page) {
+  await page.goto('/articulos/nuevo');
+  await esperarEditorListo(page);
+}
 
 test.describe('Editor: tablas (Historia 7)', () => {
   test.beforeEach(async ({ page }) => {
-    await iniciarSesionAdmin(page);
+    await ingresar(page, USUARIOS.admin);
   });
 
-  test.afterEach(async () => {
-    await limpiarArticulosE2E();
-  });
+  test.afterAll(() => limpiarArticulosE2E(PREFIJO));
 
   test('H7-E1 / RF-028: insertar tabla 3x3 desde el botón «Insertar» y desde menú «/»', async ({ page }) => {
     await visitarNuevoArticulo(page);
@@ -159,7 +154,15 @@ test.describe('Editor: tablas (Historia 7)', () => {
     await abrirMenuInsertar(page);
     await page.getByRole('option', { name: 'Tabla' }).click();
 
-    const resultados = await new AxeBuilder({ page }).analyze();
+    await page.keyboard.type('Encabezado 1');
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('Encabezado 2');
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('Encabezado 3');
+
+    const resultados = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
     expect(resultados.violations).toEqual([]);
   });
 });
