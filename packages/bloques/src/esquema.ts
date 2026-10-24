@@ -7,7 +7,7 @@ import { cuadricula, LIMITES_TABLA } from './tablas';
 // §VI). Objetos estrictos: una clave de más es un error. Los campos de los elementos especiales, de la cita, del
 // nivel de título y del lenguaje de código son los de la spec 001: sus mensajes no cambian.
 
-export const texto = (campo: string, min: number, max: number) =>
+const texto = (campo: string, min: number, max: number) =>
   z
     .string({ error: `${campo} debe ser texto` })
     .min(min, `${campo} no puede estar vacío`)
@@ -16,11 +16,11 @@ export const texto = (campo: string, min: number, max: number) =>
 const urlHttps = (campo: string) =>
   z.string({ error: `${campo} debe ser texto` }).regex(/^https:\/\/[^\s/]+\.\S+$/, `${campo} debe ser una URL https`);
 
-export const nivelTitulo = z.union([z.literal(2), z.literal(3), z.literal(4)], {
+const nivelTitulo = z.union([z.literal(2), z.literal(3), z.literal(4)], {
   error: 'El nivel debe ser 2, 3 o 4',
 });
 
-export const lenguaje = z
+const lenguaje = z
   .string({ error: 'El lenguaje debe ser texto' })
   .regex(/^[a-z0-9+#-]{1,20}$/, 'El lenguaje no es válido');
 
@@ -28,9 +28,9 @@ const columnasGaleria = z.union([z.literal(2), z.literal(3), z.literal(4)], {
   error: 'Las columnas deben ser 2, 3 o 4',
 });
 
-export const camposImagen = { imagen: esquemaImagen, leyenda: texto('La leyenda', 0, 300).optional() };
+const camposImagen = { imagen: esquemaImagen, leyenda: texto('La leyenda', 0, 300).optional() };
 
-export const camposGaleria = {
+const camposGaleria = {
   imagenes: z
     .array(esquemaImagen, { error: 'La galería necesita imágenes' })
     .min(2, 'La galería necesita al menos 2 imágenes')
@@ -38,7 +38,7 @@ export const camposGaleria = {
   columnas: columnasGaleria,
 };
 
-export const camposCta = {
+const camposCta = {
   titulo: texto('El título', 1, 120),
   texto: texto('El texto', 0, 300).optional(),
   etiquetaBoton: texto('La etiqueta del botón', 1, 40),
@@ -50,7 +50,7 @@ export const camposCta = {
 };
 
 const tituloVideo = texto('El título del video', 1, 150);
-export const camposVideo = {
+const camposVideo = {
   youtube: {
     proveedor: z.literal('youtube'),
     idVideo: z.string({ error: 'Falta el id del video' }).regex(/^[A-Za-z0-9_-]{11}$/, 'El id de YouTube no es válido'),
@@ -63,7 +63,7 @@ export const camposVideo = {
   },
 };
 
-export const camposCita = { autor: texto('El autor', 1, 120).optional(), fuente: urlHttps('La fuente').optional() };
+const camposCita = { autor: texto('El autor', 1, 120).optional(), fuente: urlHttps('La fuente').optional() };
 
 // --- Ayudas: objetos estrictos y tipos de nodo con los mensajes en español ---
 

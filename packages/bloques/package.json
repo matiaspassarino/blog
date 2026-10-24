@@ -9,8 +9,7 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc",
-    "test": "vitest run --passWithNoTests",
-    "convertir-contenido": "node --import ./scripts/cargador.mjs scripts/convertir-contenido.ts"
+    "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "@blog/config": "workspace:*",

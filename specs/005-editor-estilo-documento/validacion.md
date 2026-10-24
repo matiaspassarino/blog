@@ -73,3 +73,36 @@
 - Adherencia a la constitución v2.0.0: identificadores y comentarios en español sin caracteres especiales en código fuente.
 - Idempotencia de `normalizarDocumento`: abrir y guardar un documento sin cambios conserva la versión (`version` inalterada, RF-012).
 - Zero dependencias huérfanas en `knip` y sin código duplicado por encima del umbral en `jscpd`.
+
+---
+
+## Corte en la nube (T159 — 2026-10-24)
+
+- **Proyecto Supabase**: `kgavzwzlhbzjkvreqhbu` (*blog-demo*).
+- **Filas convertidas**: 15 artículos procesados de `public.articulos` con `convertir-contenido`.
+  - 15/15 convertidos exitosamente con 0 pérdidas de contenido y 0 errores de validación.
+- **Validación de restricciones (`convalidated = true`)**:
+  - `articulos_contenido_check`: `convalidated = true`.
+  - `articulos_requisitos_publicacion`: `convalidated = true`.
+- **Cron de publicación programada**: Pausado en `cron.job` (`active = false`) durante el corte atómico; preparado para reactivación tras el despliegue del PR #8.
+
+---
+
+## Limpieza post-corte y grep de cierre (T160 — 2026-10-24)
+
+- **Archivos eliminados tras corte**:
+  - `packages/bloques/scripts/` (`convertir-contenido.ts`, `convertir-contenido.test.ts`, `cargador.mjs`) y script `convertir-contenido` en `package.json`.
+  - `packages/bloques/src/conversion-anterior/` (`conversion.ts`, `en-linea.ts`, `esquema-bloques.ts`, `parrafos.ts`, `visible.ts` y sus tests).
+  - `packages/bloques/src/pruebas/corpus-contenido.ts` y `salida-anterior.json`.
+  - `packages/bloques/src/render/caracterizacion.test.tsx`.
+  - `supabase/tests/conversion.test.sql` y `supabase/tests/fixtures/conversion-corpus.psql`.
+- **Grep de cierre**:
+  - `tipos_bloque|esquemaBloque|analizarEnLinea`: 0 resultados en `apps/*` y `packages/*`.
+  - `\u200b` (espacio de ancho cero): 0 resultados en código fuente.
+  - `continuacion`: 0 resultados en código de producción (únicamente preservado en tests unitarios que verifican que los nodos no conservan dicho atributo).
+- **Pipeline de calidad final**:
+  - `pnpm lint`: verde (0 errores, 0 advertencias).
+  - `pnpm typecheck`: verde (0 errores en los 6 paquetes).
+  - `pnpm calidad`: verde (`jscpd` 0,47 %, `knip` limpio sin dependencias ni exportaciones huérfanas).
+  - Vitest: 659 pasando en `@blog/bloques`, 183 en `@blog/ui`, 744 en `admin`.
+

@@ -10,8 +10,6 @@
 //   datosDeElemento<T>(elemento: ElementoDe<T>): DatosDe<T>   // la forma que reciben hoy los editores de campos
 //   elementoDesdeDatos<T>(elemento: ElementoDe<T>, datos: Partial<DatosDe<T>>): ElementoDe<T>
 //   recorrer(documento: Documento, visitante: (nodo, indiceElemento: number) => void): void   // en orden de lectura
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   crearElemento,
@@ -23,14 +21,7 @@ import {
   visibleDeDocumento,
 } from './elementos';
 import { esquemaDocumento } from './esquema';
-import {
-  CORPUS_DOCUMENTOS,
-  DOCUMENTOS_EQUIVALENTES,
-  imagenDePrueba,
-  marca,
-  nodo,
-  type NodoPrueba,
-} from './pruebas/corpus-documento';
+import { CORPUS_DOCUMENTOS, imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
 const {
   doc,
@@ -51,9 +42,6 @@ const {
   parrafoSimple,
 } = nodo;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const SALIDA_ANTERIOR = JSON.parse(
-  readFileSync(fileURLToPath(new URL('./pruebas/salida-anterior.json', import.meta.url)), 'utf8'),
-) as Record<string, unknown>;
 
 // Los editores de campos de hoy se escriben sin tipos estrictos: el adaptador se prueba por valores.
 const comoElemento = (elemento: NodoPrueba) => elemento as never;
@@ -165,14 +153,6 @@ describe('textoDeElemento', () => {
 });
 
 describe('visibleDeDocumento (D26, D31 C2): lo que muestra el sitio, sin JSX', () => {
-  it.each(Object.entries(DOCUMENTOS_EQUIVALENTES))(
-    'CE-002: el documento equivalente a "%s" muestra lo mismo que la fixture del renderer anterior',
-    (nombre, documento) => {
-      expect(SALIDA_ANTERIOR[nombre], `falta "${nombre}" en salida-anterior.json`).toBeDefined();
-      expect(visibleDeDocumento(documento)).toEqual(SALIDA_ANTERIOR[nombre]);
-    },
-  );
-
   it('el documento vacío no muestra nada', () => {
     expect(visibleDeDocumento(comoDocumento(doc()))).toEqual({ textos: [], anclas: [], imagenes: [], enlaces: [] });
   });

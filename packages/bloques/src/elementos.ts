@@ -118,7 +118,7 @@ export function textoDeElemento(elemento: Elemento): string {
 const IDS_RESERVADOS = ['contenido'];
 
 /** El ancla de cada título por su id: única (sufijo -2, -3…); un título sin letras ni números no lleva. */
-export function anclasDeTitulos(titulos: { id: string; texto: string }[]): Map<string, string | undefined> {
+function anclasDeTitulos(titulos: { id: string; texto: string }[]): Map<string, string | undefined> {
   const usados = new Set(IDS_RESERVADOS);
   const anclas = new Map<string, string | undefined>();
   for (const { id, texto } of titulos) {
@@ -152,7 +152,7 @@ export type Visible = {
 };
 
 /** El texto como lo ve quien lee: los espacios y saltos reducidos a uno y sin espacios en los bordes. */
-export const limpiar = (texto: string) => texto.replace(/\s+/g, ' ').trim();
+const limpiar = (texto: string) => texto.replace(/\s+/g, ' ').trim();
 
 /** Los enlaces de un contenido en línea: los textos seguidos con el mismo destino son un solo enlace. */
 function enlacesDe(contenido: readonly Inline[] | undefined): Visible['enlaces'] {

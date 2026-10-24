@@ -12,6 +12,3 @@ test-results/
 supabase/.temp/
 supabase/.branches/
 
-# Conversión de contenido de la spec 005 (no se commitean)
-articulos-*.json
-conversion-*.sql
