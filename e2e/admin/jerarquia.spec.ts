@@ -1130,7 +1130,7 @@ test.describe('Estructura', () => {
   });
 
   test.describe('Secciones: mismo título y más separación entre ellas que dentro', () => {
-    const SECCIONES_DEL_EDITOR = ['Contenido', 'Imagen destacada', 'Taxonomías', 'Para buscadores', 'Publicación'];
+    const SECCIONES_DEL_EDITOR = ['Detalles', 'Imagen destacada', 'Taxonomías', 'Para buscadores', 'Publicación'];
 
     test('H3-E2: el editor tiene un h2 por sección', async ({ page }) => {
       await abrirEditor(page, 'borrador', 'secciones h2');

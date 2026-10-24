@@ -418,7 +418,7 @@ export function EditorArticulo({
                   }}
                 />
                 {errorTitulo && (
-                  <p id="campo-titulo-error" role="alert" className="text-sm font-semibold text-error">
+                  <p id="campo-titulo-error" className="text-sm font-semibold text-error">
                     {errorTitulo}
                   </p>
                 )}
