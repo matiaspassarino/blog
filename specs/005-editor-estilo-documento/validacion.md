@@ -106,3 +106,19 @@
   - `pnpm calidad`: verde (`jscpd` 0,47 %, `knip` limpio sin dependencias ni exportaciones huérfanas).
   - Vitest: 659 pasando en `@blog/bloques`, 183 en `@blog/ui`, 744 en `admin`.
 
+---
+
+## Cierre y despliegue a producción (T161 — 2026-10-24)
+
+- **Pull Request #8**: Fusionado a `main` con éxito tras la aprobación de todos los checks de CI (Lint, tipos, unitarios, pgTAP y Playwright 100% en verde).
+- **Despliegues en Vercel**:
+  - Sitio público: `https://blog-web-navy-gamma.vercel.app` (despliegue automático de producción completado).
+  - Panel administrativo: `https://blog-admin-mocha-kappa.vercel.app` (despliegue automático de producción completado).
+- **Verificación CE-010 en producción**:
+  - Rutas de artículos públicos respondiendo HTTP 200 con contenido renderizado íntegro y canónico desde el documento JSON (probado en `/blog` y `/blog/principios-de-accesibilidad-web-que-todo-sitio-necesita`).
+  - Panel de administración respondiendo HTTP 200 en `/ingreso`.
+- **Base de datos Supabase (`kgavzwzlhbzjkvreqhbu`)**:
+  - 15 artículos convertidos y validados (`convalidated = true` en `articulos_contenido_check` y `articulos_requisitos_publicacion`).
+  - Reactivación de cron programada con `cron.alter_job(jobid, active := true)`.
+
+
