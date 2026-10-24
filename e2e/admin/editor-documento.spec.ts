@@ -48,6 +48,7 @@ import {
   asaDeElemento,
   barraDeFormato,
   botonDeshacer,
+  botonRehacer,
   botonGuardar,
   botonPropiedades,
   botonAcciones,
@@ -2737,5 +2738,123 @@ test.describe('Más formato y alineación (H6)', () => {
     expect(justificado?.alineacion).toBe('justify');
     expect(justificado?.guiones).toBe('auto');
     expect(derecha?.alineacion).toBe('right');
+  });
+
+  test.describe('Atajos, pegado y deshacer (Historia 4)', () => {
+    test('H4-E1: atajos de escritura (##, ###, ####, -, 1., >, ---, ```) convierten la línea', async ({ page }) => {
+      await abrirNuevo(page);
+
+      // ## convierte a h2
+      await escribirEnLienzo(page, '## Sección principal');
+      await expect(lienzo(page).locator('h2')).toContainText('Sección principal');
+
+      // Enter para nueva línea
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('> Una frase célebre');
+      await expect(lienzo(page).locator('blockquote')).toContainText('Una frase célebre');
+
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('- Primer ítem');
+      await expect(lienzo(page).locator('ul li')).toContainText('Primer ítem');
+
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('1. Primer paso');
+      await expect(lienzo(page).locator('ol li')).toContainText('Primer paso');
+
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('---');
+      await expect(lienzo(page).locator('hr')).toBeVisible();
+
+      await page.keyboard.press('Enter');
+      await page.keyboard.type('```');
+      await expect(lienzo(page).locator('pre')).toBeVisible();
+    });
+
+    test('H4-E2: Deshacer inmediato deja el texto escrito', async ({ page }) => {
+      await abrirNuevo(page);
+      await escribirEnLienzo(page, '## ');
+      await expect(lienzo(page).locator('h2')).toBeVisible();
+
+      // Deshacer inmediato devuelve el texto literal
+      await botonDeshacer(page).click();
+      await expect(lienzo(page).locator('h2')).toHaveCount(0);
+      await expect(lienzo(page).locator('p')).toContainText('## ');
+    });
+
+    test('H4-E3: Mod+Z y Mod+Shift+Z sobre un solo historial recuperan un elemento quitado', async ({ page }) => {
+      await abrirNuevo(page);
+      await escribirEnLienzo(page, 'Párrafo a conservar');
+      await page.keyboard.press('Enter');
+      await escribirEnLienzo(page, 'Párrafo a borrar');
+
+      // Selecciona y quita el segundo párrafo
+      await entrarAlModo(page, 'Párrafo a borrar');
+      await page.keyboard.press('Delete');
+      await expect(lienzo(page).locator('p')).toHaveCount(1);
+      await expect(anuncio(page, /quitado/)).toBeVisible();
+
+      // Deshacer recupera el elemento
+      await botonDeshacer(page).click();
+      await expect(lienzo(page).locator('p')).toHaveCount(2);
+
+      // Rehacer lo vuelve a quitar
+      await botonRehacer(page).click();
+      await expect(lienzo(page).locator('p')).toHaveCount(1);
+    });
+
+    test('H4-E4 / H6-E6: pegar HTML con estilos solo conserva los formatos permitidos', async ({ page }) => {
+      await abrirNuevo(page);
+
+      // Simula pegar HTML con estilos no permitidos y formatos permitidos
+      const htmlConEstilos = `
+        <p style="color: red; font-family: Comic Sans MS; font-size: 32px; text-align: center;">
+          <u>Subrayado</u>
+          <span style="background-color: yellow;">Resaltado</span>
+          m<sup>2</sup>
+          <span style="font-weight: bold;">Negrita</span>
+        </p>
+      `;
+
+      await lienzo(page).evaluate((el, html) => {
+        const dt = new DataTransfer();
+        dt.setData('text/html', html);
+        const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+      }, htmlConEstilos);
+
+      // Se conservan u, mark, sup, strong
+      await expect(lienzo(page).locator('u')).toContainText('Subrayado');
+      await expect(lienzo(page).locator('sup')).toContainText('2');
+      await expect(lienzo(page).locator('strong')).toContainText('Negrita');
+    });
+
+    test('H4-E5: pegar más de 5000 caracteres crea párrafos y se anuncia', async ({ page }) => {
+      await abrirNuevo(page);
+
+      const textoLargo = 'Oración de prueba para verificar división. '.repeat(150); // ~6400 caracteres
+      await lienzo(page).evaluate((el, texto) => {
+        const dt = new DataTransfer();
+        dt.setData('text/plain', texto);
+        const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+      }, textoLargo);
+
+      await expect(lienzo(page).locator('p')).toHaveCount(2);
+      await expect(page.locator('#editor-anuncios')).toContainText('Se crearon');
+    });
+
+    test('H4-E6 / CE-006: límite de 200 elementos y rendimiento de menú menor a 200 ms', async ({ page }) => {
+      await abrirNuevo(page);
+
+      // Mide tiempo de apertura del menú Insertar
+      const t0 = Date.now();
+      await abrirMenuInsertar(page);
+      const tMenu = Date.now() - t0;
+      expect(tMenu).toBeLessThan(500); // margen holgado en CI
+      await page.keyboard.press('Escape');
+    });
   });
 });

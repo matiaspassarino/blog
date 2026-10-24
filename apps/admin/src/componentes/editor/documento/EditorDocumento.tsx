@@ -196,12 +196,38 @@ export default function EditorDocumento({
   const contenedor = useRef<HTMLDivElement>(null);
   // Cuándo se anunció por última vez una acción (mover, duplicar…): el conteo del modo elementos no la pisa.
   const ultimaAccion = useRef(0);
+  const temporizadorDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idElementoFoco = useRef<string | null>(null);
+
   const anunciarAccion = (mensaje: string) => {
     ultimaAccion.current = Date.now();
+    // Insertar, mover y duplicar llevan debounce de 400 ms y solo se emiten si el foco no cambió a otro elemento (contracts/atajos.md).
+    const conDebounce = /^(Se insertó|Elemento movido|Elemento duplicado)/.test(mensaje);
+    if (conDebounce) {
+      if (temporizadorDebounce.current) clearTimeout(temporizadorDebounce.current);
+      const elementoAlProgramar = idElementoFoco.current;
+      temporizadorDebounce.current = setTimeout(() => {
+        if (!elementoAlProgramar || elementoAlProgramar === idElementoFoco.current) {
+          ultimo.current.anunciar(mensaje);
+        }
+      }, 400);
+      return;
+    }
+
+    if (temporizadorDebounce.current) {
+      clearTimeout(temporizadorDebounce.current);
+      temporizadorDebounce.current = null;
+    }
     ultimo.current.anunciar(mensaje);
   };
   const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
   const estabaEnTabla = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (temporizadorDebounce.current) clearTimeout(temporizadorDebounce.current);
+    };
+  }, []);
 
   useEffect(() => {
     ultimo.current = {
@@ -292,6 +318,7 @@ export default function EditorDocumento({
       const pendiente = actual.storage.atributosDelDocumento.abrirPanel;
       const origen = pendiente === 'foco' ? 'insertar' : pendiente === 'pestana' ? 'insertar-texto' : 'puntero';
       const [nueva, elemento] = leerSeleccion(actual, origen);
+      idElementoFoco.current = elemento?.id ?? null;
       // El pedido de «Insertar» se consume con la primera selección que ya es el elemento nuevo.
       if (elemento && pendiente) actual.storage.atributosDelDocumento.abrirPanel = false;
       setSeleccion(nueva);

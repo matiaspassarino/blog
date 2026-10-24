@@ -1,7 +1,17 @@
 // Esquema del documento y extensiones del editor (research D22, D23 y D31 C12 de la spec 005). El esquema de
 // ProseMirror es exactamente la lista permitida del documento guardado (contracts/documento.md): lo que el sitio no
 // sabe dibujar no existe en el editor, y los atributos de la librería que no se guardan se quitan.
-import { Extension, Node, mergeAttributes, wrappingInputRule, type AnyExtension, type Editor } from '@tiptap/core';
+import {
+  Extension,
+  InputRule,
+  Node,
+  mergeAttributes,
+  textblockTypeInputRule,
+  wrappingInputRule,
+  type AnyExtension,
+  type Editor,
+} from '@tiptap/core';
+import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { CodeBlock } from '@tiptap/extension-code-block';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Link } from '@tiptap/extension-link';
@@ -50,6 +60,14 @@ import {
 } from './comandos';
 import { proteger, type DevolucionesDeProteccion } from './proteger';
 import { NodoBloque } from './nodos/NodoBloque';
+import {
+  LIMITES_ELEMENTO,
+  MAXIMO_ELEMENTOS_DOCUMENTO,
+  contarCaracteresTexto,
+  RastreadorDeAvisosLimite,
+} from './limites';
+import { partirTexto, restringirTextoPorTipo, limpiarIdsDeNodos, procesarTablaPegada } from './pegado';
+import { anuncioPegadoConSobrante } from '../anuncios';
 
 declare module '@tiptap/core' {
   interface Storage {
@@ -105,6 +123,22 @@ const Enlace = Link.extend({
   addAttributes() {
     return { href: { default: null } };
   },
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /(?:^|\s)\[([^\]]+)\]\(([^)]+)\)$/,
+        handler: ({ state, range, match }) => {
+          const [, texto, href] = match;
+          if (!texto || !href || !esEnlacePermitido(href)) return null;
+          const { tr } = state;
+          const offsetInicio = match[0].indexOf('[');
+          const inicio = range.from + offsetInicio;
+          const fin = range.to;
+          tr.replaceWith(inicio, fin, state.schema.text(texto, [state.schema.marks.link.create({ href })]));
+        },
+      }),
+    ];
+  },
 });
 
 /** Lista numerada sin `start` ni `type`: el sitio siempre numera desde 1. */
@@ -130,7 +164,21 @@ const Base = StarterKit.extend({
 });
 
 /** Un solo color, el del sitio (sin `color`). */
-const Resaltado = Highlight.extend(sinAtajos).configure({
+const Resaltado = Highlight.extend({
+  ...sinAtajos,
+  parseHTML() {
+    return [
+      { tag: 'mark' },
+      {
+        tag: 'span',
+        getAttrs: (element) => {
+          const bg = (element as HTMLElement).style?.backgroundColor;
+          return bg ? {} : false;
+        },
+      },
+    ];
+  },
+}).configure({
   multicolor: false,
   HTMLAttributes: { class: CLASES_RESALTADO },
 });
@@ -162,6 +210,19 @@ const Subindice = Subscript.extend({
 const BloqueDeCodigo = CodeBlock.extend({
   addAttributes() {
     return {};
+  },
+  addInputRules() {
+    return [
+      textblockTypeInputRule({
+        find: /^```$/,
+        type: this.type,
+      }),
+      textblockTypeInputRule({
+        find: /^```([a-z0-9+#-]+)?[\s\n]$/,
+        type: this.type,
+        getAttributes: (match) => ({ lenguaje: match[1] || null }),
+      }),
+    ];
   },
 });
 
@@ -562,6 +623,7 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
     ({ editor }: { editor: Editor }) => {
       const aplicado = comando(editor.state, (tr) => editor.view.dispatch(tr));
       if (aplicado && accion) registrarAccion(editor, accion);
+      if (aplicado) editor.commands.focus();
       return aplicado;
     };
   return Extension.create({
@@ -632,9 +694,18 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
           return true;
         },
         Enter: ({ editor }) => {
-          if (!claveModo.getState(editor.state)) return false;
-          devoluciones.alPropiedades();
-          return true;
+          if (claveModo.getState(editor.state)) {
+            devoluciones.alPropiedades();
+            return true;
+          }
+          if (editor.state.doc.childCount >= MAXIMO_ELEMENTOS_DOCUMENTO) {
+            const { $from } = editor.state.selection;
+            if ($from.depth === 1) {
+              devoluciones.anunciar(`Se alcanzó el máximo de ${MAXIMO_ELEMENTOS_DOCUMENTO} elementos`);
+              return true;
+            }
+          }
+          return false;
         },
         'Alt-ArrowUp': sobreRango(moverRango(-1), 'mover elemento'),
         'Alt-ArrowDown': sobreRango(moverRango(1), 'mover elemento'),
@@ -774,6 +845,148 @@ function anunciarAtajos(devoluciones: DevolucionesDelEditor) {
   });
 }
 
+/**
+ * Reglas de pegado (RF-015, RF-028; research D28):
+ * - divide párrafos de más de 5000 caracteres sin cortar palabras y anuncia los párrafos nuevos creados;
+ * - en elementos restringidos (títulos, citas, ítems, celdas y código) el sobrante se recorta sin crear párrafos;
+ * - limpia los atributos `id` para que no se dupliquen identificadores;
+ * - convierte tablas que excedan 10 columnas o 50 filas a texto y separa celdas inválidas;
+ * - bloquea pegados que superen el límite de 200 elementos.
+ */
+function reglasDePegado(devoluciones: DevolucionesDelEditor) {
+  return Extension.create({
+    name: 'reglasDePegado',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('reglasDePegado'),
+          props: {
+            transformPasted(slice, view) {
+              const { doc, selection, schema } = view.state;
+              const targetParent = selection.$from.parent;
+              const targetType = targetParent.type.name;
+
+              // En elementos restringidos (heading, blockquote, listItem, codeBlock, tableCell, tableHeader)
+              // el sobrante no crea otros elementos: se recorta al límite del tipo.
+              if (targetType !== 'paragraph' && LIMITES_ELEMENTO[targetType]) {
+                const textoOriginal = slice.content.textBetween(0, slice.content.size, ' ');
+                const restringido = restringirTextoPorTipo(targetType, textoOriginal);
+                return new Slice(Fragment.from(schema.text(restringido.texto)), 0, 0);
+              }
+
+              const fragmentos: ProseMirrorNode[] = [];
+              let parrafosCreados = 0;
+
+              for (let i = 0; i < slice.content.childCount; i++) {
+                const child = slice.content.child(i);
+
+                // Caso 1: Tabla pegada
+                if (child.type.name === 'table') {
+                  const resTabla = procesarTablaPegada(child.toJSON());
+                  if (resTabla.esTexto) {
+                    devoluciones.anunciar(resTabla.anuncio);
+                    for (const p of resTabla.parrafos ?? []) {
+                      fragmentos.push(schema.nodes.paragraph.create(null, p ? schema.text(p) : []));
+                    }
+                  } else {
+                    devoluciones.anunciar(resTabla.anuncio);
+                    const jsonLimpio = limpiarIdsDeNodos(resTabla.tabla ?? child.toJSON());
+                    fragmentos.push(schema.nodeFromJSON(jsonLimpio));
+                  }
+                  continue;
+                }
+
+                // Caso 2: Párrafo o texto largo
+                if (child.type.name === 'paragraph' || child.isText) {
+                  const texto = child.textContent;
+                  if (texto.length > 5000) {
+                    const partes = partirTexto(texto, 5000);
+                    parrafosCreados += partes.length;
+                    for (const parte of partes) {
+                      fragmentos.push(schema.nodes.paragraph.create(null, schema.text(parte)));
+                    }
+                    continue;
+                  }
+                }
+
+                // Caso 3: Nodos normales (limpiando IDs)
+                const jsonLimpio = limpiarIdsDeNodos(child.toJSON());
+                fragmentos.push(schema.nodeFromJSON(jsonLimpio));
+              }
+
+              // Verificar límite de 200 elementos
+              const totalDespues = doc.childCount + fragmentos.length;
+              if (totalDespues > MAXIMO_ELEMENTOS_DOCUMENTO) {
+                devoluciones.anunciar(`Se alcanzó el máximo de ${MAXIMO_ELEMENTOS_DOCUMENTO} elementos`);
+                return Slice.empty;
+              }
+
+              if (parrafosCreados > 1) {
+                devoluciones.anunciar(anuncioPegadoConSobrante(parrafosCreados));
+              }
+
+              return new Slice(Fragment.fromArray(fragmentos), slice.openStart, slice.openEnd);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
+/**
+ * Rastreo de límites de caracteres (contracts/atajos.md y CE-006):
+ * anuncia al cruzar el 90 % ("Quedan X caracteres") y el 100 % ("Se alcanzó el máximo de caracteres..."),
+ * sin repetirse en cada pulsación de tecla.
+ */
+function rastreadorDeLimites(devoluciones: DevolucionesDelEditor) {
+  const rastreador = new RastreadorDeAvisosLimite();
+  return Extension.create({
+    name: 'rastreadorDeLimites',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('rastreadorDeLimites'),
+          appendTransaction(transactions, _oldState, newState) {
+            if (!transactions.some((tr) => tr.docChanged)) return null;
+            const { selection } = newState;
+            const $from = selection.$from;
+            let nodoTarget: ProseMirrorNode | null = null;
+            let tipo = '';
+            let id = '';
+
+            for (let d = $from.depth; d > 0; d--) {
+              const n = $from.node(d);
+              if (n.type.name === 'tableCell' || n.type.name === 'tableHeader') {
+                nodoTarget = n;
+                tipo = n.type.name;
+                id = `celda-${$from.before(d)}`;
+                break;
+              }
+            }
+
+            if (!nodoTarget && $from.depth > 0) {
+              nodoTarget = $from.node(1);
+              tipo = nodoTarget.type.name;
+              id = String(nodoTarget.attrs.id ?? `elem-${$from.before(1)}`);
+            }
+
+            if (nodoTarget && LIMITES_ELEMENTO[tipo]) {
+              const chars = contarCaracteresTexto(nodoTarget.toJSON());
+              const aviso = rastreador.verificar(id, tipo, chars);
+              if (aviso) {
+                devoluciones.anunciar(aviso);
+              }
+            }
+
+            return null;
+          },
+        }),
+      ];
+    },
+  });
+}
+
 /** Texto de ayuda de la línea vacía: sin teclado físico la «/» suele estar en un segundo nivel. */
 const textoDeLineaVacia = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
@@ -828,6 +1041,8 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
     MarcasDeError,
     modoElementos(devoluciones),
     Extension.create({ name: 'proteger', addProseMirrorPlugins: () => [proteger(devoluciones.proteccion)] }),
+    reglasDePegado(devoluciones),
+    rastreadorDeLimites(devoluciones),
     menuBarra(devoluciones),
     anunciarAtajos(devoluciones),
   ];

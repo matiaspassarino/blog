@@ -642,7 +642,7 @@ export function EditorArticulo({
           }}
         />
         {/* Región persistente de anuncios (movimientos de bloques, subidas, errores): no se recrea. */}
-        <p role="status" className="sr-only">
+        <p id="editor-anuncios" role="status" className="sr-only">
           {anuncio}
         </p>
       </div>

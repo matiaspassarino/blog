@@ -71,6 +71,10 @@ function prepararContextoDeTabla(editor: Editor): { tableNode: ProseMirrorNode; 
 
 /** Inserta una tabla de 3x3 con encabezados en la posición actual. */
 export function insertarTabla(editor: Editor): boolean {
+  if (editor.state.doc.childCount >= 200) {
+    editor.storage.atributosDelDocumento?.anunciar?.('Se alcanzó el máximo de 200 elementos');
+    return false;
+  }
   const idTabla = crypto.randomUUID();
   const filaEncabezado = {
     type: 'tableRow',

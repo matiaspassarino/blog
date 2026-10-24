@@ -299,6 +299,10 @@ export const botonPropiedades = (page: Page) =>
 export const botonDeshacer = (page: Page) =>
   barraDeFormato(page).getByRole('button', { name: 'Deshacer', exact: true, includeHidden: true });
 
+/** El botón «Rehacer» de la barra. */
+export const botonRehacer = (page: Page) =>
+  barraDeFormato(page).getByRole('button', { name: 'Rehacer', exact: true, includeHidden: true });
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Ayudas del editor estilo documento (spec 005, T039). FASE ROJA: el lienzo y la barra no existen aún.
 //
