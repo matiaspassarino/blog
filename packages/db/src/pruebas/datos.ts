@@ -1,6 +1,7 @@
 // Datos de prueba para los tests de integración: creación y limpieza. Solo para tests.
+// Spec 005 (T098): el contenido es el documento (contracts/documento.md); `documentoDePrueba` arma uno con párrafos.
+import type { Documento } from '@blog/bloques';
 import type { ClienteBlog } from '../cliente';
-import type { Json } from '../tipos';
 
 /** Ids creados por una suite; `limpiar` los borra en orden (la categoría tiene FK restrict). */
 export function registroDePrueba() {
@@ -23,7 +24,7 @@ export type RegistroDePrueba = ReturnType<typeof registroDePrueba>;
 type DatosArticulo = {
   titulo: string;
   slug: string;
-  contenido: NonNullable<Json>;
+  contenido: Documento;
   categoriaId: string;
   extracto?: string;
   titulo_seo?: string;
@@ -33,7 +34,19 @@ type DatosArticulo = {
   publicar?: boolean;
 };
 
-/** Crea un borrador con categoría y bloques (requisitos de RF-010), lo etiqueta y, si se pide, lo publica. */
+/** Un documento con un párrafo por texto, cada uno con su id uuid (forma canónica). */
+export function documentoDePrueba(...textos: string[]): Documento {
+  return {
+    type: 'doc',
+    content: textos.map((texto) => ({
+      type: 'paragraph',
+      attrs: { id: crypto.randomUUID() },
+      content: [{ type: 'text', text: texto }],
+    })),
+  } as Documento;
+}
+
+/** Crea un borrador con categoría y contenido (requisitos de RF-010), lo etiqueta y, si se pide, lo publica. */
 export async function crearArticuloDePrueba(
   admin: ClienteBlog,
   registro: RegistroDePrueba,

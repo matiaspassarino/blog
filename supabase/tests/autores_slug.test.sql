@@ -24,7 +24,7 @@ insert into public.categorias (nombre, slug) values ('Aslug Categoría', 'aslug-
 -- Un publicado de la autora pública y un borrador del autor sin publicados (cargados por el sistema).
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 select 'Aslug ' || x.sufijo, 'aslug-' || x.sufijo,
-       '[{"id": "b0200000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto."}]',
+       '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b0200000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto."}]}]}',
        (select id from public.categorias where slug = 'aslug-categoria'),
        (select id from auth.users where email = x.email),
        x.estado::public.estado_articulo, x.publicado_en

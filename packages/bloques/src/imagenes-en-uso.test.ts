@@ -1,32 +1,30 @@
-// T016 (spec 003): rutas de imagen usadas por un artículo (D11, RF-007).
-// Firmas supuestas (T032), exportadas desde './imagenes-en-uso':
-//   rutasDeImagenes({ contenido, imagen_destacada }): string[]   (sin repetir; orden de aparición)
+// T016 (spec 003): rutas de imagen usadas por un artículo (D11, RF-007). Adaptado al documento en T094 (spec 005,
+// ampliación; contracts/documento.md): las rutas están en `imagen.attrs.imagen.ruta` y
+// `galeria.attrs.imagenes[*].ruta`.
+// Firmas (T103), exportadas desde './imagenes-en-uso':
+//   rutasDeImagenes({ contenido, imagen_destacada }): string[]   (contenido: Documento; sin repetir; en orden)
 //   rutasQuitadas(antes, despues): string[]                      (las que estaban en `antes` y ya no)
 // `antes` y `despues` son los mismos objetos `{ contenido, imagen_destacada }`.
 import { describe, expect, it } from 'vitest';
-import type { Contenido } from './esquema';
+import { crearElemento } from './elementos';
+import type { Documento } from './esquema';
 import type { Imagen } from './imagen';
 import { rutasDeImagenes, rutasQuitadas } from './imagenes-en-uso';
-import { crearBloque } from './utilidades';
+import { marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
 const imagen = (ruta: string): Imagen => ({ ruta, ancho: 800, alto: 600, alt: 'Texto alternativo', decorativa: false });
 
-function bloqueImagen(ruta: string) {
-  return { ...crearBloque('imagen'), imagen: imagen(ruta) };
-}
+const bloqueImagen = (ruta: string) => nodo.imagen(imagen(ruta));
+const bloqueGaleria = (...rutas: string[]) => nodo.galeria(3, ...rutas.map(imagen));
 
-function bloqueGaleria(...rutas: string[]) {
-  return { ...crearBloque('galeria'), imagenes: rutas.map(imagen) };
-}
-
-type Entrada = { contenido: Contenido; imagen_destacada: Imagen | null };
-const articulo = (contenido: Contenido, destacada: string | null = null): Entrada => ({
-  contenido,
+type Entrada = { contenido: Documento; imagen_destacada: Imagen | null };
+const articulo = (elementos: NodoPrueba[], destacada: string | null = null): Entrada => ({
+  contenido: nodo.doc(...elementos) as unknown as Documento,
   imagen_destacada: destacada ? imagen(destacada) : null,
 });
 
 describe('rutasDeImagenes', () => {
-  it('D11: devuelve la ruta de un bloque imagen', () => {
+  it('D11: devuelve la ruta de un elemento imagen', () => {
     expect(rutasDeImagenes(articulo([bloqueImagen('articulos/a.webp')]))).toEqual(['articulos/a.webp']);
   });
 
@@ -40,16 +38,16 @@ describe('rutasDeImagenes', () => {
     expect(rutasDeImagenes(articulo([], 'articulos/portada.webp'))).toEqual(['articulos/portada.webp']);
   });
 
-  it('D11: junta bloques imagen, galerías y la destacada', () => {
+  it('D11: junta elementos imagen, galerías y la destacada, en el orden del documento', () => {
     const entrada = articulo(
-      [bloqueImagen('articulos/a.webp'), bloqueGaleria('articulos/g1.webp', 'articulos/g2.webp')],
+      [bloqueGaleria('articulos/g1.webp', 'articulos/g2.webp'), bloqueImagen('articulos/a.webp')],
       'articulos/portada.webp',
     );
 
-    expect([...rutasDeImagenes(entrada)].sort()).toEqual([
-      'articulos/a.webp',
+    expect(rutasDeImagenes(entrada)).toEqual([
       'articulos/g1.webp',
       'articulos/g2.webp',
+      'articulos/a.webp',
       'articulos/portada.webp',
     ]);
   });
@@ -67,12 +65,26 @@ describe('rutasDeImagenes', () => {
     expect([...rutasDeImagenes(entrada)].sort()).toEqual(['articulos/a.webp', 'articulos/b.webp']);
   });
 
-  it('D11: ignora los bloques que no tienen imagen', () => {
+  it('D11: ignora los elementos que no tienen imagen', () => {
     const entrada = articulo([
-      crearBloque('parrafo'),
-      crearBloque('titulo'),
-      crearBloque('separador'),
-      crearBloque('cta'),
+      nodo.parrafo(nodo.texto('Un párrafo')),
+      nodo.titulo(2, nodo.texto('Un título')),
+      nodo.separador(),
+      nodo.cta({ titulo: 'Hola', etiquetaBoton: 'Ir', url: '/blog' }),
+      nodo.video('youtube', 'dQw4w9WgXcQ', 'Un video'),
+    ]);
+
+    expect(rutasDeImagenes(entrada)).toEqual([]);
+  });
+
+  it('no confunde con una imagen un texto, un enlace o un código que parecen una ruta', () => {
+    const entrada = articulo([
+      nodo.parrafo(
+        nodo.texto('articulos/a.webp'),
+        nodo.texto(' y '),
+        nodo.texto('la foto', marca.enlace('/articulos/b.webp')),
+      ),
+      nodo.codigo('articulos/c.webp'),
     ]);
 
     expect(rutasDeImagenes(entrada)).toEqual([]);
@@ -82,11 +94,11 @@ describe('rutasDeImagenes', () => {
     expect(rutasDeImagenes(articulo([bloqueImagen('articulos/a.webp')], null))).toEqual(['articulos/a.webp']);
   });
 
-  it('D11: ignora un bloque imagen que todavía no tiene ruta (recién agregado)', () => {
-    expect(rutasDeImagenes(articulo([crearBloque('imagen')]))).toEqual([]);
+  it('D11: ignora un elemento imagen que todavía no tiene ruta (recién agregado)', () => {
+    expect(rutasDeImagenes(articulo([crearElemento('imagen') as unknown as NodoPrueba]))).toEqual([]);
   });
 
-  it('D11: un artículo sin contenido ni destacada no usa imágenes', () => {
+  it('D11: un artículo con el documento vacío y sin destacada no usa imágenes', () => {
     expect(rutasDeImagenes(articulo([]))).toEqual([]);
   });
 });
@@ -112,6 +124,13 @@ describe('rutasQuitadas', () => {
   it('D11: no incluye las rutas que siguen en uso en otro lugar', () => {
     const antes = articulo([bloqueImagen('articulos/a.webp')], null);
     const despues = articulo([], 'articulos/a.webp');
+
+    expect(rutasQuitadas(antes, despues)).toEqual([]);
+  });
+
+  it('D11: una imagen que pasa de un elemento imagen a una galería sigue en uso', () => {
+    const antes = articulo([bloqueImagen('articulos/a.webp')]);
+    const despues = articulo([bloqueGaleria('articulos/a.webp', 'articulos/b.webp')]);
 
     expect(rutasQuitadas(antes, despues)).toEqual([]);
   });

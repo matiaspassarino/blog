@@ -2,7 +2,7 @@
 
 // Perfil propio (Historia 6, RF-025): nombre, biografía y foto con texto alternativo. No ofrece rol ni estado.
 // Reutiliza `ImagenEditable` del editor, que necesita su contexto (anuncios, subidas en curso, imagen ya guardada).
-import type { ErrorBloque, Imagen } from '@blog/bloques';
+import type { ErrorElemento, Imagen } from '@blog/bloques';
 import type { Perfil } from '@blog/db';
 import { useMemo, useState } from 'react';
 import { guardarPerfil } from '../../acciones/perfil';
@@ -12,13 +12,13 @@ import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
 import { ContextoEditor, type ContextoDelEditor } from '../editor/ContextoEditor';
 import { ImagenEditable } from '../editor/ImagenEditable';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 
 type Props = { perfil: Pick<Perfil, 'nombre' | 'biografia' | 'avatar'> };
 
-const ID_AVATAR = idDeCampo({ indice: -1, campo: 'avatar.alt', mensaje: '' });
+const ID_AVATAR = idDeCampo({ indice: -1, id: '', campo: 'avatar.alt', mensaje: '' });
 
 export function FormularioPerfil({ perfil }: Props) {
   const hidratado = useHidratado();
@@ -30,7 +30,7 @@ export function FormularioPerfil({ perfil }: Props) {
   const [anuncio, setAnuncio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState<{ id: number; tipo: 'exito' | 'error'; texto: string } | null>(null);
-  const [errores, setErrores] = useState<ErrorBloque[]>([]);
+  const [errores, setErrores] = useState<ErrorElemento[]>([]);
   const [errorNombre, setErrorNombre] = useState<string>();
 
   const contexto = useMemo<ContextoDelEditor>(
@@ -72,7 +72,11 @@ export function FormularioPerfil({ perfil }: Props) {
 
   return (
     <ContextoEditor.Provider value={contexto}>
-      <form onSubmit={guardar} data-perfil={hidratado ? 'listo' : 'cargando'} className="flex max-w-2xl flex-col gap-6">
+      <form
+        onSubmit={guardar}
+        data-perfil={hidratado ? 'listo' : 'cargando'}
+        className="flex max-w-2xl flex-col gap-panel-seccion"
+      >
         {aviso && (
           <AvisoEstado key={aviso.id} tipo={aviso.tipo} enfocar={aviso.tipo === 'error'}>
             {aviso.texto}
@@ -96,7 +100,13 @@ export function FormularioPerfil({ perfil }: Props) {
             errorAlt={mensajeDeCampo(errores, 'avatar.alt')}
           />
         </div>
-        <Button type="submit" aria-disabled={guardando || subidas > 0 || undefined} className="self-start">
+        <Button
+          type="submit"
+          variante="primaria"
+          aria-disabled={subidas > 0 || undefined}
+          {...estadoOcupado(guardando, 'Guardando…')}
+          className="self-start"
+        >
           Guardar perfil
         </Button>
         <p role="status" className="sr-only">

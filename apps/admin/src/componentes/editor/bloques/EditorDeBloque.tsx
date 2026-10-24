@@ -1,49 +1,53 @@
 'use client';
 
-import type { Bloque, ErrorBloque } from '@blog/bloques';
-import type { CambiosDeBloque } from '../reductor';
+import { datosDeElemento, type Elemento, type ErrorElemento } from '@blog/bloques';
 import { EditorCita } from './EditorCita';
 import { EditorCodigo } from './EditorCodigo';
 import { EditorCta } from './EditorCta';
 import { EditorGaleria } from './EditorGaleria';
 import { EditorImagen } from './EditorImagen';
 import { EditorLista } from './EditorLista';
-import { EditorParrafo } from './EditorParrafo';
-import { EditorSeparador } from './EditorSeparador';
+import { EditorTabla } from './EditorTabla';
 import { EditorTitulo } from './EditorTitulo';
+import type { CambiosDeElemento } from './tipos';
 import { EditorVideo } from './EditorVideo';
 
 type Props = {
-  bloque: Bloque;
+  elemento: Elemento;
   indice: number;
-  errores: ErrorBloque[];
-  cambiar: (cambios: CambiosDeBloque) => void;
+  errores: ErrorElemento[];
+  cambiar: (cambios: CambiosDeElemento) => void;
 };
 
-/** Elige el editor según el tipo; cada uno conoce solo los campos de su tipo. */
-export function EditorDeBloque({ bloque, indice, errores, cambiar }: Props) {
-  // Cada editor recibe `cambiar` acotado a su tipo: el cast es seguro porque el bloque ya es de ese tipo.
+/**
+ * Elige el editor de campos según el tipo; cada uno conoce solo los campos de su tipo y los recibe con los nombres
+ * del panel (`datosDeElemento`). El texto de los elementos de texto se escribe en el lienzo; el párrafo y el
+ * separador no tienen campos.
+ */
+export function EditorDeBloque({ elemento, indice, errores, cambiar }: Props) {
+  // Cada editor recibe `cambiar` acotado a su tipo: el cast es seguro porque el elemento ya es de ese tipo.
   const comun = { indice, errores, cambiar: cambiar as never };
-  switch (bloque.tipo) {
-    case 'parrafo':
-      return <EditorParrafo bloque={bloque} {...comun} />;
-    case 'titulo':
-      return <EditorTitulo bloque={bloque} {...comun} />;
+  switch (elemento.type) {
+    case 'heading':
+      return <EditorTitulo datos={datosDeElemento(elemento)} {...comun} />;
     case 'imagen':
-      return <EditorImagen bloque={bloque} {...comun} />;
-    case 'cita':
-      return <EditorCita bloque={bloque} {...comun} />;
-    case 'lista':
-      return <EditorLista bloque={bloque} {...comun} />;
+      return <EditorImagen datos={datosDeElemento(elemento)} {...comun} />;
+    case 'blockquote':
+      return <EditorCita datos={datosDeElemento(elemento)} {...comun} />;
+    case 'bulletList':
+    case 'orderedList':
+      return <EditorLista datos={datosDeElemento(elemento)} {...comun} />;
     case 'galeria':
-      return <EditorGaleria bloque={bloque} {...comun} />;
+      return <EditorGaleria datos={datosDeElemento(elemento)} {...comun} />;
     case 'cta':
-      return <EditorCta bloque={bloque} {...comun} />;
-    case 'separador':
-      return <EditorSeparador />;
-    case 'codigo':
-      return <EditorCodigo bloque={bloque} {...comun} />;
+      return <EditorCta datos={datosDeElemento(elemento)} {...comun} />;
+    case 'codeBlock':
+      return <EditorCodigo datos={datosDeElemento(elemento)} {...comun} />;
+    case 'table':
+      return <EditorTabla datos={datosDeElemento(elemento)} {...comun} />;
     case 'video':
-      return <EditorVideo bloque={bloque} {...comun} />;
+      return <EditorVideo datos={datosDeElemento(elemento)} {...comun} />;
+    default:
+      return null;
   }
 }

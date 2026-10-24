@@ -25,7 +25,7 @@ insert into public.categorias (nombre, slug) values ('H2 Aut Categoría', 'h2-au
 -- Un artículo por autor, en el estado que define si es público (cargados como el seed).
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)
 select 'H2 autor ' || x.sufijo, 'h2-aut-' || x.sufijo,
-       '[{"id": "b2200000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto."}]',
+       '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2200000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto."}]}]}',
        (select id from public.categorias where slug = 'h2-aut-categoria'),
        (select id from auth.users where email = x.email),
        x.estado::public.estado_articulo, x.publicado_en, x.programado_para

@@ -6,7 +6,7 @@
 -- sus artículos con slugs propios (prefijo h4-prog-).
 begin;
 \ir helpers/pruebas.psql
-select plan(28);
+select plan(29);
 
 select pruebas.crear_usuario('h4-prog-editor@prueba.local', '{"provider":"email","rol":"editor"}', '{"nombre":"Hache Cuatro Editor"}');
 
@@ -16,7 +16,7 @@ insert into public.categorias (nombre, slug) values ('H4 Prog Categoría', 'h4-p
 
 create function pruebas.contenido_h4() returns jsonb
 language sql immutable as $$
-  select '[{"id": "b4000000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Cuerpo programable."}]'::jsonb
+  select '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b4000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Cuerpo programable."}]}]}'::jsonb
 $$;
 create function pruebas.categoria_h4() returns uuid
 language sql stable security definer set search_path = '' as $$
@@ -145,6 +145,11 @@ select results_eq(
     from public.articulos where id = 'a4000000-0000-4000-8000-000000000004'$$,
   $$values ('publicado'::text, '2026-01-15 10:00+00'::timestamptz, true)$$,
   'H4-E2: el programado vencido pasa a publicado con publicado_en = programado_para'
+);
+select is(
+  (select contenido from public.articulos where id = 'a4000000-0000-4000-8000-000000000004'),
+  pruebas.contenido_h4(),
+  'spec 005 (T096): publicar_programados publica un programado con un documento y no lo cambia'
 );
 select is(
   (select a.version from public.articulos a where a.id = 'a4000000-0000-4000-8000-000000000004'),

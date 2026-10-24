@@ -4,6 +4,7 @@
 //    componentes, a las páginas ni a ningún archivo `'use client'` de `apps/admin`.
 //  - §III.1: ningún paquete importa de `apps/`, y `apps/web` y `apps/admin` no se importan entre sí.
 //  - §III.2: `apps/admin/src` no importa `@supabase/supabase-js` ni `@supabase/ssr` directamente.
+//  - §II (spec 005, RF-021): la librería del editor (`@tiptap/*`) solo se importa desde `apps/admin`.
 // Las reglas viven en funciones puras (`importaciones`, `violaciones*`) que se prueban con fixtures
 // en memoria, para que un cambio en el detector no deje pasar una violación sin que nadie lo note.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -111,6 +112,12 @@ function violacionesDeSupabaseDirecto(archivos: Archivo[]): string[] {
     .map((a) => a.relativa);
 }
 
+function violacionesDeTiptap(archivos: Archivo[]): string[] {
+  return archivos
+    .filter((a) => importaciones(a.contenido).some((e) => e.startsWith('@tiptap/')))
+    .map((a) => a.relativa);
+}
+
 // --- Detectores sobre fixtures en memoria --------------------------------------------------------
 
 const fixture = (relativa: string, contenido: string): Archivo => ({
@@ -161,6 +168,16 @@ describe('detectores de límites (fixtures en memoria)', () => {
     expect(
       violacionesDeSupabaseDirecto([fixture('c.ts', "import { crearClienteServidor } from '@blog/db/servidor';")]),
     ).toEqual([]);
+  });
+
+  it('RF-021: detecta importaciones de @tiptap/*', () => {
+    const malos = [
+      fixture('a.ts', "import { Editor } from '@tiptap/core';"),
+      fixture('b.tsx', "const t = await import('@tiptap/extension-table');"),
+    ];
+
+    expect(violacionesDeTiptap(malos)).toEqual(['a.ts', 'b.tsx']);
+    expect(violacionesDeTiptap([fixture('c.ts', "import { Documento } from '@blog/bloques/render';")])).toEqual([]);
   });
 
   it("§III.4: reconoce los archivos 'use client' (con comentarios o líneas en blanco antes)", () => {
@@ -237,5 +254,11 @@ describe('límites de importación del repositorio', () => {
 
   it('§III.2: apps/admin/src no importa @supabase/supabase-js ni @supabase/ssr directamente', () => {
     expect(violacionesDeSupabaseDirecto(admin)).toEqual([]);
+  });
+
+  it('RF-021: apps/web y los paquetes no importan la librería del editor (@tiptap/*)', () => {
+    const scripts = leer('packages', (relativa) => /^packages\/[^/]+\/scripts\//.test(relativa));
+
+    expect(violacionesDeTiptap([...web, ...paquetes, ...scripts])).toEqual([]);
   });
 });

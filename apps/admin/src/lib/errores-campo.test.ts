@@ -1,18 +1,19 @@
 // T021 (spec 003): ids de los campos con error en el editor (RF-006, CE-004, H2-E3).
-// Firmas supuestas (T033), exportadas desde './errores-campo'; los errores son `ErrorBloque`
+// Firmas supuestas (T033), exportadas desde './errores-campo'; los errores son `ErrorElemento`
 // de @blog/bloques (`{ indice, campo, mensaje }`):
 //   idDeCampo(error): string                 `bloque-<indice>-<campo>`; con indice -1: `campo-<primer segmento>`
 //                                            (la imagen destacada es `campo-imagen_destacada` aunque el
 //                                            error diga `imagen_destacada.alt`)
-//   agruparPorBloque(errores): Map<number, ErrorBloque[]>
+//   agruparPorBloque(errores): Map<number, ErrorElemento[]>
 //   primerCampoInvalido(errores): string | null   id del primero por orden de pantalla (imagen destacada,
 //                                            que usa indice -1, y luego los bloques de menor a mayor índice)
-import type { ErrorBloque } from '@blog/bloques';
+import type { ErrorElemento } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
 import { agruparPorBloque, idDeCampo, primerCampoInvalido } from './errores-campo';
 
-const error = (indice: number, campo: string, mensaje = 'Mensaje de prueba'): ErrorBloque => ({
+const error = (indice: number, campo: string, mensaje = 'Mensaje de prueba'): ErrorElemento => ({
   indice,
+  id: '',
   campo,
   mensaje,
 });

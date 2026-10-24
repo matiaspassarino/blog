@@ -4,11 +4,11 @@
 // bloques. El estado vive en un reductor puro (reductor.ts). Valida en el navegador con el mismo esquema que
 // el servidor, enfoca el primer campo inválido, detecta ediciones concurrentes sin perder lo escrito (D13) y
 // avisa antes de salir con cambios sin guardar (RF-010).
-import type { ErrorBloque } from '@blog/bloques';
+import type { Documento, ErrorElemento } from '@blog/bloques';
 import { rutasDeImagenes } from '@blog/bloques';
 import type { Articulo, EstadoArticulo, ReferenciaTaxonomia, RolMiembro } from '@blog/db';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   crearArticuloAccion,
   guardarArticulo,
@@ -16,12 +16,11 @@ import {
   previsualizarSlugAccion,
 } from '../../acciones/articulos';
 import { agruparPorBloque, idDeCampo, mensajeDeCampo } from '../../lib/errores-campo';
-import { AccionesEstado } from '../articulo/AccionesEstado';
+import { BarraEditor } from '../articulo/BarraEditor';
+import { InfoPublicacion } from '../articulo/InfoPublicacion';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { EnlaceConAviso } from '../salida/EnlaceConAviso';
 import { useSalida } from '../salida/ProveedorSalida';
-import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { Select } from '../ui/select';
@@ -35,8 +34,18 @@ import { useHidratado } from '../../lib/hidratado';
 import { ContextoEditor } from './ContextoEditor';
 import { aDatosArticulo, validarEditor } from './datos';
 import { ImagenEditable } from './ImagenEditable';
-import { ListaBloques } from './ListaBloques';
-import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
+import { useAltoDe, useAnchoMinimo } from '../../lib/pantalla';
+import { cn } from '../../lib/cn';
+import { CargadorDeEditorDocumento } from './documento/CargadorDeEditorDocumento';
+import type { AccionesDelLienzo } from './documento/EditorDocumento';
+import { primerErrorDelDocumento } from './documento/mapa-errores';
+import { PropiedadesDelElemento, type AccionTabla } from './documento/PropiedadesDelElemento';
+import type { CambiosDeElemento } from './bloques/tipos';
+import type { Alineacion } from './documento/comandos';
+import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
+import { estaSucio, estadoInicial, iguales, reductor, type DatosArticulo } from './reductor';
+import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 /** Lo que el panel de publicación muestra del artículo, además de lo que edita el formulario. */
 export type Publicacion = {
@@ -64,7 +73,7 @@ type Props = {
 };
 
 /** Enfoca el primer campo con error que exista en pantalla (algunos errores no tienen control visible). */
-function enfocarPrimerCampo(errores: ErrorBloque[]) {
+function enfocarPrimerCampo(errores: ErrorElemento[]) {
   for (const error of [...errores].sort((a, b) => a.indice - b.indice)) {
     const elemento = document.getElementById(idDeCampo(error));
     if (elemento) {
@@ -92,7 +101,7 @@ export function EditorArticulo({
   const [publicacion, setPublicacion] = useState<Publicacion>(
     publicacionInicial ?? { estado: 'borrador', programado_para: null, publicado_en: null },
   );
-  const [errores, setErrores] = useState<ErrorBloque[]>([]);
+  const [errores, setErrores] = useState<ErrorElemento[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const [anuncio, setAnuncio] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -105,7 +114,67 @@ export function EditorArticulo({
   const [verVigente, setVerVigente] = useState(false);
   // Mientras se carga la versión vigente para reemplazar, el formulario no admite cambios (se perderían).
   const [reemplazando, setReemplazando] = useState(false);
+  // Sube al adoptar la versión vigente: el documento y su historial se vuelven a crear desde lo adoptado.
+  const [reinicio, setReinicio] = useState(0);
   const titulo = useRef<HTMLHeadingElement>(null);
+  // El lienzo no se vuelve a dibujar en cada tecla: estas props tienen que ser estables.
+  const erroresDeElementos = useMemo(() => errores.filter((error) => error.indice >= 0), [errores]);
+  const alCambiarContenido = useCallback((valor: Documento) => despachar({ tipo: 'contenido', valor }), []);
+  const acciones = useRef<AccionesDelLienzo>(null);
+  const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
+  const [elemento, setElemento] = useState<ElementoActivo | null>(null);
+  const [pestania, setPestania] = useState<'articulo' | 'elemento'>('articulo');
+  const [hojaAbierta, setHojaAbierta] = useState(false);
+  // Sube cada vez que hay que llevar el foco al primer campo del panel.
+  const [pedidoDeFoco, setPedidoDeFoco] = useState(0);
+  const anchoDeEscritorio = useAnchoMinimo(1280);
+  const altoDeLaBarra = useAltoDe('[role="group"][aria-label="Acciones del artículo"]');
+  const ultimoId = useRef<string | null>(null);
+  const alSeleccionar = useCallback((nueva: SeleccionDelDocumento, activo: ElementoActivo | null) => {
+    setSeleccion(nueva);
+    setElemento(activo);
+    const especial =
+      nueva.tipo === 'elementos' && ['imagen', 'galeria', 'cta', 'video'].includes(nueva.elementos[0]?.type ?? '');
+    // La pestaña cambia sola solo al seleccionar un elemento especial distinto del anterior (no al mover el cursor).
+    if (activo && especial && activo.id !== ultimoId.current) setPestania('elemento');
+    ultimoId.current = activo?.id ?? null;
+    if (activo?.origen === 'insertar-texto') setPestania('elemento');
+    if (activo?.origen === 'insertar') {
+      setHojaAbierta(true);
+      setPedidoDeFoco((n) => n + 1);
+    }
+  }, []);
+  const alCambiarElemento = useCallback(
+    (cambios: CambiosDeElemento) => {
+      if (elemento) acciones.current?.actualizarElemento(elemento.id, cambios);
+    },
+    [elemento],
+  );
+  const alAlinearElemento = useCallback(
+    (alineacion: Alineacion) => {
+      if (elemento) acciones.current?.alinearElemento(elemento.id, alineacion);
+    },
+    [elemento],
+  );
+  const alAccionTabla = useCallback((accion: AccionTabla) => {
+    acciones.current?.ejecutarAccionTabla?.(accion);
+  }, []);
+  const alCerrarHoja = useCallback(() => setHojaAbierta(false), []);
+  const alPropiedades = useCallback(() => {
+    setPestania('elemento');
+    setHojaAbierta(true);
+    setPedidoDeFoco((n) => n + 1);
+  }, []);
+
+  // Foco al primer campo del panel (lateral u hoja) cuando se pide, y el elemento queda a la vista sobre la hoja.
+  useEffect(() => {
+    if (pedidoDeFoco === 0) return;
+    const campo = document.querySelector<HTMLElement>(
+      '[data-panel-propiedades] :is(input, select, textarea, button):not([tabindex="-1"]):not([data-cerrar-hoja])',
+    );
+    campo?.focus();
+    document.querySelector('.ProseMirror-selectednode')?.scrollIntoView({ block: 'nearest' });
+  }, [pedidoDeFoco]);
 
   const hidratado = useHidratado();
   const sucio = estaSucio(estado);
@@ -132,6 +201,12 @@ export function EditorArticulo({
     // `guardado` solo cambia al guardar o al adoptar la versión vigente.
     [estado.guardado],
   );
+  // Qué elementos tienen una subida en curso: no se pueden mover ni quitar mientras suben.
+  const [subidasPorId, setSubidasPorId] = useState<ReadonlyMap<string, number>>(new Map());
+  const idsSubiendo = useMemo(
+    () => new Set([...subidasPorId].filter(([, cuenta]) => cuenta > 0).map(([id]) => id)),
+    [subidasPorId],
+  );
   const contexto = useMemo(
     () => ({
       anunciar: setAnuncio,
@@ -141,14 +216,34 @@ export function EditorArticulo({
     [rutasGuardadas],
   );
 
+  // Las subidas que empiezan en el panel de un elemento quedan asociadas a ese elemento.
+  const contextoDelPanel = useMemo(
+    () => ({
+      ...contexto,
+      subiendo: (delta: 1 | -1) => {
+        contexto.subiendo(delta);
+        const id = elemento?.id;
+        if (!id) return;
+        setSubidasPorId((previas) => new Map(previas).set(id, (previas.get(id) ?? 0) + delta));
+      },
+    }),
+    [contexto, elemento?.id],
+  );
+
   function irASalir(motivo: MotivoSesion | undefined) {
     router.push(urlDeSalida(motivo));
   }
 
-  function mostrarErrores(lista: ErrorBloque[]) {
+  function mostrarErrores(lista: ErrorElemento[]) {
     setErrores(lista);
     setAnuncio(resumenDeErrores(lista));
-    setTimeout(() => enfocarPrimerCampo(lista), 0);
+    const primero = lista.some((error) => error.indice < 0) ? null : primerErrorDelDocumento(actual.contenido, lista);
+    if (!primero) return void setTimeout(() => enfocarPrimerCampo(lista), 0);
+    // Un error en un elemento: se selecciona, se abre su panel y el foco va al campo con el error.
+    acciones.current?.seleccionarElemento(primero.id);
+    setPestania('elemento');
+    setHojaAbierta(true);
+    setTimeout(() => enfocarPrimerCampo([primero.error]), 120);
   }
 
   async function guardar() {
@@ -188,11 +283,17 @@ export function EditorArticulo({
 
       if (resultado.ok) {
         const guardado = resultado.datos;
-        despachar({ tipo: 'guardado', articulo: aDatosArticulo(guardado, actual.etiquetas) });
+        const datos = aDatosArticulo(guardado, actual.etiquetas);
+        despachar({ tipo: 'guardado', articulo: datos });
         setPublicacion(publicacionDe(guardado));
         setGuardadoOk(true);
         // Si el sistema agregó un sufijo al slug escrito, se avisa cuál quedó (RF-008).
         setSlugAjustado(actual.slug && guardado.slug !== actual.slug ? guardado.slug : null);
+        // Si el servidor devolvió otro contenido (por ejemplo, normalizado), el lienzo lo adopta y se avisa.
+        if (!iguales(datos.contenido, campos.contenido)) {
+          acciones.current?.adoptarContenido(datos.contenido);
+          setAnuncio('El servidor ajustó el contenido al guardar');
+        }
         if (!id) {
           setId(guardado.id);
           // El editor sigue montado: solo cambia la dirección, sin recargar ni perder el foco.
@@ -232,6 +333,10 @@ export function EditorArticulo({
     setReemplazando(false);
     if (!cargada) return;
     despachar({ tipo: 'adoptar_vigente', articulo: cargada });
+    setReinicio((n) => n + 1);
+    setSeleccion({ tipo: 'texto' });
+    setElemento(null);
+    setHojaAbierta(false);
     setConflicto(false);
     setVerVigente(false);
     setErrores([]);
@@ -245,16 +350,7 @@ export function EditorArticulo({
   return (
     <ContextoEditor.Provider value={contexto}>
       <div className="flex flex-col gap-6" data-editor={hidratado ? 'listo' : 'cargando'}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 ref={titulo} tabIndex={-1} className="font-titulos text-titulo-2 font-semibold">
-            {nuevo ? 'Nuevo artículo' : 'Editar artículo'}
-          </h1>
-          {id && (
-            <Button asChild variante="secundaria">
-              <EnlaceConAviso href={`/articulos/${id}/vista-previa`}>Vista previa</EnlaceConAviso>
-            </Button>
-          )}
-        </div>
+        <EncabezadoPagina titulo={nuevo ? 'Nuevo artículo' : 'Editar artículo'} refTitulo={titulo} tituloEnfocable />
 
         {aviso && (
           <AvisoEstado tipo="error" enfocar>
@@ -262,12 +358,9 @@ export function EditorArticulo({
           </AvisoEstado>
         )}
         {errores.length > 0 && (
-          <div
-            role="alert"
-            className="rounded-md border border-error-borde bg-error-suave p-3 font-semibold text-error"
-          >
+          <AvisoEstado tipo="error" cerrable={false}>
             {resumenDeErrores(errores)}
-          </div>
+          </AvisoEstado>
         )}
         {conflicto && (
           <AvisoConflicto
@@ -280,8 +373,8 @@ export function EditorArticulo({
         {verVigente && vigente && <ComparacionVersiones propia={actual} vigente={vigente} />}
 
         <fieldset disabled={reemplazando} className="contents">
-          <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-            <div className="flex min-w-0 flex-col gap-6">
+          <div className="grid gap-panel-seccion xl:grid-cols-[1fr_var(--container-panel-propiedades)]">
+            <div className="flex min-w-0 flex-col gap-panel-seccion">
               <CampoFormulario etiqueta="Título" id="campo-titulo" error={errorTitulo}>
                 {(a) => (
                   <Input
@@ -310,147 +403,243 @@ export function EditorArticulo({
                 )}
               </CampoFormulario>
 
-              <fieldset className="flex flex-col gap-3 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Imagen destacada</legend>
-                <ImagenEditable
-                  imagen={actual.imagen_destacada}
-                  alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
-                  idRuta="campo-imagen_destacada"
-                  idAlt="campo-imagen_destacada"
-                  errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
-                  errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
-                />
-              </fieldset>
+              <section aria-labelledby="titulo-imagen-destacada" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-imagen-destacada">Imagen destacada</TituloSeccion>
+                <fieldset aria-labelledby="titulo-imagen-destacada" className="min-w-0">
+                  <ImagenEditable
+                    imagen={actual.imagen_destacada}
+                    alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
+                    idRuta="campo-imagen_destacada"
+                    idAlt="campo-imagen_destacada"
+                    errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
+                    errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
+                  />
+                </fieldset>
+              </section>
 
-              <section aria-labelledby="titulo-contenido" className="flex flex-col gap-3">
-                <h2 id="titulo-contenido" className="font-titulos text-xl font-semibold">
-                  Contenido
-                </h2>
-                <ListaBloques
-                  contenido={actual.contenido}
-                  errores={errores.filter((error) => error.indice >= 0)}
-                  despachar={despachar}
+              <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">
+                <TituloSeccion id="titulo-contenido">Contenido</TituloSeccion>
+                <CargadorDeEditorDocumento
+                  contenido={estado.guardado.contenido}
+                  reinicio={reinicio}
+                  errores={erroresDeElementos}
+                  alCambiar={alCambiarContenido}
+                  alSeleccionar={alSeleccionar}
+                  alPropiedades={alPropiedades}
+                  acciones={acciones}
                   anunciar={setAnuncio}
+                  subidasEnCurso={idsSubiendo}
+                  hojaAbierta={hojaAbierta}
+                  alCerrarHoja={alCerrarHoja}
+                  bloqueado={reemplazando}
                 />
               </section>
             </div>
 
-            <div className="flex flex-col gap-6">
+            <div className="flex min-w-0 flex-col gap-panel-seccion xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:self-start xl:overflow-y-auto">
               {id && (
-                <AccionesEstado
-                  id={id}
+                <InfoPublicacion
                   slug={estado.guardado.slug}
-                  version={estado.guardado.version}
                   estado={publicacion.estado}
                   programadoPara={publicacion.programado_para}
                   publicadoEn={publicacion.publicado_en}
-                  rol={rol}
-                  hayCambiosSinGuardar={sucio}
-                  alCambiarEstado={(articulo) => {
-                    despachar({ tipo: 'guardado', articulo: aDatosArticulo(articulo, actual.etiquetas) });
-                    setPublicacion(publicacionDe(articulo));
-                  }}
                 />
               )}
-              <CampoFormulario etiqueta="Categoría" id="campo-categoria">
-                {(a) => (
-                  <Select
-                    {...a}
-                    value={actual.categoria_id ?? ''}
-                    onChange={(e) =>
-                      despachar({
-                        tipo: 'campo',
-                        campo: 'categoria_id',
-                        valor: e.target.value === '' ? null : e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Sin categoría</option>
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </CampoFormulario>
-
-              <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Etiquetas</legend>
-                {etiquetas.length === 0 && <p className="text-texto-suave">Todavía no hay etiquetas.</p>}
-                {etiquetas.map((etiqueta) => (
-                  <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
-                    <Checkbox
-                      checked={actual.etiquetas.includes(etiqueta.id)}
-                      onChange={(e) =>
-                        despachar({
-                          tipo: 'campo',
-                          campo: 'etiquetas',
-                          valor: e.target.checked
-                            ? [...actual.etiquetas, etiqueta.id]
-                            : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
-                        })
-                      }
-                    />
-                    <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
-                  </label>
-                ))}
-              </fieldset>
-
-              <fieldset className="flex flex-col gap-4 rounded-md border border-borde p-4">
-                <legend className="px-1 font-semibold">Para buscadores</legend>
-                <CampoFormulario
-                  etiqueta="Título SEO"
-                  id="campo-titulo-seo"
-                  ayuda="Si lo dejas vacío, se usa el título."
+              {anchoDeEscritorio && (
+                <div
+                  role="tablist"
+                  aria-label="Panel del artículo"
+                  className="flex gap-1 border-b border-separador"
+                  onKeyDown={(evento) => {
+                    if (evento.key !== 'ArrowRight' && evento.key !== 'ArrowLeft') return;
+                    evento.preventDefault();
+                    const siguiente = pestania === 'articulo' ? 'elemento' : 'articulo';
+                    setPestania(siguiente);
+                    document.getElementById(`pestana-${siguiente}`)?.focus();
+                  }}
                 >
-                  {(a) => (
-                    <Input
-                      {...a}
-                      value={actual.titulo_seo ?? ''}
-                      onChange={(e) =>
-                        despachar({ tipo: 'campo', campo: 'titulo_seo', valor: vacioANulo(e.target.value) })
-                      }
+                  {(['articulo', 'elemento'] as const).map((clave) => (
+                    <button
+                      key={clave}
+                      id={`pestana-${clave}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={pestania === clave}
+                      aria-controls={`panel-${clave}`}
+                      tabIndex={pestania === clave ? 0 : -1}
+                      onClick={() => setPestania(clave)}
+                      className={cn(
+                        'min-h-(--tactil-min) border-b-2 px-4 font-titulos font-semibold',
+                        // La pestaña es un control, no texto de apoyo: la activa se distingue por el borde y el color.
+                        pestania === clave ? 'border-marca text-marca' : 'border-transparent text-texto',
+                      )}
+                    >
+                      {clave === 'articulo' ? 'Artículo' : 'Elemento'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div
+                id="panel-articulo"
+                role={anchoDeEscritorio ? 'tabpanel' : undefined}
+                aria-labelledby={anchoDeEscritorio ? 'pestana-articulo' : undefined}
+                hidden={anchoDeEscritorio && pestania !== 'articulo'}
+                className="flex flex-col gap-panel-seccion"
+              >
+                <section aria-labelledby="titulo-taxonomias" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-taxonomias">Taxonomías</TituloSeccion>
+                  <CampoFormulario etiqueta="Categoría" id="campo-categoria">
+                    {(a) => (
+                      <Select
+                        {...a}
+                        value={actual.categoria_id ?? ''}
+                        onChange={(e) =>
+                          despachar({
+                            tipo: 'campo',
+                            campo: 'categoria_id',
+                            valor: e.target.value === '' ? null : e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Sin categoría</option>
+                        {categorias.map((categoria) => (
+                          <option key={categoria.id} value={categoria.id}>
+                            {categoria.nombre}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </CampoFormulario>
+
+                  <fieldset className="flex flex-col gap-1 rounded-md border border-borde p-4">
+                    <legend className="px-1 font-semibold">Etiquetas</legend>
+                    {etiquetas.length === 0 && <p className="text-sm text-texto-suave">Todavía no hay etiquetas.</p>}
+                    {etiquetas.map((etiqueta) => (
+                      <label key={etiqueta.id} className="flex min-h-(--tactil-min) items-center gap-2">
+                        <Checkbox
+                          checked={actual.etiquetas.includes(etiqueta.id)}
+                          onChange={(e) =>
+                            despachar({
+                              tipo: 'campo',
+                              campo: 'etiquetas',
+                              valor: e.target.checked
+                                ? [...actual.etiquetas, etiqueta.id]
+                                : actual.etiquetas.filter((otra) => otra !== etiqueta.id),
+                            })
+                          }
+                        />
+                        <span className="min-w-0 wrap-anywhere">{etiqueta.nombre}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </section>
+
+                <section aria-labelledby="titulo-buscadores" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-buscadores">Para buscadores</TituloSeccion>
+                  <CampoFormulario
+                    etiqueta="Título SEO"
+                    id="campo-titulo-seo"
+                    ayuda="Si lo dejas vacío, se usa el título."
+                  >
+                    {(a) => (
+                      <Input
+                        {...a}
+                        value={actual.titulo_seo ?? ''}
+                        onChange={(e) =>
+                          despachar({ tipo: 'campo', campo: 'titulo_seo', valor: vacioANulo(e.target.value) })
+                        }
+                      />
+                    )}
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Descripción SEO" id="campo-descripcion-seo">
+                    {(a) => (
+                      <Textarea
+                        {...a}
+                        value={actual.descripcion_seo ?? ''}
+                        onChange={(e) =>
+                          despachar({ tipo: 'campo', campo: 'descripcion_seo', valor: vacioANulo(e.target.value) })
+                        }
+                      />
+                    )}
+                  </CampoFormulario>
+                </section>
+              </div>
+              {anchoDeEscritorio && (
+                <div
+                  id="panel-elemento"
+                  role="tabpanel"
+                  aria-labelledby="pestana-elemento"
+                  hidden={pestania !== 'elemento'}
+                  data-panel-propiedades
+                >
+                  <ContextoEditor.Provider value={contextoDelPanel}>
+                    <PropiedadesDelElemento
+                      variante="lateral"
+                      seleccion={seleccion}
+                      posicion={elemento?.posicion ?? 0}
+                      indice={elemento?.indice ?? -1}
+                      errores={errores.filter((error) => error.indice === elemento?.indice)}
+                      alCambiar={alCambiarElemento}
+                      alAlinear={alAlinearElemento}
+                      alAccionTabla={alAccionTabla}
                     />
-                  )}
-                </CampoFormulario>
-                <CampoFormulario etiqueta="Descripción SEO" id="campo-descripcion-seo">
-                  {(a) => (
-                    <Textarea
-                      {...a}
-                      value={actual.descripcion_seo ?? ''}
-                      onChange={(e) =>
-                        despachar({ tipo: 'campo', campo: 'descripcion_seo', valor: vacioANulo(e.target.value) })
-                      }
-                    />
-                  )}
-                </CampoFormulario>
-              </fieldset>
+                  </ContextoEditor.Provider>
+                </div>
+              )}
             </div>
           </div>
         </fieldset>
 
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-4 border-t border-separador bg-fondo px-4 py-3 md:-mx-8 md:px-8">
-          <Button
-            aria-disabled={guardando || subidas > 0 || reemplazando || undefined}
-            aria-busy={guardando || undefined}
-            onClick={guardar}
+        {!anchoDeEscritorio && hojaAbierta && (
+          <div
+            data-panel-propiedades
+            style={{ bottom: altoDeLaBarra }}
+            className="sticky z-20 -mx-4 bg-fondo px-4 pt-2 pb-3 md:-mx-8 md:px-8"
+            onKeyDown={(evento) => {
+              if (evento.key !== 'Escape') return;
+              evento.preventDefault();
+              setHojaAbierta(false);
+              acciones.current?.enfocar();
+            }}
           >
-            Guardar
-          </Button>
-          <p aria-live="polite" className="font-semibold text-advertencia">
-            {sucio ? 'Cambios sin guardar' : ''}
-          </p>
-          <p role="status" className="font-semibold text-exito">
-            {guardadoOk && !sucio
-              ? slugAjustado
-                ? `Guardado. La dirección quedó como ${slugAjustado}`
-                : 'Guardado'
-              : ''}
-          </p>
-        </div>
+            <ContextoEditor.Provider value={contextoDelPanel}>
+              <PropiedadesDelElemento
+                variante="hoja"
+                seleccion={seleccion}
+                posicion={elemento?.posicion ?? 0}
+                indice={elemento?.indice ?? -1}
+                errores={errores.filter((error) => error.indice === elemento?.indice)}
+                alCambiar={alCambiarElemento}
+                alAlinear={alAlinearElemento}
+                alAccionTabla={alAccionTabla}
+                alCerrar={() => {
+                  setHojaAbierta(false);
+                  acciones.current?.enfocar();
+                }}
+              />
+            </ContextoEditor.Provider>
+          </div>
+        )}
+
+        <BarraEditor
+          id={id}
+          version={estado.guardado.version}
+          estado={publicacion.estado}
+          rol={rol}
+          hayCambiosSinGuardar={sucio}
+          guardando={guardando}
+          bloqueado={subidas > 0 || reemplazando}
+          subiendoImagen={subidas > 0}
+          guardadoOk={guardadoOk}
+          slugAjustado={slugAjustado}
+          alGuardar={guardar}
+          alCambiarEstado={(articulo) => {
+            despachar({ tipo: 'guardado', articulo: aDatosArticulo(articulo, actual.etiquetas) });
+            setPublicacion(publicacionDe(articulo));
+          }}
+        />
         {/* Región persistente de anuncios (movimientos de bloques, subidas, errores): no se recrea. */}
-        <p role="status" className="sr-only">
+        <p id="editor-anuncios" role="status" className="sr-only">
           {anuncio}
         </p>
       </div>

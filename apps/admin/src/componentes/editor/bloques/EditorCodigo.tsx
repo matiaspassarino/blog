@@ -1,26 +1,18 @@
 'use client';
 
-import { CampoLargo, CampoTexto } from '../CampoBloque';
+import { CampoTexto } from '../CampoBloque';
 import type { PropsEditorBloque } from './tipos';
 
-export function EditorCodigo({ bloque, indice, errores, cambiar }: PropsEditorBloque<'codigo'>) {
+export function EditorCodigo({ datos, indice, errores, cambiar }: PropsEditorBloque<'codeBlock'>) {
   return (
     <>
-      <CampoLargo
-        indice={indice}
-        campo="codigo"
-        etiqueta="Código"
-        errores={errores}
-        valor={bloque.codigo}
-        alCambiar={(codigo) => cambiar({ codigo })}
-      />
       <CampoTexto
         indice={indice}
         campo="lenguaje"
         etiqueta="Lenguaje"
         ayuda="Por ejemplo: ts, css, python"
         errores={errores}
-        valor={bloque.lenguaje ?? ''}
+        valor={datos.lenguaje ?? ''}
         alCambiar={(lenguaje) => cambiar({ lenguaje: lenguaje === '' ? undefined : lenguaje })}
       />
     </>

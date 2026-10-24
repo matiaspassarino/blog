@@ -25,7 +25,7 @@ insert into public.categorias (nombre, slug) values ('H2 Not Categoría', 'h2-no
 -- Artículos de partida, cargados por el sistema (sin secretos: no notifican).
 insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)
 select x.id::uuid, 'H2 notificación ' || x.sufijo, 'h2-not-' || x.sufijo,
-       '[{"id": "b2300000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto."}]',
+       '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2300000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto."}]}]}',
        (select id from public.categorias where slug = 'h2-not-categoria'),
        (select id from auth.users where email = 'h2-not-editor@prueba.local'),
        x.estado::public.estado_articulo, x.publicado_en, x.programado_para

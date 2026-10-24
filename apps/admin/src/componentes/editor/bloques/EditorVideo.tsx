@@ -8,7 +8,7 @@ const PROVEEDORES = [
   { valor: 'vimeo', texto: 'Vimeo' },
 ];
 
-export function EditorVideo({ bloque, indice, errores, cambiar }: PropsEditorBloque<'video'>) {
+export function EditorVideo({ datos, indice, errores, cambiar }: PropsEditorBloque<'video'>) {
   return (
     <>
       <CampoSelect
@@ -17,7 +17,7 @@ export function EditorVideo({ bloque, indice, errores, cambiar }: PropsEditorBlo
         etiqueta="Proveedor"
         errores={errores}
         opciones={PROVEEDORES}
-        valor={bloque.proveedor}
+        valor={datos.proveedor}
         alCambiar={(proveedor) => cambiar({ proveedor: proveedor as 'youtube' | 'vimeo' })}
       />
       <CampoTexto
@@ -25,7 +25,7 @@ export function EditorVideo({ bloque, indice, errores, cambiar }: PropsEditorBlo
         campo="idVideo"
         etiqueta="ID del video"
         errores={errores}
-        valor={bloque.idVideo}
+        valor={datos.idVideo}
         alCambiar={(idVideo) => cambiar({ idVideo })}
       />
       <CampoTexto
@@ -33,7 +33,7 @@ export function EditorVideo({ bloque, indice, errores, cambiar }: PropsEditorBlo
         campo="titulo"
         etiqueta="Título del video"
         errores={errores}
-        valor={bloque.titulo}
+        valor={datos.titulo}
         alCambiar={(titulo) => cambiar({ titulo })}
       />
     </>

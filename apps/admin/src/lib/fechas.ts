@@ -11,6 +11,13 @@ export function aIsoUtc(valor: string): string | null {
   return Number.isNaN(fecha.getTime()) ? null : fecha.toISOString();
 }
 
+/** Valor para el `min` de un `<input type="datetime-local">`: ahora, en la hora local y sin segundos. */
+export function ahoraLocal(): string {
+  const ahora = new Date();
+  ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+  return ahora.toISOString().slice(0, 16);
+}
+
 /**
  * Texto en español con día, mes, año y hora ("22 oct 2026, 15:30"), en la zona IANA indicada o, por
  * defecto, en la del navegador. Un valor vacío o inválido devuelve `null`.

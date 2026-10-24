@@ -8,10 +8,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { actualizarTaxonomiaAccion } from '../../acciones/taxonomias';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import type { Tipo } from './textos';
+import { BarraAcciones } from '../estructura/BarraAcciones';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 type Props = { tipo: Tipo; taxonomia: TaxonomiaConConteo; alCerrar: () => void };
 
@@ -57,12 +59,10 @@ export function DialogoEdicion({ tipo, taxonomia, alCerrar }: Props) {
       ref={dialogo}
       aria-labelledby={idTitulo}
       onClose={alCerrar}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-md border border-borde bg-fondo p-6 text-texto backdrop:bg-overlay"
+      className="m-auto w-11/12 max-w-lg rounded-md border border-borde bg-fondo p-6 text-texto backdrop:bg-overlay"
     >
       <form onSubmit={guardar} className="flex flex-col gap-4">
-        <h2 id={idTitulo} className="font-titulos text-xl font-semibold">
-          Editar {taxonomia.nombre}
-        </h2>
+        <TituloSeccion id={idTitulo}>Editar {taxonomia.nombre}</TituloSeccion>
         {error && (
           <AvisoEstado tipo="error" cerrable={false}>
             {error}
@@ -75,26 +75,23 @@ export function DialogoEdicion({ tipo, taxonomia, alCerrar }: Props) {
           {(a) => <Input {...a} value={slug} onChange={(e) => setSlug(e.target.value)} />}
         </CampoFormulario>
         {cambiaLaDireccion && (
-          <p
-            role="status"
-            className="rounded-md border border-advertencia-borde bg-advertencia-suave p-3 text-advertencia"
-          >
+          <AvisoEstado tipo="advertencia" cerrable={false}>
             La dirección pública cambia: la anterior seguirá redirigiendo a la nueva.
-          </p>
+          </AvisoEstado>
         )}
         <CampoFormulario etiqueta="Descripción">
           {(a) => (
             <Textarea {...a} value={descripcion} maxLength={300} onChange={(e) => setDescripcion(e.target.value)} />
           )}
         </CampoFormulario>
-        <div className="flex flex-wrap justify-end gap-3">
+        <BarraAcciones alineacion="fin">
           <Button variante="secundaria" onClick={() => dialogo.current?.close()}>
             Cancelar
           </Button>
-          <Button type="submit" aria-disabled={guardando || undefined}>
+          <Button type="submit" variante="primaria" {...estadoOcupado(guardando, 'Guardando…')}>
             Guardar cambios
           </Button>
-        </div>
+        </BarraAcciones>
       </form>
     </dialog>
   );

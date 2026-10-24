@@ -11,10 +11,11 @@ export type ContextoDelEditor = {
   imagenGuardada: (ruta: string) => boolean;
 };
 
-export const ContextoEditor = createContext<ContextoDelEditor | null>(null);
+/** Fuera de un editor (por ejemplo, en una prueba de render) no hay subidas ni imágenes guardadas. */
+const CONTEXTO_VACIO: ContextoDelEditor = { anunciar: () => {}, subiendo: () => {}, imagenGuardada: () => false };
 
-export function useEditor(): ContextoDelEditor {
-  const contexto = useContext(ContextoEditor);
-  if (!contexto) throw new Error('useEditor debe usarse dentro de <EditorArticulo>');
-  return contexto;
+export const ContextoEditor = createContext<ContextoDelEditor>(CONTEXTO_VACIO);
+
+export function useContextoEditor(): ContextoDelEditor {
+  return useContext(ContextoEditor);
 }

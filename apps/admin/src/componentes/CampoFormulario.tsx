@@ -11,10 +11,12 @@ type Props = {
   id?: string;
   ayuda?: string;
   error?: string;
+  /** El error se anuncia como alerta (por ejemplo, dentro de un diálogo). */
+  alerta?: boolean;
   children: (atributos: AtributosControl) => ReactNode;
 };
 
-export function CampoFormulario({ etiqueta, id, ayuda, error, children }: Props) {
+export function CampoFormulario({ etiqueta, id, ayuda, error, alerta = false, children }: Props) {
   const generado = useId();
   const idControl = id ?? generado;
   const idAyuda = `${idControl}-ayuda`;
@@ -31,7 +33,7 @@ export function CampoFormulario({ etiqueta, id, ayuda, error, children }: Props)
         </p>
       )}
       {error && (
-        <p id={idError} className="text-sm font-semibold text-error">
+        <p id={idError} role={alerta ? 'alert' : undefined} className="text-sm font-semibold text-error">
           {error}
         </p>
       )}

@@ -19,7 +19,7 @@ export default async function LayoutPanel({ children }: LayoutProps<'/'>) {
           puedeVerEquipo={puede(miembro.rol, 'equipo.ver')}
           cerrarSesion={
             <form action={cerrarSesion}>
-              <Button type="submit" variante="secundaria" className="mt-2 w-full">
+              <Button type="submit" variante="terciaria">
                 Cerrar sesión
               </Button>
             </form>

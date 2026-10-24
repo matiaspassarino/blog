@@ -11,7 +11,7 @@
 -- catálogo: cada una falla por separado en lugar de abortar el archivo.
 begin;
 \ir helpers/pruebas.psql
-select plan(71);
+select plan(72);
 
 -- Sin secretos de revalidación: el armado de datos no debe notificar.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -33,15 +33,28 @@ language sql stable security definer set search_path = '' as $$
 $$;
 grant execute on function pruebas.id_de(text) to anon, authenticated;
 
--- Un bloque párrafo y un bloque imagen con id propio.
+-- Elementos del documento con id propio (spec 005, T096): párrafo, imagen y galería, con los campos de la
+-- imagen como attrs planos (attrs.imagen.ruta y attrs.imagenes[*].ruta).
 create function pruebas.parrafo_pn(texto text) returns jsonb
 language sql volatile as $$
-  select jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'parrafo', 'texto', texto)
+  select jsonb_build_object('type', 'paragraph', 'attrs', jsonb_build_object('id', gen_random_uuid()::text),
+    'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', texto)))
 $$;
 create function pruebas.bloque_imagen_pn(ruta text) returns jsonb
 language sql volatile as $$
-  select jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'imagen',
-    'imagen', jsonb_build_object('ruta', ruta, 'ancho', 800, 'alto', 600, 'alt', 'Imagen de prueba'))
+  select jsonb_build_object('type', 'imagen', 'attrs', jsonb_build_object('id', gen_random_uuid()::text,
+    'imagen', jsonb_build_object('ruta', ruta, 'ancho', 800, 'alto', 600, 'alt', 'Imagen de prueba')))
+$$;
+create function pruebas.galeria_pn(rutas text[]) returns jsonb
+language sql volatile as $$
+  select jsonb_build_object('type', 'galeria', 'attrs', jsonb_build_object('id', gen_random_uuid()::text, 'columnas', 3,
+    'imagenes', (select jsonb_agg(jsonb_build_object('ruta', r, 'ancho', 800, 'alto', 600, 'alt', 'Foto') order by i)
+                 from unnest(rutas) with ordinality as x(r, i))))
+$$;
+-- El documento con estos elementos.
+create function pruebas.doc_pn(elementos jsonb) returns jsonb
+language sql immutable as $$
+  select jsonb_build_object('type', 'doc', 'content', elementos)
 $$;
 
 -- Aísla los datos: fuera los artículos del seed y de otros tests (rollback al final).
@@ -54,7 +67,7 @@ insert into public.categorias (id, nombre, slug) values
 -- Artículos de partida, cargados por el sistema. Todos los títulos base terminan en "pnb".
 insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)
 select x.id::uuid, x.titulo, 'pn-' || x.sufijo,
-       jsonb_build_array(pruebas.parrafo_pn('Cuerpo neutro.')),
+       pruebas.doc_pn(jsonb_build_array(pruebas.parrafo_pn('Cuerpo neutro.'))),
        x.categoria_id::uuid,
        pruebas.id_de(x.autor),
        x.estado::public.estado_articulo, x.publicado_en, x.programado_para
@@ -82,15 +95,15 @@ from (values
 -- Lote de 105 borradores para el límite máximo (100), la paginación y el total.
 insert into public.articulos (titulo, slug, contenido, autor_id, estado)
 select 'Lote ' || n, 'pn-lote-' || n,
-       jsonb_build_array(pruebas.parrafo_pn('Cuerpo neutro.')),
+       pruebas.doc_pn(jsonb_build_array(pruebas.parrafo_pn('Cuerpo neutro.'))),
        pruebas.id_de('pn-admin@prueba.local'), 'borrador'
 from generate_series(1, 105) as n;
 
 -- Orden por actualizado_en: se fijan fechas distintas sin que el trigger las pise.
 insert into public.articulos (id, titulo, slug, contenido, autor_id, estado) values
-  ('a7000000-0000-4000-8000-0000000000a1', 'Orden A pno', 'pn-orden-a', jsonb_build_array(pruebas.parrafo_pn('x')), pruebas.id_de('pn-admin@prueba.local'), 'borrador'),
-  ('a7000000-0000-4000-8000-0000000000a2', 'Orden B pno', 'pn-orden-b', jsonb_build_array(pruebas.parrafo_pn('x')), pruebas.id_de('pn-admin@prueba.local'), 'borrador'),
-  ('a7000000-0000-4000-8000-0000000000a3', 'Orden C pno', 'pn-orden-c', jsonb_build_array(pruebas.parrafo_pn('x')), pruebas.id_de('pn-admin@prueba.local'), 'borrador');
+  ('a7000000-0000-4000-8000-0000000000a1', 'Orden A pno', 'pn-orden-a', pruebas.doc_pn(jsonb_build_array(pruebas.parrafo_pn('x'))), pruebas.id_de('pn-admin@prueba.local'), 'borrador'),
+  ('a7000000-0000-4000-8000-0000000000a2', 'Orden B pno', 'pn-orden-b', pruebas.doc_pn(jsonb_build_array(pruebas.parrafo_pn('x'))), pruebas.id_de('pn-admin@prueba.local'), 'borrador'),
+  ('a7000000-0000-4000-8000-0000000000a3', 'Orden C pno', 'pn-orden-c', pruebas.doc_pn(jsonb_build_array(pruebas.parrafo_pn('x'))), pruebas.id_de('pn-admin@prueba.local'), 'borrador');
 alter table public.articulos disable trigger a90_actualizado_en;
 update public.articulos set actualizado_en = now() - interval '2 days' where slug = 'pn-orden-a';
 update public.articulos set actualizado_en = now() - interval '3 days' where slug = 'pn-orden-b';
@@ -101,11 +114,12 @@ alter table public.articulos enable trigger a90_actualizado_en;
 -- imagen destacada y avatar.
 insert into public.articulos (id, titulo, slug, contenido, imagen_destacada, autor_id, estado) values
   ('a7000000-0000-4000-8000-0000000000b1', 'Uso de rutas', 'pn-uso-rutas',
-   jsonb_build_array(
+   pruebas.doc_pn(jsonb_build_array(
      pruebas.bloque_imagen_pn('articulos/2026/10/pn-contenido.webp'),
      pruebas.bloque_imagen_pn('articulos/pn-a.jpg.bak'),
      pruebas.bloque_imagen_pn('articulos/pn-"comilla".webp'),
-     pruebas.bloque_imagen_pn('articulos/pn\barra.webp')),
+     pruebas.bloque_imagen_pn('articulos/pn\barra.webp'),
+     pruebas.galeria_pn(array['articulos/pn-galeria-1.webp', 'articulos/pn-galeria-2.webp']))),
    '{"ruta": "articulos/2026/10/pn-portada.webp", "ancho": 1200, "alto": 630, "alt": "Portada"}'::jsonb,
    pruebas.id_de('pn-admin@prueba.local'), 'borrador');
 update public.perfiles
@@ -359,7 +373,12 @@ select pruebas.como('pn-editor@prueba.local');
 select results_eq(
   $$select public.rutas_en_uso(array['articulos/2026/10/pn-contenido.webp'])$$,
   $$values (array['articulos/2026/10/pn-contenido.webp']::text[])$$,
-  'D11: detecta una ruta usada en el contenido'
+  'D11 (spec 005): detecta una ruta usada en un elemento imagen del documento (attrs.imagen.ruta)'
+);
+select results_eq(
+  $$select r from unnest(public.rutas_en_uso(array['articulos/pn-galeria-2.webp', 'articulos/pn-galeria-1.webp'])) as r order by r$$,
+  $$values ('articulos/pn-galeria-1.webp'::text), ('articulos/pn-galeria-2.webp')$$,
+  'D11 (spec 005): detecta las rutas de una galería del documento (attrs.imagenes[*].ruta)'
 );
 select results_eq(
   $$select public.rutas_en_uso(array['articulos/2026/10/pn-portada.webp'])$$,

@@ -13,7 +13,9 @@
 //     "Archivado", sin distinguir mayúsculas) y cada fila lleva un `<time datetime>` con su fecha relevante.
 //   - Debajo de 768 px la tabla se ve como tarjetas (la fila es `display:block`), sin scroll horizontal.
 //     Filtros: apilados (una columna) a 360 px, en 2 columnas a 768 px y en una sola fila desde 1024 px.
-//   - Estado vacío: texto "No hay artículos" y un enlace "Quitar filtros" (puede repetirse en el formulario).
+//   - Estado vacío (spec 004, T047): el componente `EstadoVacio` (`data-estado="vacio"`) con el texto "No hay artículos" y,
+//     dentro de él, "Quitar filtros" como enlace con aspecto de botón secundario. El formulario de filtros puede repetir
+//     su propio enlace "Quitar filtros" fuera del vacío.
 //   - Un enlace "Nuevo artículo" hacia /articulos/nuevo.
 //   - Paginación de 20 por página: `nav` con nombre "Paginación"; los enlaces se llaman "2" o "Página 2"; la página actual
 //     lleva `aria-current="page"`; los enlaces conservan los filtros. Una página fuera de rango o inválida muestra la 1.
@@ -314,8 +316,10 @@ test.describe('Lista de artículos (H4)', () => {
     test('H4-E4: sin coincidencias muestra un estado vacío con "Quitar filtros"', async ({ page }) => {
       await irALista(page, { q: `${MARCA}-que-no-existe` });
 
-      await expect(page.getByText(/No hay artículos/)).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Quitar filtros' }).first()).toBeVisible();
+      const vacio = page.locator('[data-estado="vacio"]');
+      await expect(vacio).toBeVisible();
+      await expect(vacio).toContainText(/No hay artículos/);
+      await expect(vacio.getByRole('link', { name: 'Quitar filtros' })).toBeVisible();
       await expect(page.getByRole('table')).toHaveCount(0);
       await expect(recuento(page)).toContainText(/\b0 artículos\b/);
     });
@@ -323,7 +327,7 @@ test.describe('Lista de artículos (H4)', () => {
     test('H4-E4: "Quitar filtros" limpia la dirección y vuelve a mostrar la lista', async ({ page }) => {
       await irALista(page, { q: `${MARCA}-que-no-existe`, estado: 'archivado' });
 
-      await page.getByRole('link', { name: 'Quitar filtros' }).first().click();
+      await page.locator('[data-estado="vacio"]').getByRole('link', { name: 'Quitar filtros' }).click();
 
       await expect(page).toHaveURL((url) => url.pathname === '/articulos' && url.search === '');
       await expect(page.getByRole('table')).toBeVisible();
@@ -334,7 +338,7 @@ test.describe('Lista de artículos (H4)', () => {
     test('H4-E4: filtros que se contradicen también dan el estado vacío', async ({ page }) => {
       await irALista(page, { q: MARCA, estado: 'programado', autor: ID_ADMIN });
 
-      await expect(page.getByText(/No hay artículos/)).toBeVisible();
+      await expect(page.locator('[data-estado="vacio"]')).toContainText(/No hay artículos/);
     });
   });
 

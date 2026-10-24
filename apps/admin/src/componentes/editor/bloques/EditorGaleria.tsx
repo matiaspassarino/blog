@@ -8,7 +8,7 @@ import type { PropsEditorBloque } from './tipos';
 
 const COLUMNAS = [2, 3, 4].map((n) => ({ valor: String(n), texto: `${n} columnas` }));
 
-export function EditorGaleria({ bloque, indice, errores, cambiar }: PropsEditorBloque<'galeria'>) {
+export function EditorGaleria({ datos, indice, errores, cambiar }: PropsEditorBloque<'galeria'>) {
   const id = (campo: string) => idDeCampoDeBloque(indice, campo);
 
   return (
@@ -19,18 +19,18 @@ export function EditorGaleria({ bloque, indice, errores, cambiar }: PropsEditorB
         etiqueta="Columnas"
         errores={errores}
         opciones={COLUMNAS}
-        valor={String(bloque.columnas)}
+        valor={String(datos.columnas)}
         alCambiar={(valor) => cambiar({ columnas: Number(valor) as 2 | 3 | 4 })}
       />
-      {bloque.imagenes.map((imagen, i) => (
+      {datos.imagenes.map((imagen, i) => (
         <ImagenEditable
           key={`${imagen.ruta}-${i}`}
           imagen={imagen}
           alCambiar={(nueva) =>
             cambiar({
               imagenes: nueva
-                ? bloque.imagenes.map((actual, otra) => (otra === i ? nueva : actual))
-                : bloque.imagenes.filter((_actual, otra) => otra !== i),
+                ? datos.imagenes.map((actual, otra) => (otra === i ? nueva : actual))
+                : datos.imagenes.filter((_actual, otra) => otra !== i),
             })
           }
           idRuta={id(`imagenes.${i}.ruta`)}

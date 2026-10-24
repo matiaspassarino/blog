@@ -102,7 +102,12 @@ describe.skipIf(sinSupabase)('Server Actions de categorías y etiquetas (H5)', (
     return crearArticuloDePrueba(admin, registro, {
       titulo: `${PREFIJO} articulo ${(contador += 1)}`,
       slug: '',
-      contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Texto' }],
+      contenido: {
+        type: 'doc',
+        content: [
+          { type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] },
+        ],
+      },
       categoriaId: tipo === 'categoria' ? taxonomiaId : categoriaBaseId,
       etiquetas: tipo === 'etiqueta' ? [taxonomiaId] : [],
       publicar,
@@ -427,7 +432,12 @@ describe.skipIf(sinSupabase)('Server Actions de categorías y etiquetas (H5)', (
       const articulo = await crearArticuloDePrueba(admin, registro, {
         titulo: `${PREFIJO} articulo ${(contador += 1)}`,
         slug: '',
-        contenido: [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Texto' }],
+        contenido: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'Texto' }] },
+          ],
+        },
         categoriaId: categoriaBaseId,
         etiquetas: [etiqueta.id, otra.id],
         publicar: true,

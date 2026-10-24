@@ -14,7 +14,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { pngDecodificable } from '../../packages/db/src/pruebas/imagenes';
 import {
-  diezBloques,
+  diezElementos,
   imagenSemilla,
   limpiarArticulosE2E,
   publicarComoServicio,
@@ -33,7 +33,7 @@ test.afterAll(() => limpiarArticulosE2E(PREFIJO));
 async function sembrarConDiezBloques(etiqueta: string) {
   const ruta = `pruebas-e2e/${crypto.randomUUID()}.png`;
   await subirObjeto(ruta, pngDecodificable(4, 3));
-  return sembrarArticulo({ titulo: nombreDePrueba(etiqueta), contenido: diezBloques(imagenSemilla(ruta)) });
+  return sembrarArticulo({ titulo: nombreDePrueba(etiqueta), contenido: diezElementos(imagenSemilla(ruta)) });
 }
 
 /** Secuencia ordenada de etiquetas estructurales dentro de `contenedor`, sin las de header, nav, aside o footer. */

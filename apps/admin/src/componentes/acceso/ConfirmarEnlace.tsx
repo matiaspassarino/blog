@@ -5,7 +5,7 @@
 import { useActionState } from 'react';
 import { confirmarEnlace } from '../../acciones/acceso';
 import { AvisoEstado } from '../AvisoEstado';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { FormularioRecuperacion } from './FormularioRecuperacion';
 
 type Props = { tokenHash: string; tipo: 'invite' | 'recovery' };
@@ -35,8 +35,8 @@ export function ConfirmarEnlace({ tokenHash, tipo }: Props) {
     <form action={accion} className="flex flex-col gap-4">
       <input type="hidden" name="tokenHash" value={tokenHash} />
       <input type="hidden" name="tipo" value={tipo} />
-      <Button type="submit" aria-disabled={pendiente} disabled={pendiente} autoFocus>
-        {pendiente ? 'Verificando…' : 'Continuar'}
+      <Button type="submit" variante="primaria" {...estadoOcupado(pendiente, 'Verificando…')} autoFocus>
+        Continuar
       </Button>
     </form>
   );

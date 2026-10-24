@@ -6,10 +6,11 @@ import { useEffect, useRef, useState } from 'react';
 import { previsualizarSlugAccion } from '../../acciones/articulos';
 import { crearTaxonomiaAccion } from '../../acciones/taxonomias';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { TEXTOS, type Tipo } from './textos';
+import { TituloSeccion } from '../estructura/TituloSeccion';
 
 type Props = { tipo: Tipo; alError: (mensaje: string | null) => void };
 
@@ -60,7 +61,7 @@ export function FormularioAlta({ tipo, alError }: Props) {
       onSubmit={crear}
       className="flex flex-col gap-4 rounded-md border border-borde p-4"
     >
-      <h2 className="font-titulos text-xl font-semibold">{textos.formulario}</h2>
+      <TituloSeccion>{textos.formulario}</TituloSeccion>
       <div className="grid gap-4 md:grid-cols-2">
         <CampoFormulario etiqueta="Nombre">
           {(a) => (
@@ -85,7 +86,7 @@ export function FormularioAlta({ tipo, alError }: Props) {
           <Textarea {...a} value={descripcion} maxLength={300} onChange={(e) => setDescripcion(e.target.value)} />
         )}
       </CampoFormulario>
-      <Button type="submit" aria-disabled={enviando || undefined} className="self-start">
+      <Button type="submit" variante="primaria" {...estadoOcupado(enviando, 'Enviando…')} className="self-start">
         {textos.crear}
       </Button>
     </form>

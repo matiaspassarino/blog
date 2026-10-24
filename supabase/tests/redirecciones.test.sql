@@ -19,7 +19,7 @@ insert into public.categorias (nombre, slug) values ('H2 Redir Categoría', 'h2-
 insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 values (
   'a2100000-0000-4000-8000-000000000001', 'H2 redirección', 'h2-redir-a',
-  '[{"id": "b2100000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto."}]',
+  '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b2100000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto."}]}]}',
   (select id from public.categorias where slug = 'h2-redir-categoria'),
   (select id from auth.users where email = 'h2-redir-editor@prueba.local'),
   'publicado', now() - interval '1 day'
@@ -200,7 +200,7 @@ drop trigger prueba_redireccion_categoria on public.categorias;
 
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 values ('H2 redir slug ocupado', 'h2-redir-slug-ocupado',
-        '[{"id": "x", "tipo": "separador"}]',
+        '{"type": "doc", "content": [{"type": "horizontalRule", "attrs": {"id": "x"}}]}',
         (select id from public.categorias where slug = 'h2-redir-cat-generica-nueva'),
         (select id from auth.users where email = 'h2-redir-editor@prueba.local'),
         'publicado', now() - interval '1 day');

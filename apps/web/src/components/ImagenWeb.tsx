@@ -1,9 +1,9 @@
-// Componente Imagen de apps/web para <Bloques> (contracts/bloques-render.md, research D7).
+// Componente Imagen de apps/web para <Documento> (contracts/bloques-render.md, research D7).
 // Las variantes se precalculan en la página: React no puede esperar a getImage().
-import type { ComponentesBloques, PropsImagen } from '@blog/bloques/render';
+import type { ComponentesDocumento, PropsImagen } from '@blog/bloques/render';
 import type { MapaVariantes } from '../lib/imagenes';
 
-export function crearImagenWeb(variantes: MapaVariantes): ComponentesBloques['Imagen'] {
+export function crearImagenWeb(variantes: MapaVariantes): ComponentesDocumento['Imagen'] {
   return function ImagenWeb({ imagen, sizes, prioridad = false }: PropsImagen) {
     const variante = variantes.get(imagen.ruta);
     return (

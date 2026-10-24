@@ -1,17 +1,14 @@
-import type { BloqueDe } from '../esquema';
+import type { ElementoDe } from '../esquema';
+import { CLASES_TITULO, CLASES_TITULO_POR_NIVEL, conAlineacion } from './clases';
+import { EnLinea } from './EnLinea';
 
-const ESTILOS = {
-  2: 'mt-12 text-titulo-2',
-  3: 'mt-10 text-titulo-3',
-  4: 'mt-8 text-xl',
-} as const;
-
-/** Los títulos del cuerpo empiezan en h2: el h1 es el del artículo (RSEO-008). `ancla` la calcula Bloques. */
-export function Titulo({ bloque, ancla }: { bloque: BloqueDe<'titulo'>; ancla: string | undefined }) {
-  const Etiqueta = `h${bloque.nivel}` as const;
+/** Los títulos del cuerpo empiezan en h2: el h1 es el del artículo (RSEO-008). `ancla` la calcula Documento. */
+export function Titulo({ elemento, ancla }: { elemento: ElementoDe<'heading'>; ancla: string | undefined }) {
+  const { level, textAlign } = elemento.attrs;
+  const Etiqueta = `h${level}` as const;
   return (
-    <Etiqueta id={ancla} className={`scroll-mt-8 font-titulos font-bold text-balance ${ESTILOS[bloque.nivel]}`}>
-      {bloque.texto}
+    <Etiqueta id={ancla} className={conAlineacion(`${CLASES_TITULO} ${CLASES_TITULO_POR_NIVEL[level]}`, textAlign)}>
+      <EnLinea contenido={elemento.content} />
     </Etiqueta>
   );
 }

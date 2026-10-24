@@ -1,6 +1,7 @@
-// T067 (spec 003, H3-E1, E2, E6, E7, CE-003). FASE ROJA: AccionesEstado (T072) no existe aún en /articulos/[id].
+// T067 (spec 003, H3-E1, E2, E6, E7, CE-003), adaptado en la spec 004 (T017): los botones de estado están en la barra
+// "Acciones del artículo" y "Programar" abre un diálogo. FASE ROJA: hoy siguen en el recuadro "Publicación".
 //
-// Supuestos de interfaz: ver el encabezado de ./ayudas/estado.ts (grupo "Publicación", botones, `<time>`, enlace
+// Supuestos de interfaz: ver el encabezado de ./ayudas/estado.ts (barra, sección "Publicación", `<time>`, enlace
 // "Ver en el sitio", alertas con el texto de `mensajeDeError`). El editor usa los campos de ./ayudas/editor.ts.
 // Requiere el sitio público en :4321 leyendo la misma base local (playwright.config.ts lo levanta) y, para el plazo
 // de 60 s de CE-003, que los triggers de la base emitan el aviso de revalidación.
@@ -27,6 +28,7 @@ import {
   esperarEstado,
   fechaMostrada,
   panelPublicacion,
+  programarArticulo,
   URL_SITIO,
   urlDelArticulo,
   type AccionDeEstado,
@@ -118,8 +120,7 @@ test.describe('Requisitos de publicación (H3-E2)', () => {
     const articulo = await sembrarArticulo({ titulo: titulo('programar incompleto'), contenido: [] });
     await page.goto(urlDelArticulo(articulo.id));
 
-    await page.getByLabel('Fecha y hora de publicación', { exact: true }).fill('2099-01-01T10:00');
-    await botonDeEstado(page, 'Programar').click();
+    await programarArticulo(page, '2099-01-01T10:00');
 
     await expect(errorDelPanel(page)).toContainText('Para publicar falta: sin bloques.');
     expect((await articuloPorId(articulo.id)).estado).toBe('borrador');

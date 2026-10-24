@@ -16,18 +16,23 @@
 //     | { tipo: 'campo'; campo: 'titulo' | 'slug' | 'extracto' | 'titulo_seo' | 'descripcion_seo' | 'imagen_destacada' | 'categoria_id' | 'etiquetas'; valor: unknown }
 //         (escribir el campo `slug` a mano activa `slugManual`)
 //     | { tipo: 'sugerir_slug'; slug: string }          (resultado de `previsualizarSlugAccion`; solo si !slugManual)
-//     | { tipo: 'agregar_bloque'; bloque: TipoBloque; posicion?: number }
-//     | { tipo: 'mover_bloque'; indice: number; destino: number }
-//     | { tipo: 'duplicar_bloque'; indice: number }
-//     | { tipo: 'quitar_bloque'; indice: number }
-//     | { tipo: 'actualizar_bloque'; indice: number; cambios: Partial<Bloque> }
 //     | { tipo: 'guardado'; articulo: DatosArticulo }   (respuesta de `guardarArticulo`: adopta slug y versión definitivos)
 //     | { tipo: 'adoptar_vigente'; articulo: DatosArticulo }   ("Reemplazar con la vigente", D13: descarta lo propio)
-import { crearBloque, type Contenido } from '@blog/bloques';
+//
+// T098 (spec 005, ampliación; data-model "Estado del editor"): `datos.contenido` pasa de `Contenido` (bloques) a
+// `Documento` y la acción `contenido` recibe el documento normalizado. Las acciones no cambian. Firmas usadas
+// (T099 y T101, desde '@blog/bloques'): `type Documento`, `crearElemento(tipo)` y `textoDeElemento(elemento)`.
+// `CambiosDeElemento` reemplaza a `CambiosDeBloque` en `bloques/tipos.ts` (T110).
+import { crearElemento, textoDeElemento, type Documento } from '@blog/bloques';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { estaSucio, estadoInicial, reductor, type DatosArticulo } from './reductor';
 
-const parrafo = (texto: string) => ({ ...crearBloque('parrafo'), texto });
+const parrafo = (texto: string) => ({
+  ...crearElemento('paragraph'),
+  content: [{ type: 'text' as const, text: texto }],
+});
+const documento = (...elementos: ReturnType<typeof parrafo>[]) => ({ type: 'doc', content: elementos }) as Documento;
 
 function datosBase(extra: Partial<DatosArticulo> = {}): DatosArticulo {
   return {
@@ -39,13 +44,13 @@ function datosBase(extra: Partial<DatosArticulo> = {}): DatosArticulo {
     descripcion_seo: null,
     imagen_destacada: null,
     categoria_id: null,
-    contenido: [parrafo('Uno'), parrafo('Dos'), parrafo('Tres')],
+    contenido: documento(parrafo('Uno'), parrafo('Dos'), parrafo('Tres')),
     etiquetas: [],
     ...extra,
   };
 }
 
-const textos = (contenido: Contenido) => contenido.map((b) => ('texto' in b ? b.texto : b.tipo));
+const textos = (contenido: Documento) => contenido.content.map((elemento) => textoDeElemento(elemento));
 
 describe('estado del editor (H2)', () => {
   describe('cambios sin guardar', () => {
@@ -69,19 +74,10 @@ describe('estado del editor (H2)', () => {
       expect(estaSucio(revertido)).toBe(false);
     });
 
-    it('H2-E6: editar un bloque lo marca como sucio', () => {
-      const estado = reductor(estadoInicial(datosBase(), { nuevo: false }), {
-        tipo: 'actualizar_bloque',
-        indice: 0,
-        cambios: { texto: 'Cambiado' },
-      });
-      expect(estaSucio(estado)).toBe(true);
-    });
-
     it('no muta el estado recibido', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
       const copia = structuredClone(inicial);
-      reductor(inicial, { tipo: 'quitar_bloque', indice: 0 });
+      reductor(inicial, { tipo: 'contenido', valor: documento(parrafo('Otro')) });
       reductor(inicial, { tipo: 'campo', campo: 'titulo', valor: 'Otro' });
       expect(inicial).toEqual(copia);
     });
@@ -108,48 +104,6 @@ describe('estado del editor (H2)', () => {
     });
   });
 
-  describe('bloques', () => {
-    it('H2-E2: agregar inserta un bloque del tipo pedido al final o en la posición dada', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const alFinal = reductor(inicial, { tipo: 'agregar_bloque', bloque: 'separador' });
-      const alPrincipio = reductor(inicial, { tipo: 'agregar_bloque', bloque: 'cita', posicion: 0 });
-      expect(alFinal.datos.contenido.map((b) => b.tipo)).toEqual(['parrafo', 'parrafo', 'parrafo', 'separador']);
-      expect(alPrincipio.datos.contenido.map((b) => b.tipo)).toEqual(['cita', 'parrafo', 'parrafo', 'parrafo']);
-    });
-
-    it('H2-E2: mover (subir y bajar) cambia el orden y conserva el contenido', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const bajado = reductor(inicial, { tipo: 'mover_bloque', indice: 0, destino: 1 });
-      const subido = reductor(bajado, { tipo: 'mover_bloque', indice: 2, destino: 1 });
-      expect(textos(bajado.datos.contenido)).toEqual(['Dos', 'Uno', 'Tres']);
-      expect(textos(subido.datos.contenido)).toEqual(['Dos', 'Tres', 'Uno']);
-    });
-
-    it('H2-E2: duplicar inserta una copia debajo con un id nuevo', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const estado = reductor(inicial, { tipo: 'duplicar_bloque', indice: 1 });
-      const ids = estado.datos.contenido.map((b) => b.id);
-      expect(textos(estado.datos.contenido)).toEqual(['Uno', 'Dos', 'Dos', 'Tres']);
-      expect(new Set(ids).size).toBe(4);
-    });
-
-    it('H2-E2: quitar elimina solo ese bloque', () => {
-      const estado = reductor(estadoInicial(datosBase(), { nuevo: false }), { tipo: 'quitar_bloque', indice: 1 });
-      expect(textos(estado.datos.contenido)).toEqual(['Uno', 'Tres']);
-    });
-
-    it('actualizar un bloque conserva su id y su tipo', () => {
-      const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const id = inicial.datos.contenido[0]!.id;
-      const estado = reductor(inicial, {
-        tipo: 'actualizar_bloque',
-        indice: 0,
-        cambios: { texto: 'Nuevo', id: crypto.randomUUID(), tipo: 'cita' } as never,
-      });
-      expect(estado.datos.contenido[0]).toMatchObject({ id, tipo: 'parrafo', texto: 'Nuevo' });
-    });
-  });
-
   describe('después de guardar y ante conflictos', () => {
     it('H2-E1: tras guardar adopta el slug definitivo y la versión nueva, y queda limpio', () => {
       const inicial = estadoInicial(datosBase({ slug: 'repetido' }), { nuevo: false });
@@ -167,20 +121,135 @@ describe('estado del editor (H2)', () => {
 
     it('H2-E5: un conflicto no despacha nada: lo escrito sigue en `datos` y el editor sigue sucio', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const editado = reductor(inicial, { tipo: 'actualizar_bloque', indice: 0, cambios: { texto: 'Mi versión' } });
+      const editado = reductor(inicial, {
+        tipo: 'contenido',
+        valor: documento(parrafo('Mi versión'), parrafo('Dos'), parrafo('Tres')),
+      });
       expect(textos(editado.datos.contenido)[0]).toBe('Mi versión');
       expect(estaSucio(editado)).toBe(true);
     });
 
     it('H2-E5: "Reemplazar con la vigente" descarta lo propio y adopta la versión del servidor', () => {
       const inicial = estadoInicial(datosBase(), { nuevo: false });
-      const editado = reductor(inicial, { tipo: 'quitar_bloque', indice: 0 });
-      const vigente = datosBase({ version: 5, titulo: 'Título del otro', contenido: [parrafo('Del otro')] });
+      const editado = reductor(inicial, { tipo: 'contenido', valor: documento(parrafo('Dos')) });
+      const vigente = datosBase({ version: 5, titulo: 'Título del otro', contenido: documento(parrafo('Del otro')) });
 
       const estado = reductor(editado, { tipo: 'adoptar_vigente', articulo: vigente });
 
       expect(estado.datos).toEqual(vigente);
       expect(estaSucio(estado)).toBe(false);
     });
+  });
+});
+
+// T020 (spec 005, RF-012; data-model "Estado del editor"; research D6): el editor despacha el documento completo
+// (normalizado, D24) con la acción `contenido`. Adaptado al documento en T098.
+describe('acción "contenido" del reductor (spec 005)', () => {
+  const accionContenido = (valor: Documento) => ({ tipo: 'contenido', valor }) as const;
+
+  it('RF-012: reemplaza datos.contenido por el valor recibido', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const nuevo = documento(parrafo('Solo uno'), parrafo('Y otro'));
+
+    const estado = reductor(inicial, accionContenido(nuevo));
+
+    expect(estado.datos.contenido).toEqual(nuevo);
+  });
+
+  it('RF-012: deja el estado sucio respecto de lo guardado', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido(documento(parrafo('Cambiado'))));
+
+    expect(estaSucio(estado)).toBe(true);
+  });
+
+  it('RF-012: no toca lo guardado ni el resto de los datos', () => {
+    const inicial = estadoInicial(datosBase({ etiquetas: ['e1'] }), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido(documento()));
+
+    expect(estado.guardado).toEqual(inicial.guardado);
+    expect(estado.datos).toMatchObject({
+      titulo: 'Título original',
+      slug: 'titulo-original',
+      version: 3,
+      etiquetas: ['e1'],
+    });
+    expect(estado.slugManual).toBe(inicial.slugManual);
+  });
+
+  it('RF-012: abrir y no tocar no ensucia: despachar el mismo contenido deja el estado limpio', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    const estado = reductor(inicial, accionContenido(structuredClone(inicial.datos.contenido)));
+
+    expect(estaSucio(estado)).toBe(false);
+  });
+
+  it('RF-012: aceptar un contenido vacío es válido (documento vacío)', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+
+    expect(reductor(inicial, accionContenido(documento())).datos.contenido).toEqual({ type: 'doc', content: [] });
+  });
+
+  it('no muta el estado recibido', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const copia = structuredClone(inicial);
+
+    reductor(inicial, accionContenido(documento(parrafo('Otro'))));
+
+    expect(inicial).toEqual(copia);
+  });
+
+  it('D6: `guardado` sigue igual: adopta slug y versión definitivos sin tocar el contenido propio ya guardado', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const editado = reductor(inicial, accionContenido(documento(parrafo('Editado'))));
+
+    const estado = reductor(editado, { tipo: 'guardado', articulo: { ...editado.datos, version: 4 } });
+
+    expect(estado.datos.version).toBe(4);
+    expect(estado.guardado).toEqual(estado.datos);
+    expect(estaSucio(estado)).toBe(false);
+  });
+
+  it('D13: `adoptar_vigente` sigue igual: descarta lo propio y adopta la versión del servidor', () => {
+    const inicial = estadoInicial(datosBase(), { nuevo: false });
+    const editado = reductor(inicial, accionContenido(documento(parrafo('Mi versión'))));
+    const vigente = datosBase({ version: 7, contenido: documento(parrafo('Del otro')) });
+
+    const estado = reductor(editado, { tipo: 'adoptar_vigente', articulo: vigente });
+
+    expect(estado.datos).toEqual(vigente);
+    expect(estaSucio(estado)).toBe(false);
+  });
+});
+
+describe('CambiosDeElemento vive en bloques/tipos.ts (spec 005, D31 C6; T110)', () => {
+  const leer = (ruta: string) => readFileSync(new URL(ruta, import.meta.url), 'utf8');
+
+  it('bloques/tipos.ts exporta el tipo CambiosDeElemento y ya no CambiosDeBloque', () => {
+    const fuente = leer('./bloques/tipos.ts');
+
+    expect(fuente).toMatch(/export type CambiosDeElemento/);
+    expect(fuente).not.toMatch(/export type CambiosDeBloque/);
+  });
+
+  it('reductor.ts no define los cambios de un elemento', () => {
+    expect(leer('./reductor.ts')).not.toMatch(/export type Cambios(DeBloque|DeElemento)/);
+  });
+
+  it('reductor.ts usa Documento y ya no Contenido', () => {
+    const fuente = leer('./reductor.ts');
+
+    expect(fuente).toMatch(/\bDocumento\b/);
+    expect(fuente).not.toMatch(/\bContenido\b/);
+  });
+
+  it('EditorDeBloque.tsx no importa los cambios del reductor', () => {
+    const fuente = leer('./bloques/EditorDeBloque.tsx');
+    const importaDelReductor = /import[^;]*Cambios(DeBloque|DeElemento)[^;]*from\s+['"]\.\.\/reductor['"]/.test(fuente);
+
+    expect(importaDelReductor).toBe(false);
   });
 });

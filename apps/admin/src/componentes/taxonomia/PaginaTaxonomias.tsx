@@ -3,13 +3,14 @@ import { listarTaxonomiasConConteo } from '@blog/db';
 import { crearClienteDeSesion } from '../../lib/supabase';
 import { GestorTaxonomias } from './GestorTaxonomias';
 import { TEXTOS, type Tipo } from './textos';
+import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
 
 export async function PaginaTaxonomias({ tipo }: { tipo: Tipo }) {
   const taxonomias = await listarTaxonomiasConConteo(await crearClienteDeSesion(), tipo);
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="font-titulos text-titulo-2 font-semibold">{TEXTOS[tipo].titulo}</h1>
+    <div className="flex flex-col gap-panel-seccion">
+      <EncabezadoPagina titulo={TEXTOS[tipo].titulo} />
       <GestorTaxonomias tipo={tipo} taxonomias={taxonomias} />
     </div>
   );

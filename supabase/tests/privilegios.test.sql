@@ -5,7 +5,7 @@
 -- (T033, T044, T052, T060).
 begin;
 \ir helpers/pruebas.psql
-select plan(132);
+select plan(141);
 
 -- ---------------------------------------------------------------------------
 -- Esquema privado
@@ -42,8 +42,10 @@ select table_privs_are('public', 'redirecciones', 'authenticated', array['SELECT
 
 -- ---------------------------------------------------------------------------
 -- Funciones de privado
--- Permitidas para anon: es_cliente, es_equipo, tipos_bloque, contenido_valido,
--- imagen_valida. authenticated además: es_admin. El resto: sin execute.
+-- Permitidas para anon: es_cliente, es_equipo, tipos_elemento, contenido_valido,
+-- documento_tiene_contenido, imagen_valida. authenticated además: es_admin. El resto: sin execute.
+-- Spec 005 (T096, data-model y research D31 A1): tipos_elemento y documento_tiene_contenido las evalúan el
+-- check y a40 con el rol de quien guarda; documento_a_texto solo la llama calcular_busqueda (definer).
 -- (es_cliente figura en T012 paso 12; la tabla D20 del data-model no la lista,
 -- pero la necesitan los triggers que corren como el rol del cliente.)
 -- ---------------------------------------------------------------------------
@@ -59,10 +61,31 @@ select function_privs_are('privado', 'es_admin', array[]::text[], 'anon', array[
   'anon no puede ejecutar privado.es_admin');
 select function_privs_are('privado', 'es_admin', array[]::text[], 'authenticated', array['EXECUTE'],
   'authenticated puede ejecutar privado.es_admin');
-select function_privs_are('privado', 'tipos_bloque', array[]::text[], 'anon', array['EXECUTE'],
-  'anon puede ejecutar privado.tipos_bloque');
-select function_privs_are('privado', 'tipos_bloque', array[]::text[], 'authenticated', array['EXECUTE'],
-  'authenticated puede ejecutar privado.tipos_bloque');
+select function_privs_are('privado', 'tipos_elemento', array[]::text[], 'anon', array['EXECUTE'],
+  'spec 005: anon puede ejecutar privado.tipos_elemento');
+select function_privs_are('privado', 'tipos_elemento', array[]::text[], 'authenticated', array['EXECUTE'],
+  'spec 005: authenticated puede ejecutar privado.tipos_elemento');
+select function_privs_are('privado', 'tipos_elemento', array[]::text[], 'service_role', array['EXECUTE'],
+  'spec 005: service_role puede ejecutar privado.tipos_elemento');
+select function_privs_are('privado', 'documento_tiene_contenido', array['jsonb'], 'anon', array['EXECUTE'],
+  'spec 005: anon puede ejecutar privado.documento_tiene_contenido');
+select function_privs_are('privado', 'documento_tiene_contenido', array['jsonb'], 'authenticated', array['EXECUTE'],
+  'spec 005: authenticated puede ejecutar privado.documento_tiene_contenido');
+select function_privs_are('privado', 'documento_tiene_contenido', array['jsonb'], 'service_role', array['EXECUTE'],
+  'spec 005: service_role puede ejecutar privado.documento_tiene_contenido');
+select function_privs_are('privado', 'documento_a_texto', array['jsonb'], 'anon', array[]::text[],
+  'spec 005: anon no puede ejecutar privado.documento_a_texto');
+select function_privs_are('privado', 'documento_a_texto', array['jsonb'], 'authenticated', array[]::text[],
+  'spec 005: authenticated no puede ejecutar privado.documento_a_texto');
+select ok(
+  to_regprocedure('privado.documento_a_texto(jsonb)') is not null and not exists (
+    select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    where p.oid = to_regprocedure('privado.documento_a_texto(jsonb)') and a.grantee = 0 and a.privilege_type = 'EXECUTE'),
+  'spec 005: PUBLIC no puede ejecutar privado.documento_a_texto');
+select hasnt_function('privado', 'tipos_bloque', array[]::text[],
+  'spec 005: privado.tipos_bloque ya no existe (la reemplaza tipos_elemento)');
+select hasnt_function('privado', 'bloques_a_texto', array['jsonb'],
+  'spec 005: privado.bloques_a_texto ya no existe (la reemplaza documento_a_texto)');
 select function_privs_are('privado', 'contenido_valido', array['jsonb'], 'anon', array['EXECUTE'],
   'anon puede ejecutar privado.contenido_valido');
 select function_privs_are('privado', 'contenido_valido', array['jsonb'], 'authenticated', array['EXECUTE'],
@@ -98,21 +121,24 @@ select is_empty($$
   select p.oid::regprocedure
   from pg_proc p
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
+    and p.proname not in ('es_cliente', 'es_equipo', 'tipos_elemento', 'contenido_valido', 'documento_tiene_contenido',
+                          'imagen_valida', 'sin_tildes')
     and has_function_privilege('anon', p.oid, 'EXECUTE')
 $$, 'anon no ejecuta funciones de privado fuera de la lista permitida');
 select is_empty($$
   select p.oid::regprocedure
   from pg_proc p
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_elemento', 'contenido_valido',
+                          'documento_tiene_contenido', 'imagen_valida', 'sin_tildes')
     and has_function_privilege('authenticated', p.oid, 'EXECUTE')
 $$, 'authenticated no ejecuta funciones de privado fuera de la lista permitida');
 select is_empty($$
   select p.oid::regprocedure
   from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
   where p.pronamespace = 'privado'::regnamespace
-    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_bloque', 'contenido_valido', 'imagen_valida', 'sin_tildes')
+    and p.proname not in ('es_cliente', 'es_equipo', 'es_admin', 'tipos_elemento', 'contenido_valido',
+                          'documento_tiene_contenido', 'imagen_valida', 'sin_tildes')
     and a.grantee = 0
     and a.privilege_type = 'EXECUTE'
 $$, 'PUBLIC no ejecuta funciones de privado fuera de la lista permitida');

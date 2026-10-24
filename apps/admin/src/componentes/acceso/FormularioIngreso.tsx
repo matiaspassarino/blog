@@ -7,7 +7,7 @@ import { useActionState, useState } from 'react';
 import { ingresar } from '../../acciones/acceso';
 import { AvisoEstado } from '../AvisoEstado';
 import { CampoFormulario } from '../CampoFormulario';
-import { Button } from '../ui/button';
+import { Button, estadoOcupado } from '../ui/button';
 import { Input } from '../ui/input';
 
 const MENSAJES_DEL_FORMULARIO = {
@@ -72,15 +72,16 @@ export function FormularioIngreso({ volver, motivo }: Props) {
         )}
       </CampoFormulario>
       <Button
-        variante="secundaria"
+        variante="terciaria"
+        tamanio="compacto"
         className="self-start"
         aria-pressed={verContrasenia}
         onClick={() => setVerContrasenia((valor) => !valor)}
       >
         Mostrar contraseña
       </Button>
-      <Button type="submit" aria-disabled={pendiente} disabled={pendiente}>
-        {pendiente ? 'Ingresando…' : 'Ingresar'}
+      <Button type="submit" variante="primaria" {...estadoOcupado(pendiente, 'Ingresando…')}>
+        Ingresar
       </Button>
       <Link href="/olvide-contrasena" className="flex min-h-(--tactil-min) items-center underline">
         ¿Olvidaste tu contraseña?

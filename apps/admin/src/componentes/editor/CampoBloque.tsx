@@ -2,19 +2,18 @@
 
 // Campos de un bloque: cada uno lleva el id `bloque-<indice>-<campo>` (el mismo que `idDeCampo`), así el
 // guardado fallido puede enfocarlo, y muestra el mensaje de `validarContenido` de su campo (RF-006).
-import type { ErrorBloque } from '@blog/bloques';
+import type { ErrorElemento } from '@blog/bloques';
 import type { ReactNode } from 'react';
 import { mensajeDeCampo } from '../../lib/errores-campo';
 import { CampoFormulario } from '../CampoFormulario';
 import { Input } from '../ui/input';
 import { Select } from '../ui/select';
-import { Textarea } from '../ui/textarea';
 
-type Base = { indice: number; campo: string; etiqueta: string; errores: ErrorBloque[]; ayuda?: string };
+type Base = { indice: number; campo: string; etiqueta: string; errores: ErrorElemento[]; ayuda?: string };
 
 export const idDeCampoDeBloque = (indice: number, campo: string) => `bloque-${indice}-${campo}`;
 
-export function CampoBloque({
+function CampoBloque({
   indice,
   campo,
   etiqueta,
@@ -40,14 +39,6 @@ export function CampoTexto({ valor, alCambiar, ...base }: ConValor & { type?: 't
   return (
     <CampoBloque {...base}>
       {(atributos) => <Input {...atributos} value={valor} onChange={(e) => alCambiar(e.target.value)} />}
-    </CampoBloque>
-  );
-}
-
-export function CampoLargo({ valor, alCambiar, ...base }: ConValor) {
-  return (
-    <CampoBloque {...base}>
-      {(atributos) => <Textarea {...atributos} value={valor} onChange={(e) => alCambiar(e.target.value)} />}
     </CampoBloque>
   );
 }

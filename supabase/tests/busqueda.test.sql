@@ -1,5 +1,7 @@
--- T056: búsqueda en español (H5-E1 a H5-E4, RF-018 a RF-020, CE-004).
--- Configuración public.es_sin_tildes, privado.bloques_a_texto, columna
+-- T056: búsqueda en español (H5-E1 a H5-E4, RF-018 a RF-020, CE-004). Adaptado al documento en la spec 005
+-- (T096): privado.documento_a_texto reemplaza a privado.bloques_a_texto y la búsqueda encuentra el texto de las
+-- celdas y la descripción de una tabla (RF-027).
+-- Configuración public.es_sin_tildes, privado.documento_a_texto, columna
 -- articulos.busqueda con su índice GIN y el trigger a50_calcular_busqueda,
 -- privado.recalcular_busqueda (triggers z20_recalcular_articulos de categorias y
 -- etiquetas) y el RPC public.buscar_articulos. research D12 y D22 · tasks T058.
@@ -12,7 +14,7 @@
 -- cada aserción que depende de la búsqueda falla en lugar de pasar en vacío.
 begin;
 \ir helpers/pruebas.psql
-select plan(66);
+select plan(68);
 
 -- Sin secretos de revalidación al empezar: el armado de datos no notifica.
 delete from vault.secrets where name in ('url_web_revalidacion', 'secreto_revalidacion');
@@ -35,23 +37,28 @@ insert into public.etiquetas (id, nombre, slug) values
   ('e5000000-0000-4000-8000-000000000002', 'H5 Bus Membrillos', 'h5-bus-membrillos'),
   ('e5000000-0000-4000-8000-000000000003', 'H5 Bus Grosellas', 'h5-bus-grosellas');
 
--- Un bloque párrafo con id propio.
+-- Un elemento párrafo con id propio y el documento con estos elementos.
 create function pruebas.parrafo_h5(texto text) returns jsonb
 language sql volatile as $$
-  select jsonb_build_object('id', gen_random_uuid()::text, 'tipo', 'parrafo', 'texto', texto)
+  select jsonb_build_object('type', 'paragraph', 'attrs', jsonb_build_object('id', gen_random_uuid()::text),
+    'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', texto)))
+$$;
+create function pruebas.doc_h5(elementos jsonb) returns jsonb
+language sql immutable as $$
+  select jsonb_build_object('type', 'doc', 'content', elementos)
 $$;
 
 -- Artículos cargados por el sistema (sin secretos: no notifican). Autor: el admin.
 insert into public.articulos (id, titulo, slug, extracto, contenido, categoria_id, autor_id, estado, publicado_en, programado_para)
 select x.id::uuid, x.titulo, 'h5-bus-' || x.sufijo, x.extracto,
-       coalesce(x.contenido, jsonb_build_array(pruebas.parrafo_h5('Cuerpo neutro.'))),
+       coalesce(x.contenido, pruebas.doc_h5(jsonb_build_array(pruebas.parrafo_h5('Cuerpo neutro.')))),
        coalesce(x.categoria_id, 'c5000000-0000-4000-8000-000000000001')::uuid,
        (select id from auth.users where email = case when x.del_editor then 'h5-bus-editor@prueba.local' else 'h5-bus-admin@prueba.local' end),
        x.estado::public.estado_articulo, x.publicado_en, x.programado_para
 from (values
   -- Conjunto de CE-004 (b01 a b14), todos publicados.
   ('a5000000-0000-4000-8000-000000000001', 'b01', 'Diseño de logotipos memorables', null::text,
-   jsonb_build_array(pruebas.parrafo_h5('Un buen logotipo se reconoce de lejos.')), null::text, false,
+   pruebas.doc_h5(jsonb_build_array(pruebas.parrafo_h5('Un buen logotipo se reconoce de lejos.'))), null::text, false,
    'publicado', now() - interval '20 days', null::timestamptz),
   ('a5000000-0000-4000-8000-000000000002', 'b02', 'Las publicaciones de la semana', null, null, null, false,
    'publicado', now() - interval '19 days', null),
@@ -82,7 +89,7 @@ from (values
    'publicado', now() - interval '8 days', null),
   -- La coincidencia está solo en el cuerpo.
   ('a5000000-0000-4000-8000-00000000000e', 'b14', 'Un despertar inesperado', null,
-   jsonb_build_array(pruebas.parrafo_h5('El volcán entró en erupción durante la noche.')), null, false,
+   pruebas.doc_h5(jsonb_build_array(pruebas.parrafo_h5('El volcán entró en erupción durante la noche.'))), null, false,
    'publicado', now() - interval '7 days', null),
 
   -- H5-E2 / RF-020: el término en el título de r1 y solo en el cuerpo de r2.
@@ -90,7 +97,7 @@ from (values
   ('a5000000-0000-4000-8000-000000000021', 'r1', 'Acuarelas para principiantes', null, null, null, false,
    'publicado', now() - interval '30 days', null),
   ('a5000000-0000-4000-8000-000000000022', 'r2', 'Materiales de taller', null,
-   jsonb_build_array(pruebas.parrafo_h5('En el taller también usamos acuarela.')), null, false,
+   pruebas.doc_h5(jsonb_build_array(pruebas.parrafo_h5('En el taller también usamos acuarela.'))), null, false,
    'publicado', now() - interval '1 day', null),
 
   -- H5-E3: solo v-pub es público; el resto contiene el término pero no se publica.
@@ -107,13 +114,22 @@ from (values
 
   -- Exclusiones del índice: bloques de código y URLs de enlaces Markdown.
   ('a5000000-0000-4000-8000-000000000041', 'x-codigo', 'Fragmentos útiles', null,
-   jsonb_build_array(
+   pruebas.doc_h5(jsonb_build_array(
      pruebas.parrafo_h5('Un ejemplo de configuración.'),
-     jsonb_build_object('id', 'b5000000-0000-4000-8000-000000000041', 'tipo', 'codigo',
-                        'codigo', 'const xilofono = 1;', 'lenguaje', 'js')),
+     jsonb_build_object('type', 'codeBlock', 'attrs', jsonb_build_object('id', 'b5000000-0000-4000-8000-000000000041', 'lenguaje', 'js'),
+                        'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'const xilofono = 1;'))))),
    null, false, 'publicado', now() - interval '4 days', null),
   ('a5000000-0000-4000-8000-000000000042', 'x-enlace', 'Recetas de estación', null,
-   jsonb_build_array(pruebas.parrafo_h5('Probá con [mandarinas](#limones) o [peras](https://ejemplo.com/ciruelas).')),
+   pruebas.doc_h5(jsonb_build_array(jsonb_build_object('type', 'paragraph',
+     'attrs', jsonb_build_object('id', 'b5000000-0000-4000-8000-000000000042'), 'content', jsonb_build_array(
+       jsonb_build_object('type', 'text', 'text', 'Probá con '),
+       jsonb_build_object('type', 'text', 'text', 'mandarinas',
+         'marks', jsonb_build_array(jsonb_build_object('type', 'link', 'attrs', jsonb_build_object('href', '#limones')))),
+       jsonb_build_object('type', 'text', 'text', ' o '),
+       jsonb_build_object('type', 'text', 'text', 'peras',
+         'marks', jsonb_build_array(jsonb_build_object('type', 'link',
+           'attrs', jsonb_build_object('href', 'https://ejemplo.com/ciruelas')))),
+       jsonb_build_object('type', 'text', 'text', '.'))))),
    null, false, 'publicado', now() - interval '4 days', null),
 
   -- Renombrar o borrar una taxonomía recalcula la búsqueda de sus artículos.
@@ -126,11 +142,29 @@ from (values
 -- Lote de 55 publicados con el mismo término: límite máximo, paginación y total.
 insert into public.articulos (titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 select 'Zanahorias de la huerta ' || n, 'h5-bus-lote-' || n,
-       jsonb_build_array(pruebas.parrafo_h5('Cuerpo neutro.')),
+       pruebas.doc_h5(jsonb_build_array(pruebas.parrafo_h5('Cuerpo neutro.'))),
        'c5000000-0000-4000-8000-000000000001',
        (select id from auth.users where email = 'h5-bus-admin@prueba.local'),
        'publicado', now() - interval '40 days' - n * interval '1 hour'
 from generate_series(1, 55) as n;
+
+-- RF-027 (spec 005): "berenjenas" está solo en una celda y "alcauciles" solo en la descripción de la tabla.
+insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
+values ('a5000000-0000-4000-8000-000000000061', 'Calendario de siembra', 'h5-bus-t-tabla',
+  '{"type": "doc", "content": [
+    {"type": "paragraph", "attrs": {"id": "b5000000-0000-4000-8000-000000000061"}, "content": [{"type": "text", "text": "Qué sembrar en cada mes."}]},
+    {"type": "table", "attrs": {"id": "b5000000-0000-4000-8000-000000000062", "descripcion": "Siembra de alcauciles y otras hortalizas"},
+     "content": [
+       {"type": "tableRow", "content": [
+         {"type": "tableHeader", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Mes"}]}]},
+         {"type": "tableHeader", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Hortaliza"}]}]}]},
+       {"type": "tableRow", "content": [
+         {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Marzo"}]}]},
+         {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Berenjenas"}]}]}]}]}
+  ]}',
+  'c5000000-0000-4000-8000-000000000001',
+  (select id from auth.users where email = 'h5-bus-admin@prueba.local'),
+  'publicado', now() - interval '41 days');
 
 -- Versión actual de un artículo, leída como postgres (sin RLS).
 create function pruebas.version_de(articulo uuid) returns int
@@ -219,16 +253,16 @@ begin
 end
 $$;
 
--- privado.bloques_a_texto(contenido); null si no existe.
-create function pruebas.texto_de_bloques(contenido jsonb) returns text
+-- privado.documento_a_texto(contenido); null si no existe.
+create function pruebas.texto_de_documento(contenido jsonb) returns text
 language plpgsql as $$
 declare
   resultado text;
 begin
-  if to_regprocedure('privado.bloques_a_texto(jsonb)') is null then
+  if to_regprocedure('privado.documento_a_texto(jsonb)') is null then
     return null;
   end if;
-  execute 'select privado.bloques_a_texto($1)' into resultado using contenido;
+  execute 'select privado.documento_a_texto($1)' into resultado using contenido;
   return resultado;
 end
 $$;
@@ -278,9 +312,9 @@ select ok(exists (
     where schemaname = 'public' and tablename = 'articulos' and indexdef ilike '%using gin (busqueda)%'),
   'D12: articulos.busqueda tiene un índice GIN');
 select has_trigger('public', 'articulos', 'a50_calcular_busqueda', 'existe el trigger a50_calcular_busqueda');
-select has_function('privado', 'bloques_a_texto', array['jsonb'], 'existe privado.bloques_a_texto(jsonb)');
-select ok(coalesce((select provolatile = 'i' from pg_proc where oid = to_regprocedure('privado.bloques_a_texto(jsonb)')), false),
-  'privado.bloques_a_texto es immutable');
+select has_function('privado', 'documento_a_texto', array['jsonb'], 'existe privado.documento_a_texto(jsonb)');
+select ok(coalesce((select provolatile = 'i' from pg_proc where oid = to_regprocedure('privado.documento_a_texto(jsonb)')), false),
+  'privado.documento_a_texto es immutable');
 select has_function('privado', 'recalcular_busqueda', array['uuid[]'], 'existe privado.recalcular_busqueda(uuid[])');
 select ok(coalesce((select prosecdef from pg_proc where oid = to_regprocedure('privado.recalcular_busqueda(uuid[])')), false),
   'privado.recalcular_busqueda es security definer');
@@ -428,13 +462,17 @@ select is(pruebas.buscar_slugs('zanahoria', 3),
 select is(pruebas.buscar_slugs('configuracion'), array['h5-bus-x-codigo'],
   'RF-018: el texto de un párrafo se indexa (control del caso de código)');
 select is(pruebas.buscar_slugs('xilofono'), '{}'::text[],
-  'D12: el texto de un bloque codigo no se indexa');
+  'D12: el texto de un codeBlock no se indexa');
 select is(pruebas.buscar_slugs('mandarinas'), array['h5-bus-x-enlace'],
-  'D12: el texto visible de un enlace [texto](url) sí se indexa');
+  'D12: el texto visible de un enlace (marca link) sí se indexa');
 select is(pruebas.buscar_slugs('limones'), '{}'::text[],
-  'D12: la URL de un enlace [texto](#ancla) no se indexa');
+  'D12: el href de un enlace (#ancla) no se indexa');
 select is(pruebas.buscar_slugs('ejemplo.com'), '{}'::text[],
-  'D12: la URL de un enlace [texto](https://…) no se indexa');
+  'D12: la URL de un enlace https:// no se indexa');
+select is(pruebas.buscar_slugs('berenjena'), array['h5-bus-t-tabla'],
+  'RF-027: la búsqueda encuentra un artículo por una palabra de una celda de una tabla');
+select is(pruebas.buscar_slugs('alcaucil'), array['h5-bus-t-tabla'],
+  'RF-027: la búsqueda encuentra un artículo por una palabra de la descripción de una tabla');
 
 select pruebas.como_postgres();
 select ok(pruebas.busqueda_coincide('a5000000-0000-4000-8000-00000000000b', 'fotografía'),
@@ -444,41 +482,60 @@ select ok(pruebas.busqueda_coincide('a5000000-0000-4000-8000-00000000000c', 'ilu
 select ok(pruebas.busqueda_coincide('a5000000-0000-4000-8000-000000000032', 'girasol'),
   'D12: busqueda se calcula también para los borradores (el filtro de publicados es del RPC)');
 
--- privado.bloques_a_texto, tipo por tipo (research D12, T058).
+-- privado.documento_a_texto, tipo por tipo (research D12, T058; spec 005, data-model).
 create temporary table bloques_h5 on commit drop as
-  select pruebas.texto_de_bloques(jsonb_build_array(
-    jsonb_build_object('id', '1', 'tipo', 'parrafo', 'texto', 'Párrafo con [enlace visible](https://oculto.example/ruta).'),
-    jsonb_build_object('id', '2', 'tipo', 'titulo', 'nivel', 2, 'texto', 'Subtítulo palmera'),
-    jsonb_build_object('id', '3', 'tipo', 'cita', 'texto', 'Cita del faro', 'autor', 'Autora Gaviota'),
-    jsonb_build_object('id', '4', 'tipo', 'lista', 'ordenada', false, 'items', jsonb_build_array('item ancla', 'item brújula')),
-    jsonb_build_object('id', '5', 'tipo', 'imagen',
+  select pruebas.texto_de_documento(jsonb_build_object('type', 'doc', 'content', jsonb_build_array(
+    jsonb_build_object('type', 'paragraph', 'attrs', jsonb_build_object('id', '1'), 'content', jsonb_build_array(
+      jsonb_build_object('type', 'text', 'text', 'Párrafo con '),
+      jsonb_build_object('type', 'text', 'text', 'enlace visible',
+        'marks', jsonb_build_array(jsonb_build_object('type', 'link', 'attrs', jsonb_build_object('href', 'https://oculto.example/ruta')))),
+      jsonb_build_object('type', 'text', 'text', '.'))),
+    jsonb_build_object('type', 'heading', 'attrs', jsonb_build_object('id', '2', 'level', 2),
+      'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'Subtítulo palmera'))),
+    jsonb_build_object('type', 'blockquote', 'attrs', jsonb_build_object('id', '3', 'autor', 'Autora Gaviota'),
+      'content', jsonb_build_array(jsonb_build_object('type', 'paragraph',
+        'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'Cita del faro'))))),
+    jsonb_build_object('type', 'bulletList', 'attrs', jsonb_build_object('id', '4'), 'content', jsonb_build_array(
+      jsonb_build_object('type', 'listItem', 'content', jsonb_build_array(jsonb_build_object('type', 'paragraph',
+        'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'item ancla'))))),
+      jsonb_build_object('type', 'listItem', 'content', jsonb_build_array(jsonb_build_object('type', 'paragraph',
+        'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'item brújula'))))))),
+    jsonb_build_object('type', 'imagen', 'attrs', jsonb_build_object('id', '5',
       'imagen', jsonb_build_object('ruta', 'a/b.webp', 'ancho', 10, 'alto', 10, 'alt', 'alt del velero'),
-      'leyenda', 'leyenda del muelle'),
-    jsonb_build_object('id', '6', 'tipo', 'galeria', 'columnas', 2, 'imagenes', jsonb_build_array(
+      'leyenda', 'leyenda del muelle')),
+    jsonb_build_object('type', 'galeria', 'attrs', jsonb_build_object('id', '6', 'columnas', 2, 'imagenes', jsonb_build_array(
       jsonb_build_object('ruta', 'a/c.webp', 'ancho', 10, 'alto', 10, 'alt', 'alt de la boya'),
-      jsonb_build_object('ruta', 'a/d.webp', 'ancho', 10, 'alto', 10, 'alt', 'alt del ancla'))),
-    jsonb_build_object('id', '7', 'tipo', 'cta', 'titulo', 'Título del llamado', 'texto', 'texto del llamado',
-      'etiquetaBoton', 'Botón', 'url', '/contacto'),
-    jsonb_build_object('id', '8', 'tipo', 'video', 'proveedor', 'youtube', 'idVideo', 'abcdefghijk', 'titulo', 'Video del puerto'),
-    jsonb_build_object('id', '9', 'tipo', 'separador'),
-    jsonb_build_object('id', '10', 'tipo', 'codigo', 'codigo', 'console.log(secretoDeCodigo)', 'lenguaje', 'js')
-  )) as texto;
+      jsonb_build_object('ruta', 'a/d.webp', 'ancho', 10, 'alto', 10, 'alt', 'alt del ancla')))),
+    jsonb_build_object('type', 'cta', 'attrs', jsonb_build_object('id', '7', 'titulo', 'Título del llamado',
+      'texto', 'texto del llamado', 'etiquetaBoton', 'Botón', 'url', '/contacto')),
+    jsonb_build_object('type', 'video', 'attrs', jsonb_build_object('id', '8', 'proveedor', 'youtube',
+      'idVideo', 'abcdefghijk', 'titulo', 'Video del puerto')),
+    jsonb_build_object('type', 'horizontalRule', 'attrs', jsonb_build_object('id', '9')),
+    jsonb_build_object('type', 'codeBlock', 'attrs', jsonb_build_object('id', '10', 'lenguaje', 'js'),
+      'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'console.log(secretoDeCodigo)'))),
+    jsonb_build_object('type', 'table', 'attrs', jsonb_build_object('id', '11', 'descripcion', 'descripción del arrecife'),
+      'content', jsonb_build_array(jsonb_build_object('type', 'tableRow', 'content', jsonb_build_array(
+        jsonb_build_object('type', 'tableCell', 'content', jsonb_build_array(jsonb_build_object('type', 'paragraph',
+          'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', 'celda del pulpo')))))))))
+  ))) as texto;
 
 select ok((select texto ilike all (array[
     '%enlace visible%', '%Subtítulo palmera%', '%Cita del faro%', '%Autora Gaviota%', '%item ancla%', '%item brújula%',
     '%alt del velero%', '%leyenda del muelle%', '%alt de la boya%', '%alt del ancla%',
-    '%Título del llamado%', '%texto del llamado%', '%Video del puerto%'])
+    '%Título del llamado%', '%texto del llamado%', '%Video del puerto%', '%celda del pulpo%', '%descripción del arrecife%'])
   from bloques_h5),
-  'D12: bloques_a_texto extrae párrafo, título, cita (texto y autor), lista, imagen (alt y leyenda), galería, cta y video');
+  'D12: documento_a_texto extrae párrafo, título, cita (texto y autor), lista, imagen (alt y leyenda), galería, cta, video y tabla (celdas y descripción)');
 select ok((select texto not ilike '%secretoDeCodigo%' from bloques_h5),
-  'D12: bloques_a_texto excluye los bloques codigo');
-select ok((select texto not ilike '%oculto.example%' and texto not ilike '%](%' from bloques_h5),
-  'D12: bloques_a_texto reemplaza [texto](url) por el texto, sin la URL');
+  'D12: documento_a_texto excluye los codeBlock');
+select ok((select texto not ilike '%oculto.example%' and texto not ilike '%a/b.webp%' and texto not ilike '%/contacto%'
+  from bloques_h5),
+  'D12: documento_a_texto no incluye las URL (href de los enlaces, rutas de las imágenes ni la de la llamada a la acción)');
 select ok(
-  (select char_length(pruebas.texto_de_bloques(
-     (select jsonb_agg(jsonb_build_object('id', n::text, 'tipo', 'parrafo', 'texto', repeat('palabra ', 625)))
-        from generate_series(1, 200) as n))) <= 200000),
-  'D12: bloques_a_texto trunca a 200.000 caracteres (límite de 1 MB del tsvector)');
+  (select char_length(pruebas.texto_de_documento(jsonb_build_object('type', 'doc', 'content',
+     (select jsonb_agg(jsonb_build_object('type', 'paragraph', 'attrs', jsonb_build_object('id', n::text),
+        'content', jsonb_build_array(jsonb_build_object('type', 'text', 'text', repeat('palabra ', 625)))))
+        from generate_series(1, 200) as n)))) <= 200000),
+  'D12: documento_a_texto trunca a 200.000 caracteres (límite de 1 MB del tsvector)');
 
 -- ===========================================================================
 -- Renombrar o borrar una taxonomía recalcula la búsqueda de sus artículos sin

@@ -18,7 +18,7 @@ export function GestorEquipo({ equipo, miembroId }: { equipo: FilaEquipo[]; miem
     setAviso((previo) => (texto === null ? null : { id: (previo?.id ?? 0) + 1, tipo, texto }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-panel-seccion">
       {aviso && (
         <AvisoEstado key={aviso.id} tipo={aviso.tipo} enfocar={aviso.tipo === 'error'}>
           {aviso.texto}

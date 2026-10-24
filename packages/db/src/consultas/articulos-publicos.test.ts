@@ -4,11 +4,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ClienteBlog } from '../cliente';
 import { clienteAnon, sesionAdminDemo, sinSupabase } from '../pruebas/clientes';
-import { crearArticuloDePrueba, registroDePrueba } from '../pruebas/datos';
+import { crearArticuloDePrueba, documentoDePrueba, registroDePrueba } from '../pruebas/datos';
 import { obtenerArticuloPublicado, resolverRedireccion } from './articulos-publicos';
 
 const sufijo = crypto.randomUUID().slice(0, 8);
-const contenido = [{ id: crypto.randomUUID(), tipo: 'parrafo', texto: 'Cuerpo del artículo público.' }];
+const contenido = documentoDePrueba('Cuerpo del artículo público.');
 
 describe.skipIf(sinSupabase)('consultas públicas de artículos (integración, anon)', () => {
   let admin: ClienteBlog;

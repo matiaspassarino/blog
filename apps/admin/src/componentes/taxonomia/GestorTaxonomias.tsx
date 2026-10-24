@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { DialogoEdicion } from './DialogoEdicion';
 import { FormularioAlta } from './FormularioAlta';
 import { TEXTOS, cuentaDeArticulos, type Tipo } from './textos';
+import { Icono } from '../Icono';
+import { EstadoVacio } from '../estructura/EstadoVacio';
 
 type Props = { tipo: Tipo; taxonomias: TaxonomiaConConteo[] };
 
@@ -35,7 +37,7 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-panel-seccion">
       {error && (
         <AvisoEstado tipo="error" enfocar>
           {error}
@@ -45,7 +47,7 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
       <FormularioAlta tipo={tipo} alError={setError} />
 
       {taxonomias.length === 0 ? (
-        <p className="text-texto-suave">{textos.vacio}</p>
+        <EstadoVacio mensaje={textos.vacio} />
       ) : (
         <Table role="table">
           <TableHeader>
@@ -68,16 +70,22 @@ export function GestorTaxonomias({ tipo, taxonomias }: Props) {
                 <TableCell etiqueta="Artículos">{taxonomia.conteo}</TableCell>
                 <TableCell etiqueta="Acciones" className="max-md:flex-wrap">
                   <div className="flex flex-wrap gap-2">
-                    <Button variante="secundaria" onClick={() => setEditando(taxonomia)}>
-                      {`Editar ${taxonomia.nombre}`}
+                    <Button variante="secundaria" tamanio="compacto" onClick={() => setEditando(taxonomia)}>
+                      Editar
+                      <span className="sr-only"> {taxonomia.nombre}</span>
                     </Button>
                     <ConfirmarAccion
                       titulo={`¿Eliminar ${taxonomia.nombre}?`}
                       descripcion={descripcionDeBaja(tipo, taxonomia.conteo)}
                       etiquetaConfirmar="Eliminar"
+                      variante="peligro"
                       onConfirmar={() => eliminar(taxonomia)}
                     >
-                      <Button variante="peligro">{`Eliminar ${taxonomia.nombre}`}</Button>
+                      <Button variante="peligro" tamanio="compacto">
+                        Eliminar
+                        <span className="sr-only"> {taxonomia.nombre}</span>
+                        <Icono nombre="papelera" className="order-first" />
+                      </Button>
                     </ConfirmarAccion>
                   </div>
                 </TableCell>

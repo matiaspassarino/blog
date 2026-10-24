@@ -19,6 +19,12 @@
   /* Separadores decorativos (tarjetas, hr): no transmiten información. */
   --color-separador: oklch(0.9 0.01 255);
   --color-marca-suave: oklch(0.95 0.03 255);
+  /* Resaltado (spec 005): fondo y texto de mark; texto ≥ 4,5:1 y la línea del enlace (marca) ≥ 3:1 sobre él. */
+  --color-resaltado: oklch(0.93 0.1 95);
+  --color-resaltado-texto: oklch(0.22 0.02 255);
+  /* Tablas (spec 005): borde ≥ 3:1 y fondo de encabezado con texto ≥ 4,5:1 y enlace ≥ 3:1. */
+  --color-borde-tabla: var(--color-borde);
+  --color-fondo-encabezado-tabla: var(--color-superficie);
   --color-foco: var(--color-marca);
   /* Anillo de foco (§VII.4) */
   --foco-ancho: 3px;
@@ -53,6 +59,12 @@
   /* Espaciado y anchos */
   --spacing-seccion: clamp(3rem, 2rem + 4vw, 6rem);
   --spacing-bloque: 1.5rem;
+  /* Separación entre secciones del panel; dentro de una sección se usa gap-4 (spec 004) */
+  --spacing-panel-seccion: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  /* Editor de documento (spec 005): panel de propiedades, carril del asa y alto de la hoja inferior */
+  --container-panel-propiedades: 20rem;
+  --carril-asa: var(--tactil-min);
+  --alto-hoja-propiedades: 45dvh;
   --container-lectura: 68ch;
   --container-sitio: 72rem;
   --aspect-tarjeta: 16 / 9;
@@ -66,4 +78,12 @@
   /* Movimiento */
   --ease-estandar: cubic-bezier(0.2, 0, 0, 1);
   --duracion-corta: 150ms;
+}
+
+/* Alto contraste: el resaltado usa los colores del sistema (spec 005, D31 U7). */
+@media (forced-colors: active) {
+  mark {
+    background: Mark;
+    color: MarkText;
+  }
 }

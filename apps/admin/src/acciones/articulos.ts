@@ -2,8 +2,8 @@
 
 // Acciones de artículos de la Historia 2 (contracts/acciones.md, "Artículos"): previsualizar el slug,
 // crear y guardar. Cambiar el estado y eliminar llegan con la Historia 3.
-import type { Contenido, Imagen } from '@blog/bloques';
-import { rutasQuitadas } from '@blog/bloques';
+import type { Documento, Imagen } from '@blog/bloques';
+import { normalizarDocumento, rutasQuitadas } from '@blog/bloques';
 import {
   actualizarArticulo,
   asignarEtiquetas,
@@ -38,7 +38,7 @@ export async function previsualizarSlugAccion(entrada: z.input<typeof esquemaSlu
 }
 
 // Los campos de contenido se validan a fondo en @blog/db con el esquema de @blog/bloques (§VI.4): aquí solo
-// se comprueba la forma general de lo que llega desde el navegador.
+// se comprueba la forma general de lo que llega desde el navegador y se normaliza el documento (D24).
 const esquemaEtiquetas = z.array(z.uuid()).max(50);
 // Un artículo nuevo exige título; al guardar, cualquier campo puede faltar (solo viaja lo que cambió).
 const camposDelArticulo = z.object({
@@ -48,9 +48,23 @@ const camposDelArticulo = z.object({
   titulo_seo: z.string().nullable(),
   descripcion_seo: z.string().nullable(),
   imagen_destacada: z.unknown(),
-  contenido: z.array(z.unknown()),
+  contenido: z.unknown(),
   categoria_id: z.uuid().nullable(),
 });
+/**
+ * La forma canónica del documento (research D24). Lo que no tiene forma de documento (por ejemplo, la lista de bloques
+ * del formato anterior) llega igual a @blog/db, que lo rechaza: normalizarlo lo convertiría en un documento vacío.
+ */
+function conDocumentoNormalizado<T extends { contenido?: unknown }>(campos: T): T {
+  const { contenido } = campos;
+  const esDocumento =
+    typeof contenido === 'object' &&
+    contenido !== null &&
+    (contenido as { type?: unknown }).type === 'doc' &&
+    Array.isArray((contenido as { content?: unknown }).content);
+  return esDocumento ? { ...campos, contenido: normalizarDocumento(contenido) } : campos;
+}
+
 const esquemaNuevo = camposDelArticulo
   .partial()
   .required({ titulo: true })
@@ -62,7 +76,7 @@ export async function crearArticuloAccion(entrada: unknown): Promise<ResultadoAc
     if (!datos.success) return fallo('validacion', { detalle: 'Escribe un título para el artículo.' });
 
     const { etiquetas, ...campos } = datos.data;
-    let articulo = await crearArticulo(cliente, campos as NuevoArticulo);
+    let articulo = await crearArticulo(cliente, conDocumentoNormalizado(campos) as NuevoArticulo);
     // Asignar etiquetas sube la versión del artículo: se devuelve la vigente (D22 de la spec 001).
     if (etiquetas.length > 0) {
       const { version } = await asignarEtiquetas(cliente, articulo.id, articulo.version, etiquetas);
@@ -85,7 +99,7 @@ const mismasEtiquetas = (a: string[], b: string[]) => a.length === b.length && a
 
 /** Imágenes de un artículo, en la forma que usa `rutasQuitadas`. */
 const imagenesDe = (articulo: Pick<Articulo, 'contenido' | 'imagen_destacada'>) => ({
-  contenido: articulo.contenido as Contenido,
+  contenido: articulo.contenido as Documento,
   imagen_destacada: articulo.imagen_destacada as Imagen | null,
 });
 
@@ -119,7 +133,7 @@ export async function guardarArticulo(entrada: unknown): Promise<ResultadoAccion
     const { id, version, cambios, etiquetas } = datos.data;
 
     const anterior = await obtenerArticuloParaEditar(cliente, id);
-    let articulo = await actualizarArticulo(cliente, id, version, cambios as CambiosArticulo);
+    let articulo = await actualizarArticulo(cliente, id, version, conDocumentoNormalizado(cambios) as CambiosArticulo);
     // Solo si el conjunto cambió: asignar etiquetas sube la versión del artículo.
     if (etiquetas && !mismasEtiquetas(etiquetas, anterior?.etiquetas ?? [])) {
       const { version: vigente } = await asignarEtiquetas(cliente, id, articulo.version, etiquetas);
@@ -186,7 +200,11 @@ export async function eliminarArticuloAccion(entrada: unknown): Promise<Resultad
 
     const anterior = await obtenerArticuloParaEditar(cliente, id);
     await eliminarArticulo(cliente, id);
-    if (anterior) await borrarImagenesSinUso(cliente, imagenesDe(anterior), { contenido: [], imagen_destacada: null });
+    if (anterior)
+      await borrarImagenesSinUso(cliente, imagenesDe(anterior), {
+        contenido: { type: 'doc', content: [] },
+        imagen_destacada: null,
+      });
 
     revalidatePath('/articulos');
     return exito(undefined);

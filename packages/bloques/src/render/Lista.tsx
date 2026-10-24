@@ -1,15 +1,15 @@
-import type { BloqueDe } from '../esquema';
-import { TextoEnLinea } from './TextoEnLinea';
+import type { ElementoDe } from '../esquema';
+import { CLASES_LISTA, CLASES_LISTA_NUMERADA, CLASES_LISTA_VINETAS } from './clases';
+import { EnLinea } from './EnLinea';
 
-export function Lista({ bloque }: { bloque: BloqueDe<'lista'> }) {
-  const Etiqueta = bloque.ordenada ? 'ol' : 'ul';
+export function Lista({ elemento }: { elemento: ElementoDe<'bulletList' | 'orderedList'> }) {
+  const ordenada = elemento.type === 'orderedList';
+  const Etiqueta = ordenada ? 'ol' : 'ul';
   return (
-    <Etiqueta
-      className={`mt-bloque space-y-2 pl-6 text-lg leading-relaxed ${bloque.ordenada ? 'list-decimal' : 'list-disc'}`}
-    >
-      {bloque.items.map((item, i) => (
+    <Etiqueta className={`${CLASES_LISTA} ${ordenada ? CLASES_LISTA_NUMERADA : CLASES_LISTA_VINETAS}`}>
+      {elemento.content.map((item, i) => (
         <li key={i}>
-          <TextoEnLinea texto={item} />
+          <EnLinea contenido={item.content[0].content} />
         </li>
       ))}
     </Etiqueta>

@@ -11,6 +11,8 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Select } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Icono } from '../Icono';
+import { EstadoVacio } from '../estructura/EstadoVacio';
 
 type Props = {
   equipo: FilaEquipo[];
@@ -52,7 +54,7 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
     );
   }
 
-  if (equipo.length === 0) return <p className="text-texto-suave">Todavía no hay miembros.</p>;
+  if (equipo.length === 0) return <EstadoVacio mensaje="Todavía no hay miembros." />;
 
   return (
     <Table role="table">
@@ -91,12 +93,14 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                 {fila.acceso === 'invitado' && (
                   <Button
                     variante="secundaria"
+                    tamanio="compacto"
                     aria-disabled={ocupado || undefined}
                     onClick={() =>
                       ejecutar(() => reenviarInvitacion({ id: fila.id }), `Invitación reenviada a ${fila.correo}`)
                     }
                   >
-                    {`Reenviar invitación a ${fila.nombre}`}
+                    Reenviar invitación
+                    <span className="sr-only"> a {fila.nombre}</span>
                   </Button>
                 )}
                 {fila.activo ? (
@@ -104,21 +108,28 @@ export function TablaEquipo({ equipo, miembroId, alExito, alError }: Props) {
                     titulo={`¿Desactivar a ${fila.nombre}?`}
                     descripcion="Ya no podrá ingresar al panel ni usar sus acciones. Sus artículos no se borran y puedes reactivar la cuenta cuando quieras."
                     etiquetaConfirmar="Desactivar"
+                    variante="peligro"
                     onConfirmar={() =>
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: false }), 'Miembro desactivado')
                     }
                   >
-                    <Button variante="peligro">{`Desactivar ${fila.nombre}`}</Button>
+                    <Button variante="peligro" tamanio="compacto">
+                      Desactivar
+                      <span className="sr-only"> {fila.nombre}</span>
+                      <Icono nombre="prohibido" className="order-first" />
+                    </Button>
                   </ConfirmarAccion>
                 ) : (
                   <Button
                     variante="secundaria"
+                    tamanio="compacto"
                     aria-disabled={ocupado || undefined}
                     onClick={() =>
                       ejecutar(() => cambiarActivoAccion({ id: fila.id, activo: true }), 'Miembro reactivado')
                     }
                   >
-                    {`Reactivar ${fila.nombre}`}
+                    Reactivar
+                    <span className="sr-only"> {fila.nombre}</span>
                   </Button>
                 )}
               </div>

@@ -164,11 +164,18 @@ test.describe('El único admin (H6-E5)', () => {
     await selectorDeRol(fila, miembro.nombre).selectOption({ value: 'admin' });
     await expect(avisoDeExito(page, 'Rol actualizado')).toBeVisible();
 
-    await selectorDeRol(filaDelMiembro(page, USUARIOS.admin.correo), USUARIOS.admin.nombre).selectOption({
+    const selectorAdmin = selectorDeRol(filaDelMiembro(page, USUARIOS.admin.correo), USUARIOS.admin.nombre);
+    await expect(selectorAdmin).toBeEnabled();
+    await selectorAdmin.selectOption({
       value: 'editor',
     });
 
-    await expect(avisoDeExito(page, 'Rol actualizado')).toBeVisible();
+    // Al quitarse el rol de admin, Next.js puede mostrar el aviso o re-renderizar la página con 403 Forbidden.
+    await expect(
+      avisoDeExito(page, /Rol actualizado/).or(
+        page.getByRole('heading', { name: 'No tienes permiso para ver esta página' }),
+      ),
+    ).toBeVisible();
     expect((await perfilPorId(ID_ADMIN_DEMO))?.rol).toBe('editor');
     // `afterEach` restaura al admin demo.
   });

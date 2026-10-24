@@ -4,4 +4,4 @@ import type { Imagen } from '../imagen';
 
 /** Cada app decide cómo optimiza sus imágenes (web: ImagenWeb con astro:assets). */
 export type PropsImagen = { imagen: Imagen; sizes: string; prioridad?: boolean };
-export type ComponentesBloques = { Imagen: (props: PropsImagen) => ReactNode };
+export type ComponentesDocumento = { Imagen: (props: PropsImagen) => ReactNode };

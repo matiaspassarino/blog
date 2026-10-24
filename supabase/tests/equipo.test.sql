@@ -56,7 +56,7 @@ insert into public.categorias (nombre, slug) values ('Eq Categoría', 'eq-catego
 -- Artículos de partida, cargados por el sistema.
 insert into public.articulos (id, titulo, slug, contenido, categoria_id, autor_id, estado, publicado_en)
 select x.id::uuid, 'Eq ' || x.sufijo, 'eq-' || x.sufijo,
-       '[{"id": "b6000000-0000-4000-8000-000000000001", "tipo": "parrafo", "texto": "Texto del equipo."}]',
+       '{"type": "doc", "content": [{"type": "paragraph", "attrs": {"id": "b6000000-0000-4000-8000-000000000001"}, "content": [{"type": "text", "text": "Texto del equipo."}]}]}',
        (select id from public.categorias where slug = 'eq-categoria'),
        pruebas.id_de(x.email),
        x.estado::public.estado_articulo, x.publicado_en

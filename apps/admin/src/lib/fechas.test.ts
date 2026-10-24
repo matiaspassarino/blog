@@ -9,8 +9,8 @@
 //     Texto en español ("Intl.DateTimeFormat('es', …)") con día, mes, año y hora:minutos, en la zona IANA `zona`
 //     (por defecto, la del navegador). Un valor vacío, nulo o inválido devuelve `null`.
 // El texto exacto lo decide `Intl`; las pruebas comprueban sus partes (día, mes en español, año y hora), no el orden.
-import { describe, expect, it } from 'vitest';
-import { aIsoUtc, formatearFecha } from './fechas';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ahoraLocal, aIsoUtc, formatearFecha } from './fechas';
 
 describe('aIsoUtc (D18)', () => {
   it('H3-E3: convierte la hora local del navegador a ISO UTC', () => {
@@ -79,5 +79,62 @@ describe('formatearFecha (D18)', () => {
     ['inválido', 'no-es-una-fecha'],
   ])('un valor %s devuelve null', (_descripcion, valor) => {
     expect(formatearFecha(valor as string | null | undefined, 'UTC')).toBeNull();
+  });
+});
+
+// T014 (spec 004, RF-018, H1; research D7): `ahoraLocal()` vive en este módulo (antes, en el panel de estado del editor).
+//   ahoraLocal(): string — "YYYY-MM-DDTHH:mm" en la hora local del navegador, sin segundos: el `min` de un
+//   `<input type="datetime-local">`.
+describe('ahoraLocal (RF-018)', () => {
+  const zonaOriginal = process.env.TZ;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (zonaOriginal === undefined) delete process.env.TZ;
+    else process.env.TZ = zonaOriginal;
+  });
+
+  /** Fija el reloj y la zona; comprueba que el proceso adoptó la zona (si no, la prueba no probaría nada). */
+  function conRelojEnZona(zona: string, minutosDeDesfase: number, instante: string) {
+    process.env.TZ = zona;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(instante));
+    expect(new Date(instante).getTimezoneOffset(), `el proceso no adoptó la zona ${zona}`).toBe(minutosDeDesfase);
+  }
+
+  it('devuelve el formato YYYY-MM-DDTHH:mm, sin segundos', () => {
+    conRelojEnZona('UTC', 0, '2026-10-22T15:30:45.123Z');
+
+    expect(ahoraLocal()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  });
+
+  it('en UTC coincide con la hora del reloj', () => {
+    conRelojEnZona('UTC', 0, '2026-10-22T15:30:45.123Z');
+
+    expect(ahoraLocal()).toBe('2026-10-22T15:30');
+  });
+
+  it('en Buenos Aires (UTC-3) es la hora local, 3 horas antes que UTC', () => {
+    conRelojEnZona('America/Argentina/Buenos_Aires', 180, '2026-10-22T15:30:45.123Z');
+
+    expect(ahoraLocal()).toBe('2026-10-22T12:30');
+  });
+
+  it('en Tokio (UTC+9) cruza la medianoche y cambia el día', () => {
+    conRelojEnZona('Asia/Tokyo', -540, '2026-10-22T15:30:45.123Z');
+
+    expect(ahoraLocal()).toBe('2026-10-23T00:30');
+  });
+
+  it('en Buenos Aires, poco después de la medianoche UTC, todavía es el día anterior', () => {
+    conRelojEnZona('America/Argentina/Buenos_Aires', 180, '2026-01-01T01:05:00.000Z');
+
+    expect(ahoraLocal()).toBe('2025-12-31T22:05');
+  });
+
+  it('es coherente con aIsoUtc: leída como hora local, vuelve al instante del reloj sin los segundos', () => {
+    conRelojEnZona('America/Argentina/Buenos_Aires', 180, '2026-10-22T15:30:45.123Z');
+
+    expect(aIsoUtc(ahoraLocal())).toBe('2026-10-22T15:30:00.000Z');
   });
 });

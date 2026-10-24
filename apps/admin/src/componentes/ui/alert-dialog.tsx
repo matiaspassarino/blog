@@ -3,7 +3,9 @@
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import type { ComponentProps } from 'react';
 import { cn } from '../../lib/cn';
+import { BarraAcciones } from '../estructura/BarraAcciones';
 import { Button } from './button';
+import { CLASES_TITULO_SECCION } from '../estructura/TituloSeccion';
 
 export const AlertDialog = AlertDialogPrimitive.Root;
 export const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
@@ -18,7 +20,7 @@ export function AlertDialogContent({
       <AlertDialogPrimitive.Overlay className="fixed inset-0 bg-overlay" />
       <AlertDialogPrimitive.Content
         className={cn(
-          'fixed top-1/2 left-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
+          'fixed inset-x-4 top-1/2 mx-auto max-h-dvh max-w-md -translate-y-1/2 overflow-y-auto rounded-md border border-borde bg-fondo p-6 shadow-tarjeta',
           className,
         )}
         {...props}
@@ -30,7 +32,7 @@ export function AlertDialogContent({
 }
 
 export function AlertDialogTitle({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Title>) {
-  return <AlertDialogPrimitive.Title className={cn('font-titulos text-xl font-semibold', className)} {...props} />;
+  return <AlertDialogPrimitive.Title className={cn(CLASES_TITULO_SECCION, className)} {...props} />;
 }
 
 export function AlertDialogDescription({
@@ -40,8 +42,12 @@ export function AlertDialogDescription({
   return <AlertDialogPrimitive.Description className={cn('mt-2 text-texto-suave', className)} {...props} />;
 }
 
-export function AlertDialogFooter({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end', className)} {...props} />;
+export function AlertDialogFooter({ className, children }: ComponentProps<'div'>) {
+  return (
+    <div className={cn('mt-6', className)}>
+      <BarraAcciones alineacion="fin">{children}</BarraAcciones>
+    </div>
+  );
 }
 
 export function AlertDialogCancel({ className, ...props }: ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
@@ -53,10 +59,10 @@ export function AlertDialogCancel({ className, ...props }: ComponentProps<typeof
 }
 
 export function AlertDialogAction({
-  variante = 'primaria',
+  variante,
   className,
   ...props
-}: ComponentProps<typeof AlertDialogPrimitive.Action> & { variante?: 'primaria' | 'peligro' }) {
+}: ComponentProps<typeof AlertDialogPrimitive.Action> & { variante: 'primaria' | 'peligro' }) {
   return (
     <AlertDialogPrimitive.Action asChild>
       <Button variante={variante} className={className} {...props} />

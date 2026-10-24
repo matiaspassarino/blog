@@ -1,5 +1,5 @@
 // Tipos de dominio que devuelven las consultas públicas (contracts/db.md).
-import type { Contenido, Imagen } from '@blog/bloques';
+import type { Documento, Imagen } from '@blog/bloques';
 
 // id y slug: tags de caché y URL de autor (spec 002, data-model "Tipos de dominio").
 export type AutorPublico = {
@@ -17,7 +17,7 @@ export type ArticuloPublico = {
   slug: string;
   extracto: string | null;
   imagen_destacada: Imagen | null;
-  contenido: Contenido;
+  contenido: Documento;
   publicado_en: string;
   actualizado_en: string;
   categoria: ReferenciaTaxonomia | null;

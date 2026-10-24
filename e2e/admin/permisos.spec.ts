@@ -1,4 +1,4 @@
-// T069 (spec 003, H3-E8, CE-002 parcial). FASE ROJA: AccionesEstado (T072) no existe aún en /articulos/[id].
+// T069 (spec 003, H3-E8, CE-002 parcial). Acciones de estado del editor por rol.
 //
 // Este archivo se AMPLÍA en T099 (matriz completa de permisos por rol) y en H6 (equipo). Por eso queda organizado en
 // bloques por tema: cada historia agrega su `test.describe` aquí, con su propio prefijo de datos y sin tocar los demás.
@@ -8,7 +8,7 @@
 //     (editor y admin), editor y admin. Un miembro desactivado se comporta como anónimo en cada fila.
 //   - [H6] Gestión del equipo, solo admin: ver también equipo.spec.ts; aquí se cubre la fila de la tabla.
 //
-// Supuestos de interfaz: ver ./ayudas/estado.ts (botón "Eliminar" en el grupo "Publicación", solo admin; `alertdialog`
+// Supuestos de interfaz: ver ./ayudas/estado.ts (botón "Eliminar" en la barra "Acciones del artículo", solo admin; `alertdialog`
 // con "Cancelar" y "Eliminar"; al confirmar navega a /articulos). "Por fuera de la interfaz" se prueba con la API de
 // Supabase y la sesión real del editor (./ayudas/api.ts): la base rechaza el DELETE (RLS) y el artículo sigue existiendo.
 // Una Server Action no se puede invocar a mano sin su identificador interno, así que su rechazo (`sin_permiso`) lo cubre
@@ -26,7 +26,7 @@ import {
 } from './ayudas/articulos';
 import { actualizarPerfilPorApi, eliminarArticuloPorApi, llamarApi, tokenDe } from './ayudas/api';
 import { fechaFutura, nombreDePrueba } from './ayudas/datos';
-import { elegirImagen, guardarYEsperar } from './ayudas/editor';
+import { agregarBloque, elegirImagen, esperarEditorListo, guardarYEsperar, subirImagenConAlt } from './ayudas/editor';
 import {
   correoUnico,
   filaDelMiembro,
@@ -39,12 +39,13 @@ import {
 } from './ayudas/equipo';
 import {
   botonDeEstado,
-  campoFechaProgramada,
   esperarEnElSitio,
   esperarEstado,
   panelPublicacion,
+  programarArticulo,
   urlDelArticulo,
 } from './ayudas/estado';
+import { barraDelEditor } from './ayudas/jerarquia';
 import { ingresar, USUARIOS } from './ayudas/sesion';
 import { crearMiembro, eliminarPorCorreo, servicio, type MiembroDePrueba } from './ayudas/servicio';
 import { crearPorLaInterfaz, filaDe } from './ayudas/taxonomias';
@@ -67,7 +68,10 @@ test.describe('[H3] Eliminar artículos (H3-E8, CE-002)', () => {
     await ingresar(page, USUARIOS.editor);
     await page.goto(urlDelArticulo(articulo.id));
 
+    // La barra tiene que existir y tener "Guardar": si no, la ausencia de "Eliminar" pasaría en falso.
     await expect(panelPublicacion(page)).toBeVisible();
+    await expect(barraDelEditor(page)).toBeVisible();
+    await expect(barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
     await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /eliminar/i })).toHaveCount(0);
 
@@ -82,6 +86,7 @@ test.describe('[H3] Eliminar artículos (H3-E8, CE-002)', () => {
     await page.goto(urlDelArticulo(publicado.id));
 
     await expect(panelPublicacion(page)).toBeVisible();
+    await expect(barraDelEditor(page).getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
 
     await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(0);
   });
@@ -364,8 +369,7 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
       await esperarEstado(page, 'publicado');
       await botonDeEstado(page, 'Volver a borrador').click();
       await esperarEstado(page, 'borrador');
-      await campoFechaProgramada(page).fill(fechaFutura(60 * 24));
-      await botonDeEstado(page, 'Programar').click();
+      await programarArticulo(page, fechaFutura(60 * 24));
       await esperarEstado(page, 'programado');
       await botonDeEstado(page, 'Cancelar programación').click();
       await esperarEstado(page, 'borrador');
@@ -378,9 +382,12 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
       await expect(botonDeEstado(page, 'Eliminar')).toHaveCount(rol === 'admin' ? 1 : 0);
     });
 
-    test(`T099-F7: el ${rol} sube una imagen destacada y queda registrada con su ancho y alto`, async ({ page }) => {
+    test(`T099-F7 / H5: el ${rol} sube una imagen destacada y la de un elemento; quedan registradas con su ancho y alto`, async ({
+      page,
+    }) => {
       await ingresar(page, USUARIOS[rol]);
       await page.goto('/articulos/nuevo');
+      await esperarEditorListo(page);
       const nombre = tituloT099(`imagen ${rol}`);
       await page.getByLabel('Título', { exact: true }).fill(nombre);
       const destacada = page.getByRole('group', { name: 'Imagen destacada' });
@@ -391,10 +398,21 @@ test.describe('[T099] Filas de artículos por la interfaz (editor y admin) (CE-0
         buffer: Buffer.from(pngDecodificable(4, 3)),
       });
       await destacada.getByLabel('Texto alternativo', { exact: true }).fill('Imagen de la prueba de permisos');
+      // La imagen de un elemento del lienzo se sube desde su panel de propiedades (spec 005).
+      const elemento = await agregarBloque(page, 'imagen', 1);
+      await subirImagenConAlt(page, elemento, 'Imagen del elemento');
       await guardarYEsperar(page);
 
-      const { data } = await servicio().from('articulos').select('imagen_destacada').eq('titulo', nombre).single();
+      const { data } = await servicio()
+        .from('articulos')
+        .select('imagen_destacada, contenido')
+        .eq('titulo', nombre)
+        .single();
       expect(data?.imagen_destacada).toMatchObject({ ancho: 4, alto: 3 });
+      expect(data?.contenido).toMatchObject({
+        type: 'doc',
+        content: [{ type: 'imagen', attrs: { imagen: { ancho: 4, alto: 3, alt: 'Imagen del elemento' } } }],
+      });
     });
   }
 });
@@ -639,7 +657,7 @@ const FILAS_API: FilaApi[] = [
     ejecutar: async (actor) => {
       const titulo = tituloT099('crear');
       await llamarApi(actor.token, 'POST', '/rest/v1/articulos', {
-        cuerpo: { titulo, slug: '', autor_id: idDe(actor), contenido: [] },
+        cuerpo: { titulo, slug: '', autor_id: idDe(actor), contenido: { type: 'doc', content: [] } },
         prefer: 'return=minimal',
       });
       const { data } = await servicio().from('articulos').select('id').eq('titulo', titulo);
