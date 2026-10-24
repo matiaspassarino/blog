@@ -48,6 +48,11 @@ const NODOS: Record<string, string[]> = {
   blockquote: ['autor', 'fuente', 'id'],
   codeBlock: ['id', 'lenguaje'],
   horizontalRule: ['id'],
+  // Fase 13 (T135, RF-028, contracts/documento.md): tablas sin colwidth.
+  table: ['descripcion', 'id'],
+  tableRow: [],
+  tableHeader: ['colspan', 'rowspan'],
+  tableCell: ['colspan', 'rowspan'],
   imagen: ['id', 'imagen', 'leyenda'],
   galeria: ['columnas', 'id', 'imagenes'],
   cta: ['etiquetaBoton', 'id', 'texto', 'titulo', 'url', 'variante'],

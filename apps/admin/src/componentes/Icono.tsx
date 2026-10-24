@@ -40,6 +40,16 @@ const TRAZADOS = {
   insertar: 'M12 5v14M5 12h14',
   acciones: 'M5 12h.01M12 12h.01M19 12h.01M4 6h16M4 18h16',
   propiedades: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 4v6M9 14v6',
+  tabla: 'M3 5h18v14H3zM3 10h18M10 5v14M16 5v14',
+  fila_arriba: 'M4 14h16M4 18h16M12 2v8M8 6l4-4 4 4',
+  fila_abajo: 'M4 6h16M4 10h16M12 14v8M8 18l4 4 4-4',
+  columna_izquierda: 'M14 4v16M18 4v16M2 12h8M6 8l-4 4 4 4',
+  columna_derecha: 'M6 4v16M10 4v16M14 12h8M18 8l4 4-4 4',
+  quitar_fila: 'M4 6h16M4 18h16M6 12h12M15 9l-6 6',
+  quitar_columna: 'M6 4v16M18 4v16M12 6v12M9 15l6-6',
+  combinar_celdas: 'M4 5h16v14H4zM4 12h16M14 9l-2 3 2 3M10 9l2 3-2 3',
+  separar_celdas: 'M4 5h16v14H4zM12 5v14M9 9l-2 3 2 3M15 9l2 3-2 3',
+  encabezado_tabla: 'M3 5h18v14H3zM3 10h18M3 10h18v3H3z',
 } as const;
 
 export type NombreIcono = keyof typeof TRAZADOS;

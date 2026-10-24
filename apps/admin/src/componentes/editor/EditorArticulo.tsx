@@ -39,7 +39,7 @@ import { cn } from '../../lib/cn';
 import { CargadorDeEditorDocumento } from './documento/CargadorDeEditorDocumento';
 import type { AccionesDelLienzo } from './documento/EditorDocumento';
 import { primerErrorDelDocumento } from './documento/mapa-errores';
-import { PropiedadesDelElemento } from './documento/PropiedadesDelElemento';
+import { PropiedadesDelElemento, type AccionTabla } from './documento/PropiedadesDelElemento';
 import type { CambiosDeElemento } from './bloques/tipos';
 import type { Alineacion } from './documento/comandos';
 import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
@@ -155,6 +155,12 @@ export function EditorArticulo({
       if (elemento) acciones.current?.alinearElemento(elemento.id, alineacion);
     },
     [elemento],
+  );
+  const alAccionTabla = useCallback(
+    (accion: AccionTabla) => {
+      acciones.current?.ejecutarAccionTabla?.(accion);
+    },
+    [],
   );
   const alCerrarHoja = useCallback(() => setHojaAbierta(false), []);
   const alPropiedades = useCallback(() => {
@@ -578,6 +584,7 @@ export function EditorArticulo({
                       errores={errores.filter((error) => error.indice === elemento?.indice)}
                       alCambiar={alCambiarElemento}
                       alAlinear={alAlinearElemento}
+                      alAccionTabla={alAccionTabla}
                     />
                   </ContextoEditor.Provider>
                 </div>
@@ -607,6 +614,7 @@ export function EditorArticulo({
                 errores={errores.filter((error) => error.indice === elemento?.indice)}
                 alCambiar={alCambiarElemento}
                 alAlinear={alAlinearElemento}
+                alAccionTabla={alAccionTabla}
                 alCerrar={() => {
                   setHojaAbierta(false);
                   acciones.current?.enfocar();

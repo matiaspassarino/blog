@@ -30,7 +30,7 @@ const error = (indice: number, campo: string): ErrorElemento => ({ indice, id: '
 
 describe('textos accesibles del editor (H2)', () => {
   describe('nombreDeTipo', () => {
-    it('da un nombre en español, con tildes, para cada uno de los 10 tipos', () => {
+    it('da un nombre en español, con tildes, para cada uno de los 11 tipos', () => {
       expect(TIPOS_VISIBLES.map((tipo) => nombreDeTipo(tipo))).toEqual([
         'párrafo',
         'título',
@@ -42,6 +42,7 @@ describe('textos accesibles del editor (H2)', () => {
         'separador',
         'código',
         'video',
+        'tabla',
       ]);
     });
   });

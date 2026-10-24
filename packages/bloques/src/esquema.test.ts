@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { esquemaDocumento } from './esquema';
 import { alineado, CORPUS_DOCUMENTOS, imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
-const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador } = nodo;
+const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, encabezado, fila, tabla, parrafoSimple } = nodo;
 
 const MENSAJE_SIN_ALT = 'La imagen necesita un texto alternativo o marcarse como decorativa';
 const letras = (largo: number) => 'a'.repeat(largo);
@@ -743,6 +743,172 @@ describe('esquemaDocumento: alineación de párrafos y títulos (H6-E4, RF-024)'
     ['video', () => nodo.video('youtube', 'dQw4w9WgXcQ', 'Un video')],
   ])('RF-024: %s no admite textAlign', (_tipo, armar) => {
     expect(esValido(doc(conAttrs(armar(), { textAlign: 'center' })))).toBe(false);
+  });
+});
+
+describe('Fase 13 (Historia 7): nodo table en esquemaDocumento (T133)', () => {
+  const tablaValida3x3 = () =>
+    tabla(
+      undefined,
+      fila(
+        encabezado(undefined, parrafoSimple(texto('Col 1'))),
+        encabezado(undefined, parrafoSimple(texto('Col 2'))),
+        encabezado(undefined, parrafoSimple(texto('Col 3'))),
+      ),
+      fila(
+        celda(undefined, parrafoSimple(texto('Dato 1'))),
+        celda(undefined, parrafoSimple(texto('Dato 2'))),
+        celda(undefined, parrafoSimple(texto('Dato 3'))),
+      ),
+      fila(
+        celda(undefined, parrafoSimple(texto('Dato 4'))),
+        celda(undefined, parrafoSimple(texto('Dato 5'))),
+        celda(undefined, parrafoSimple(texto('Dato 6'))),
+      ),
+    );
+
+  it('acepta una tabla válida 3x3 con encabezados', () => {
+    expect(esValido(doc(tablaValida3x3()))).toBe(true);
+  });
+
+  it('acepta una tabla con descripción válida (1 a 150 caracteres)', () => {
+    const t = tabla(
+      { descripcion: 'Precios de suscripción por mes' },
+      fila(encabezado(undefined, parrafoSimple(texto('Plan')))),
+      fila(celda(undefined, parrafoSimple(texto('Básico')))),
+    );
+    expect(esValido(doc(t))).toBe(true);
+  });
+
+  it('rechaza descripción vacía o de más de 150 caracteres', () => {
+    const vacia = tabla(
+      { descripcion: '' },
+      fila(celda(undefined, parrafoSimple(texto('A')))),
+    );
+    const muyLarga = tabla(
+      { descripcion: letras(151) },
+      fila(celda(undefined, parrafoSimple(texto('A')))),
+    );
+    expect(esValido(doc(vacia))).toBe(false);
+    expect(esValido(doc(muyLarga))).toBe(false);
+  });
+
+  it('rechaza atributos desconocidos en table (estricto)', () => {
+    const conExtra = {
+      ...tablaValida3x3(),
+      attrs: { ...tablaValida3x3().attrs, estilo: 'bordes' },
+    };
+    expect(esValido(doc(conExtra))).toBe(false);
+  });
+
+  it('rechaza una tabla sin filas o con más de 50 filas', () => {
+    const sinFilas = tabla(undefined);
+    expect(esValido(doc(sinFilas))).toBe(false);
+
+    const con51Filas = tabla(
+      undefined,
+      ...Array.from({ length: 51 }, () => fila(celda(undefined, parrafoSimple(texto('A'))))),
+    );
+    expect(esValido(doc(con51Filas))).toBe(false);
+  });
+
+  it('las celdas no admiten textAlign en sus párrafos', () => {
+    const conAlineacion = tabla(
+      undefined,
+      fila(celda(undefined, { type: 'paragraph', attrs: { textAlign: 'center' }, content: [texto('Centrado')] })),
+    );
+    expect(esValido(doc(conAlineacion))).toBe(false);
+  });
+
+  it('las celdas admiten múltiples párrafos y celdas vacías', () => {
+    const multilineayVacia = tabla(
+      undefined,
+      fila(
+        celda(undefined, parrafoSimple(texto('Párrafo 1')), parrafoSimple(texto('Párrafo 2'))),
+        celda(undefined, parrafoSimple()), // celda vacía
+      ),
+    );
+    expect(esValido(doc(multilineayVacia))).toBe(true);
+  });
+
+  it('rechaza celdas con más de 1000 caracteres sumando todos sus párrafos', () => {
+    const texto500 = letras(500);
+    const texto501 = letras(501);
+    const exceso = tabla(
+      undefined,
+      fila(celda(undefined, parrafoSimple(texto(texto500)), parrafoSimple(texto(texto501)))),
+    );
+    expect(esValido(doc(exceso))).toBe(false);
+  });
+
+  it('colspan y rowspan deben ser >= 2 cuando están presentes (1 se quita al normalizar)', () => {
+    const conUno = tabla(
+      undefined,
+      fila(celda({ colspan: 1 }, parrafoSimple(texto('A')))),
+    );
+    expect(esValido(doc(conUno))).toBe(false);
+
+    const conCero = tabla(
+      undefined,
+      fila(celda({ colspan: 0 }, parrafoSimple(texto('A')))),
+    );
+    expect(esValido(doc(conCero))).toBe(false);
+  });
+
+  it('rechaza colwidth en celdas (el sitio y el editor no lo guardan)', () => {
+    const conColwidth = {
+      ...tablaValida3x3(),
+      content: [
+        {
+          type: 'tableRow',
+          content: [
+            {
+              type: 'tableCell',
+              attrs: { colwidth: [100, 200] },
+              content: [parrafoSimple(texto('A'))],
+            },
+          ],
+        },
+      ],
+    };
+    expect(esValido(doc(conColwidth))).toBe(false);
+  });
+
+  it('tableHeader solo puede estar en la primera fila', () => {
+    const headerEnSegundaFila = tabla(
+      undefined,
+      fila(celda(undefined, parrafoSimple(texto('A')))),
+      fila(encabezado(undefined, parrafoSimple(texto('B')))),
+    );
+    expect(esValido(doc(headerEnSegundaFila))).toBe(false);
+  });
+
+  it('tableHeader no puede tener rowspan >= 2 (no puede combinar encabezado con cuerpo)', () => {
+    const headerConRowspan = tabla(
+      undefined,
+      fila(encabezado({ rowspan: 2 }, parrafoSimple(texto('A'))), encabezado(undefined, parrafoSimple(texto('B')))),
+      fila(celda(undefined, parrafoSimple(texto('C')))),
+    );
+    expect(esValido(doc(headerConRowspan))).toBe(false);
+  });
+
+  it('rechaza cuadrículas irregulares (filas con distinto número de columnas)', () => {
+    const irregular = tabla(
+      undefined,
+      fila(celda(undefined, parrafoSimple(texto('A'))), celda(undefined, parrafoSimple(texto('B')))),
+      fila(celda(undefined, parrafoSimple(texto('C')))), // solo 1 columna
+    );
+    expect(esValido(doc(irregular))).toBe(false);
+  });
+
+  it('la tabla cuenta como un elemento dentro del límite de 200', () => {
+    const elementos200 = Array.from({ length: 199 }, () => parrafo(texto('P')));
+    const con200 = doc(...elementos200, tablaValida3x3());
+    expect(esValido(con200)).toBe(true);
+
+    const elementos201 = Array.from({ length: 200 }, () => parrafo(texto('P')));
+    const con201 = doc(...elementos201, tablaValida3x3());
+    expect(esValido(con201)).toBe(false);
   });
 });
 

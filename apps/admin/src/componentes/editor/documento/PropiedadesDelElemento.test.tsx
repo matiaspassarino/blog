@@ -371,3 +371,36 @@ describe('PropiedadesDelElemento: alineación de párrafos y títulos (RF-020, R
     expect(sinEtiquetas(html)).not.toContain('Alineación');
   });
 });
+
+describe('PropiedadesDelElemento: tabla (RF-028, RF-029, D31 U15)', () => {
+  it('H7: tabla vacía muestra el campo «Descripción» y el aviso para lectores de pantalla', () => {
+    const html = dibujar({ bloque: crearElemento('table') });
+
+    expect(etiquetasDeCampos(html)).toContain('Descripción');
+    expect(sinEtiquetas(html)).toContain('Agrega una descripción para los lectores de pantalla');
+  });
+
+  it('H7: tabla con descripción no muestra el aviso', () => {
+    const bloque = conAttrs('table', { descripcion: 'Precios de servicios' });
+    const html = dibujar({ bloque });
+
+    expect(etiquetasDeCampos(html)).toContain('Descripción');
+    expect(sinEtiquetas(html)).not.toContain('Agrega una descripción para los lectores de pantalla');
+  });
+
+  it('H7: tabla muestra sección «Estructura de la tabla» y sus botones de acción', () => {
+    const html = dibujar({ bloque: crearElemento('table') });
+
+    expect(sinEtiquetas(html)).toContain('Estructura de la tabla');
+    const botones = textosDeBotones(html);
+    expect(botones).toContain('Fila de encabezado');
+    expect(botones).toContain('Insertar fila arriba');
+    expect(botones).toContain('Insertar fila abajo');
+    expect(botones).toContain('Insertar columna a la izquierda');
+    expect(botones).toContain('Insertar columna a la derecha');
+    expect(botones).toContain('Quitar fila');
+    expect(botones).toContain('Quitar columna');
+    expect(botones).toContain('Combinar celdas');
+    expect(botones).toContain('Separar celdas');
+  });
+});

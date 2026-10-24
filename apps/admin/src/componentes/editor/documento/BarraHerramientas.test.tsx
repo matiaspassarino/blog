@@ -571,4 +571,31 @@ describe('BarraHerramientas: estado con el cursor en el lienzo (H6, editor sin m
       expect(boton?.atributos['aria-disabled'], String(nombre)).toBeUndefined();
     }
   });
+
+  it('T135 / D31 U5: con el cursor en una celda, estilo de párrafo, listas, alineación e «Insertar» quedan aria-disabled con la razón', () => {
+    const editor = editorCon({
+      type: 'table',
+      attrs: { id: id() },
+      content: [
+        {
+          type: 'tableRow',
+          content: [
+            {
+              type: 'tableCell',
+              content: [{ type: 'paragraph', content: [texto('Texto en celda')] }],
+            },
+          ],
+        },
+      ],
+    });
+    const html = dibujarCon(seleccionar(editor, 'Texto', { cursor: true }));
+    const RAZON_CELDA = 'Las celdas solo admiten párrafos con formato';
+
+    for (const nombre of [/^Estilo de párrafo/, 'Lista con viñetas', 'Lista numerada', /^Alineación/, 'Insertar']) {
+      const boton = botonLlamado(html, nombre);
+      expect(boton, String(nombre)).toBeDefined();
+      expect(boton?.atributos['aria-disabled'], String(nombre)).toBe('true');
+      expect(descripcionDe(html, boton), String(nombre)).toContain(RAZON_CELDA);
+    }
+  });
 });

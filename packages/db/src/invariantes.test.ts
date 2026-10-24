@@ -12,21 +12,13 @@ import { esquemaImagen, TIPOS_ELEMENTO, validarDocumento } from '@blog/bloques';
 import { describe, expect, it } from 'vitest';
 import { clienteAnon, sinSupabase } from './pruebas/clientes';
 
-const TIPOS_SOLO_EN_LA_BASE: string[] = ['table'];
+const TIPOS_SOLO_EN_LA_BASE: string[] = [];
 
 /**
  * El artículo del seed con tablas, alineación y formatos nuevos (T106, CE-008) usa lo que el esquema de TypeScript
- * suma en las Fases 12 (T130) y 13 (T138): hasta entonces no se le pide validarDocumento. Al cerrar T138, vacío.
+ * suma en las Fases 12 (T130) y 13 (T138). Al cerrar T138, vacío.
  */
-const LO_DE_FASES_POSTERIORES = [
-  '"table"',
-  '"textAlign"',
-  '"underline"',
-  '"strike"',
-  '"highlight"',
-  '"superscript"',
-  '"subscript"',
-];
+const LO_DE_FASES_POSTERIORES: string[] = [];
 const usaLoDeFasesPosteriores = (contenido: unknown) =>
   LO_DE_FASES_POSTERIORES.some((marcador) => JSON.stringify(contenido).includes(marcador));
 

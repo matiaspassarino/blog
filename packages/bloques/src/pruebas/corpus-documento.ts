@@ -114,6 +114,30 @@ export const nodo = {
     type: 'video',
     attrs: { id: idDePrueba(), proveedor, idVideo, titulo },
   }),
+  // Fase 13 (H7, RF-028, contracts/documento.md "Tablas"):
+  parrafoSimple: (...contenido: NodoPrueba[]): NodoPrueba => ({
+    type: 'paragraph',
+    ...conContenido(contenido),
+  }),
+  celda: (attrs?: { colspan?: number; rowspan?: number }, ...parrafos: NodoPrueba[]): NodoPrueba => ({
+    type: 'tableCell',
+    ...(attrs && Object.keys(attrs).length > 0 ? { attrs } : {}),
+    content: parrafos.length > 0 ? parrafos : [{ type: 'paragraph' }],
+  }),
+  encabezado: (attrs?: { colspan?: number; rowspan?: number }, ...parrafos: NodoPrueba[]): NodoPrueba => ({
+    type: 'tableHeader',
+    ...(attrs && Object.keys(attrs).length > 0 ? { attrs } : {}),
+    content: parrafos.length > 0 ? parrafos : [{ type: 'paragraph' }],
+  }),
+  fila: (...celdas: NodoPrueba[]): NodoPrueba => ({
+    type: 'tableRow',
+    content: celdas,
+  }),
+  tabla: (attrs?: { descripcion?: string }, ...filas: NodoPrueba[]): NodoPrueba => ({
+    type: 'table',
+    attrs: { id: idDePrueba(), ...(attrs?.descripcion !== undefined ? { descripcion: attrs.descripcion } : {}) },
+    content: filas,
+  }),
 };
 
 const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador } = nodo;

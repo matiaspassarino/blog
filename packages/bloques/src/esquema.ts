@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { esquemaImagen, type Imagen } from './imagen';
 import { hrefSeguro } from './render/enlaces';
+import { cuadricula, LIMITES_TABLA } from './tablas';
 
 // Lista permitida del documento guardado (specs/005-editor-estilo-documento/contracts/documento.md, constitución
 // §VI). Objetos estrictos: una clave de más es un error. Los campos de los elementos especiales, de la cita, del
@@ -249,6 +250,85 @@ const separador = estricto('El separador', {
   attrs: estricto('El separador', { id }),
 });
 
+const enteroMayorOIgualA2 = (campo: string) =>
+  z
+    .number({ error: `${campo} debe ser un número` })
+    .int(`${campo} debe ser un entero`)
+    .min(2, `${campo} debe ser mayor o igual a 2`);
+
+const attrsCelda = estricto('Los atributos de la celda', {
+  colspan: enteroMayorOIgualA2('colspan').optional(),
+  rowspan: enteroMayorOIgualA2('rowspan').optional(),
+}).optional();
+
+const celdaDeTabla = <T extends 'tableCell' | 'tableHeader'>(tipoNombre: T) =>
+  estricto(tipoNombre === 'tableHeader' ? 'El encabezado' : 'La celda', {
+    type: tipo(tipoNombre),
+    attrs: attrsCelda,
+    content: z
+      .array(parrafoInterno, { error: 'La celda debe tener al menos un párrafo' })
+      .min(1, 'La celda debe tener al menos un párrafo'),
+  }).superRefine((celda, ctx) => {
+    const totalCaracteres = celda.content.reduce((sum, p) => sum + largo(p.content), 0);
+    if (totalCaracteres > LIMITES_TABLA.MAX_CARACTERES_CELDA) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['content'],
+        message: `La celda admite hasta ${LIMITES_TABLA.MAX_CARACTERES_CELDA} caracteres`,
+      });
+    }
+  });
+
+const celdaTabla = celdaDeTabla('tableCell');
+const encabezadoTabla = celdaDeTabla('tableHeader');
+
+const filaDeTabla = estricto('La fila', {
+  type: tipo('tableRow'),
+  content: z
+    .array(z.discriminatedUnion('type', [celdaTabla, encabezadoTabla], { error: 'Solo se admiten celdas y encabezados' }), {
+      error: 'La fila debe tener celdas',
+    })
+    .min(1, 'La fila debe tener al menos una celda')
+    .max(LIMITES_TABLA.MAX_COLUMNAS, `La fila admite hasta ${LIMITES_TABLA.MAX_COLUMNAS} celdas`),
+});
+
+const tabla = estricto('La tabla', {
+  type: z.literal('table'),
+  attrs: estricto('La tabla', {
+    id,
+    descripcion: texto('La descripción', 1, LIMITES_TABLA.MAX_CARACTERES_DESCRIPCION).optional(),
+  }),
+  content: z
+    .array(filaDeTabla, { error: 'La tabla debe tener filas' })
+    .min(LIMITES_TABLA.MIN_FILAS, 'La tabla debe tener al menos una fila')
+    .max(LIMITES_TABLA.MAX_FILAS, `La tabla admite hasta ${LIMITES_TABLA.MAX_FILAS} filas`),
+}).superRefine((t, ctx) => {
+  const res = cuadricula(t);
+  if (!res.esRegular) {
+    if (!res.dentroDeLimites) {
+      if (res.columnas > LIMITES_TABLA.MAX_COLUMNAS) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['content'],
+          message: `La tabla admite hasta ${LIMITES_TABLA.MAX_COLUMNAS} columnas`,
+        });
+      }
+    } else if (!res.encabezadoValido) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['content'],
+        message: 'El encabezado solo puede estar en la primera fila y no puede combinarse verticalmente',
+      });
+    } else {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['content'],
+        message: 'La cuadrícula de la tabla debe ser regular',
+      });
+    }
+  }
+});
+
 const imagen = estricto('La imagen', {
   type: z.literal('imagen'),
   attrs: estricto('La imagen', { id, ...camposImagen }),
@@ -275,7 +355,20 @@ const video = estricto('El video', {
 
 const elemento = z.discriminatedUnion(
   'type',
-  [parrafo, titulo, lista('bulletList'), lista('orderedList'), cita, codigo, separador, imagen, galeria, cta, video],
+  [
+    parrafo,
+    titulo,
+    lista('bulletList'),
+    lista('orderedList'),
+    cita,
+    codigo,
+    separador,
+    tabla,
+    imagen,
+    galeria,
+    cta,
+    video,
+  ],
   { error: 'Tipo de elemento desconocido' },
 );
 
@@ -322,6 +415,7 @@ type DatosPorTipo = {
   bulletList: { ordenada: boolean };
   orderedList: { ordenada: boolean };
   codeBlock: { lenguaje?: string };
+  table: { descripcion?: string };
 };
 export type TipoConDatos = keyof DatosPorTipo;
 export type DatosDe<T extends TipoConDatos> = DatosPorTipo[T];

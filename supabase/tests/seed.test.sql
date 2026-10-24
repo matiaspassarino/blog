@@ -41,9 +41,7 @@ select ok(exists (
   'un artículo con dos slugs anteriores que apuntan a la misma entidad');
 
 -- Spec 005 (T096): el contenido es el documento; los publicados usan los 12 tipos de elemento.
--- El artículo con la tabla y las alineaciones llega al seed con las Fases 12 y 13 (el esquema de TypeScript recién
--- acepta `table` y `textAlign` en T138 y en la Fase 12): hasta entonces, las dos pruebas siguientes quedan pendientes.
-select todo('Fases 12 y 13: el seed suma el artículo con formatos nuevos y una tabla (CE-008)', 2);
+-- El artículo con la tabla y las alineaciones llega al seed con las Fases 12 y 13 (CE-008).
 select is(
   (select array_agg(distinct e ->> 'type' order by e ->> 'type')
      from public.articulos a, jsonb_array_elements(a.contenido -> 'content') e

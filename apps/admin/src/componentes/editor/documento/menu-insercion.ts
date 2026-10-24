@@ -5,6 +5,7 @@ import type { Editor, JSONContent } from '@tiptap/core';
 import type { Node as NodoPm } from '@tiptap/pm/model';
 import type { EditorState } from '@tiptap/pm/state';
 import { nombreDeTipo, type TipoVisible } from '../anuncios';
+import { insertarTabla } from './tablas';
 
 export type ItemDeInsercion = {
   id: string;
@@ -116,6 +117,13 @@ export const ITEMS: ItemDeInsercion[] = [
   },
   texto('codigo', nombreDe('codigo'), 'Un fragmento de código sin formato', { type: 'codeBlock' }),
   texto('separador', nombreDe('separador'), 'Una línea que divide el artículo', { type: 'horizontalRule' }),
+  {
+    id: 'tabla',
+    nombre: nombreDe('tabla'),
+    descripcion: 'Filas y columnas con encabezado',
+    grupo: 'texto',
+    insertar: (editor) => insertarTabla(editor),
+  },
 ];
 
 const sinTildes = (texto: string) => texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();

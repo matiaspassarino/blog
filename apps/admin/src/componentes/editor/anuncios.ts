@@ -18,6 +18,7 @@ export const TIPOS_VISIBLES = [
   'separador',
   'codigo',
   'video',
+  'tabla',
 ] as const;
 export type TipoVisible = (typeof TIPOS_VISIBLES)[number];
 
@@ -29,6 +30,7 @@ const TIPO_VISIBLE: Record<TipoElemento, TipoVisible> = {
   blockquote: 'cita',
   codeBlock: 'codigo',
   horizontalRule: 'separador',
+  table: 'tabla',
   imagen: 'imagen',
   galeria: 'galeria',
   cta: 'cta',
@@ -49,9 +51,10 @@ const NOMBRES_DE_TIPO: Record<TipoVisible, string> = {
   separador: 'separador',
   codigo: 'código',
   video: 'video',
+  tabla: 'tabla',
 };
 
-const TIPOS_FEMENINOS: readonly TipoVisible[] = ['imagen', 'cita', 'lista', 'galeria', 'cta'];
+const TIPOS_FEMENINOS: readonly TipoVisible[] = ['imagen', 'cita', 'lista', 'galeria', 'cta', 'tabla'];
 
 export const nombreDeTipo = (tipo: TipoVisible) => NOMBRES_DE_TIPO[tipo];
 
@@ -90,6 +93,32 @@ export const anuncioDeshacer = (accion: string) => `Se deshizo: ${accion}`;
 export const anuncioRehacer = (accion: string) => `Se rehízo: ${accion}`;
 
 export const anuncioSubidaEnCurso = () => 'Subiendo imagen… No se puede mover ni quitar hasta que termine';
+
+export const anuncioEntrarTabla = () => 'Tabla. Esc para salir';
+
+export const anuncioPrimeraCelda = () => 'Primera celda';
+
+export const anuncioSeleccionCeldas = (filas: number, columnas: number) =>
+  `Celdas seleccionadas: ${filas} ${filas === 1 ? 'fila' : 'filas'} por ${columnas} ${columnas === 1 ? 'columna' : 'columnas'}`;
+
+export const anuncioFilaAgregada = (total: number) =>
+  `Fila agregada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
+
+export const anuncioFilaQuitada = (total: number) =>
+  `Fila quitada, ${total} ${total === 1 ? 'fila' : 'filas'}`;
+
+export const anuncioColumnaAgregada = (total: number) =>
+  `Columna agregada, ${total} ${total === 1 ? 'columna' : 'columnas'}`;
+
+export const anuncioColumnaQuitada = (total: number) =>
+  `Columna quitada, ${total} ${total === 1 ? 'columna' : 'columnas'}`;
+
+export const anuncioCeldasCombinadas = () => 'Celdas combinadas';
+
+export const anuncioCeldasSeparadas = () => 'Celdas separadas';
+
+export const anuncioFilaEncabezado = (activa: boolean) =>
+  activa ? 'La primera fila es encabezado' : 'La primera fila ya no es encabezado';
 
 const NOMBRES_DE_CAMPO: Record<string, string> = {
   alt: 'Texto alternativo',

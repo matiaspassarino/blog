@@ -12,12 +12,14 @@ import { Lista } from './Lista';
 import { Separador } from './Separador';
 import { Titulo } from './Titulo';
 import type { ComponentesDocumento } from './tipos';
+import { Tabla } from './Tabla';
 import { Video } from './Video';
 
 function renderElemento(
   elemento: Elemento,
   componentes: ComponentesDocumento,
   anclas: Map<string, string | undefined>,
+  indice?: number,
 ): ReactNode {
   switch (elemento.type) {
     case 'paragraph':
@@ -37,6 +39,8 @@ function renderElemento(
       return <Codigo elemento={elemento} />;
     case 'horizontalRule':
       return <Separador />;
+    case 'table':
+      return <Tabla elemento={elemento} indice={indice} />;
     case 'imagen':
       return <ImagenBloque elemento={elemento} componentes={componentes} />;
     case 'galeria':
@@ -60,7 +64,7 @@ export function Documento({ contenido, componentes }: { contenido: TipoDocumento
   return (
     <>
       {contenido.content.map((elemento, i) => (
-        <Fragment key={elemento.attrs?.id ?? i}>{renderElemento(elemento, componentes, anclas)}</Fragment>
+        <Fragment key={elemento.attrs?.id ?? i}>{renderElemento(elemento, componentes, anclas, i)}</Fragment>
       ))}
     </>
   );

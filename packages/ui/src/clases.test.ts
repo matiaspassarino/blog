@@ -374,3 +374,31 @@ describe('Resaltado en modo de alto contraste (forced-colors, D31 U7)', () => {
     expect((entre.match(/\{/g) ?? []).length).toBe((entre.match(/\}/g) ?? []).length);
   });
 });
+
+// T134 (spec 005, Fase 13, Historia 7; RF-028; research D27 y D31 U7, U8): tokens y contraste de tablas.
+// Tokens `--color-borde-tabla` y `--color-fondo-encabezado-tabla` (alias o propios),
+// contraste de borde >= 3:1, texto sobre encabezado >= 4,5:1, línea de enlace sobre encabezado >= 3:1,
+// y selección de celdas (marca-suave con outline de 2 px de marca) >= 3:1.
+// FASE ROJA: los tokens de tabla y sus contrastes se comprueban antes de agregarlos en T139.
+describe('Tablas: tokens y contraste (spec 005, T134)', () => {
+  it.each(['--color-borde-tabla', '--color-fondo-encabezado-tabla'])('existe %s en tokens.css', (nombre) => {
+    expect(tokens.has(nombre), `falta ${nombre}`).toBe(true);
+  });
+
+  it('borde de tabla tiene contraste >= 3:1 frente al fondo (WCAG 1.4.11)', () => {
+    expect(contraste('--color-borde-tabla', '--color-fondo')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('texto sobre el encabezado de tabla tiene contraste >= 4,5:1 (WCAG 1.4.3)', () => {
+    expect(contraste('--color-texto', '--color-fondo-encabezado-tabla')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('línea del enlace sobre el encabezado de tabla tiene contraste >= 3:1 (WCAG 1.4.11)', () => {
+    expect(contraste('--color-marca', '--color-fondo-encabezado-tabla')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('la selección de celdas (marca-suave con outline marca) tiene contraste >= 3:1 frente a marca-suave (WCAG 1.4.11)', () => {
+    expect(contraste('--color-marca', '--color-marca-suave')).toBeGreaterThanOrEqual(3);
+  });
+});
+

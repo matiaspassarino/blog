@@ -21,6 +21,24 @@
   scroll-margin-bottom: calc(var(--alto-hoja-propiedades) + 8rem);
 }
 
+/* Selección de celdas de tabla (spec 005, RF-028, D31 U3). */
+.selectedCell {
+  background-color: var(--color-marca-suave);
+  outline: 2px solid var(--color-marca);
+}
+
+@media (forced-colors: active) {
+  .selectedCell {
+    outline: 2px solid Highlight;
+    background-color: Highlight;
+  }
+}
+
+.lienzo-documento td,
+.lienzo-documento th {
+  min-height: var(--tactil-min);
+}
+
 body {
   background: var(--color-fondo);
   color: var(--color-texto);

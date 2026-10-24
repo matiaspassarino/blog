@@ -23,7 +23,7 @@ const ids = (items: { id: string }[]) => items.map((item) => item.id);
 const tipoDe = (id: string) => id.split('-')[0] as TipoVisible;
 
 describe('ITEMS: la lista única de elementos insertables (RF-005)', () => {
-  it('tiene los trece elementos del contrato', () => {
+  it('tiene los catorce elementos del contrato', () => {
     expect(ids(ITEMS).sort()).toEqual(
       [
         'parrafo',
@@ -39,6 +39,7 @@ describe('ITEMS: la lista única de elementos insertables (RF-005)', () => {
         'video',
         'codigo',
         'separador',
+        'tabla',
       ].sort(),
     );
   });

@@ -3,15 +3,36 @@
 // El lienzo del artículo: un documento continuo que se escribe como en un procesador de texto (spec 005). La
 // librería vive en este módulo, que se carga bajo demanda (`CargadorDeEditorDocumento`). Cada transacción que
 // cambia el documento sube por `alCambiar` en forma canónica (`normalizarDocumento`, research D24).
-import { normalizarDocumento, type Documento, type Elemento, type ErrorElemento } from '@blog/bloques';
+import {
+  cuadricula,
+  normalizarDocumento,
+  type Documento,
+  type Elemento,
+  type ErrorElemento,
+  type TablaEstructural,
+} from '@blog/bloques';
 import type { Editor } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
+import { CellSelection, findTable, selectedRect } from '@tiptap/pm/tables';
 import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { ConfirmarAccion } from '../../ConfirmarAccion';
-import { anuncioConvertido, anuncioModoElementos } from '../anuncios';
+import {
+  anuncioCeldasCombinadas,
+  anuncioCeldasSeparadas,
+  anuncioColumnaAgregada,
+  anuncioColumnaQuitada,
+  anuncioConvertido,
+  anuncioEntrarTabla,
+  anuncioFilaAgregada,
+  anuncioFilaEncabezado,
+  anuncioFilaQuitada,
+  anuncioModoElementos,
+  anuncioSeleccionCeldas,
+} from '../anuncios';
 import { useContextoEditor } from '../ContextoEditor';
 import { BarraHerramientas } from './BarraHerramientas';
+import { BarraTabla } from './BarraTabla';
 import type { CambiosDeElemento } from '../bloques/tipos';
 import type { ContextoDeAcciones } from './acciones-elemento';
 import { AsaDeElemento } from './AsaDeElemento';
@@ -29,6 +50,19 @@ import { crearExtensiones, type DevolucionesDelEditor, type EstadoMenu } from '.
 import { erroresPorId } from './mapa-errores';
 import { filtrarItems } from './menu-insercion';
 import { MenuInsertar } from './MenuInsertar';
+import type { AccionTabla } from './PropiedadesDelElemento';
+import {
+  agregarColumna,
+  agregarColumnaAntes,
+  agregarFila,
+  agregarFilaAntes,
+  combinarCeldas,
+  conmutarEncabezado,
+  eliminarColumna,
+  eliminarFila,
+  registrarReferenciaTabla,
+  separarCeldas,
+} from './tablas';
 import type { ElementoActivo, SeleccionDelDocumento } from './tipos';
 
 export type PropsEditorDocumento = {
@@ -64,6 +98,8 @@ export type AccionesDelLienzo = {
   enfocar: () => void;
   /** Reemplaza el documento por lo que devolvió el servidor, en el mismo historial y con el cursor donde estaba. */
   adoptarContenido: (contenido: Documento) => void;
+  /** Ejecuta una acción de tabla sobre la referencia actual (RF-028). */
+  ejecutarAccionTabla?: (accion: AccionTabla) => boolean;
 };
 
 const ALTO_DEL_MENU_PX = 320;
@@ -165,6 +201,7 @@ export default function EditorDocumento({
     ultimo.current.anunciar(mensaje);
   };
   const [seleccion, setSeleccion] = useState<SeleccionDelDocumento>({ tipo: 'texto' });
+  const estabaEnTabla = useRef(false);
 
   useEffect(() => {
     ultimo.current = {
@@ -259,6 +296,30 @@ export default function EditorDocumento({
       if (elemento && pendiente) actual.storage.atributosDelDocumento.abrirPanel = false;
       setSeleccion(nueva);
       ultimo.current.alSeleccionar(nueva, elemento);
+
+      const { selection, doc } = actual.state;
+      const esTablaSeleccionada =
+        selection instanceof NodeSelection && selection.node.type.name === 'table';
+      const table = findTable(doc.resolve(selection.from));
+      const enTabla = Boolean(table || esTablaSeleccionada);
+
+      if (enTabla && !estabaEnTabla.current) {
+        anunciarAccion(anuncioEntrarTabla());
+      }
+      estabaEnTabla.current = enTabla;
+
+      if (selection instanceof CellSelection) {
+        const rect = selectedRect(actual.state);
+        const filas = rect.bottom - rect.top;
+        const columnas = rect.right - rect.left;
+        if (filas > 1 || columnas > 1) {
+          anunciarAccion(anuncioSeleccionCeldas(filas, columnas));
+        }
+      }
+
+      if (table && !(selection instanceof NodeSelection)) {
+        registrarReferenciaTabla(actual);
+      }
     },
   });
 
@@ -295,6 +356,77 @@ export default function EditorDocumento({
           .setContent(paraElEditor(nuevo), { emitUpdate: false })
           .setTextSelection({ from, to })
           .run();
+      },
+      ejecutarAccionTabla: (accion) => {
+        if (!editor) return false;
+        let pudo = false;
+        let anuncio: string | undefined;
+        switch (accion) {
+          case 'fila_arriba':
+          case 'fila_abajo': {
+            pudo = accion === 'fila_arriba' ? agregarFilaAntes(editor) : agregarFila(editor);
+            if (pudo) {
+              const table = findTable(editor.state.doc.resolve(editor.state.selection.from));
+              const filas = table ? cuadricula(table.node.toJSON() as TablaEstructural).filas : 0;
+              anuncio = anuncioFilaAgregada(filas);
+            }
+            break;
+          }
+          case 'columna_izquierda':
+          case 'columna_derecha': {
+            pudo = accion === 'columna_izquierda' ? agregarColumnaAntes(editor) : agregarColumna(editor);
+            if (pudo) {
+              const table = findTable(editor.state.doc.resolve(editor.state.selection.from));
+              const columnas = table ? cuadricula(table.node.toJSON() as TablaEstructural).columnas : 0;
+              anuncio = anuncioColumnaAgregada(columnas);
+            }
+            break;
+          }
+          case 'quitar_fila': {
+            pudo = eliminarFila(editor);
+            if (pudo) {
+              const table = findTable(editor.state.doc.resolve(editor.state.selection.from));
+              const filas = table ? cuadricula(table.node.toJSON() as TablaEstructural).filas : 0;
+              anuncio = anuncioFilaQuitada(filas);
+            }
+            break;
+          }
+          case 'quitar_columna': {
+            pudo = eliminarColumna(editor);
+            if (pudo) {
+              const table = findTable(editor.state.doc.resolve(editor.state.selection.from));
+              const columnas = table ? cuadricula(table.node.toJSON() as TablaEstructural).columnas : 0;
+              anuncio = anuncioColumnaQuitada(columnas);
+            }
+            break;
+          }
+          case 'combinar': {
+            pudo = combinarCeldas(editor);
+            if (pudo) anuncio = anuncioCeldasCombinadas();
+            break;
+          }
+          case 'separar': {
+            pudo = separarCeldas(editor);
+            if (pudo) anuncio = anuncioCeldasSeparadas();
+            break;
+          }
+          case 'encabezado': {
+            pudo = conmutarEncabezado(editor);
+            if (pudo) {
+              const table = findTable(editor.state.doc.resolve(editor.state.selection.from));
+              const primeraFila = table?.node.childCount ? table.node.child(0) : null;
+              const tieneEncabezado = Boolean(
+                primeraFila?.childCount && primeraFila.child(0).type.name === 'tableHeader',
+              );
+              anuncio = anuncioFilaEncabezado(tieneEncabezado);
+            }
+            break;
+          }
+        }
+        if (pudo && anuncio) {
+          anunciarAccion(anuncio);
+        }
+        return pudo;
       },
     }),
     [editor],
@@ -373,6 +505,12 @@ export default function EditorDocumento({
         seleccion={seleccion}
         alPropiedades={alPropiedades}
         contextoDeAcciones={contextoDeAcciones}
+      />
+      <BarraTabla
+        editor={editor}
+        deshabilitada={bloqueado}
+        alPropiedades={alPropiedades}
+        anunciar={anunciarAccion}
       />
       <div ref={contenedor} className="relative">
         <EditorContent editor={editor} className="mx-auto w-full max-w-lectura" />

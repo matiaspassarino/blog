@@ -21,6 +21,7 @@ function campoDe(tipo: unknown, ruta: PropertyKey[], codigo: core.$ZodIssue['cod
   }
   if (primero === 'content') {
     if (LISTAS.has(String(tipo))) return segundo === undefined ? 'items' : `items.${segundo}`;
+    if (tipo === 'table') return 'tabla';
     return tipo === 'codeBlock' ? 'codigo' : 'texto';
   }
   return primero;
@@ -46,6 +47,32 @@ export function validarDocumento(entrada: unknown, { publicar = false }: { publi
   });
   if (publicar && resultado.success && resultado.data.content.length === 0) {
     errores.push({ indice: -1, id: '', campo: 'contenido', mensaje: 'Agrega contenido antes de publicar' });
+  }
+  if (publicar) {
+    contenido.forEach((elemento, indice) => {
+      const el = elemento as { type?: unknown; attrs?: { id?: unknown }; content?: unknown[] } | null;
+      if (el?.type === 'table') {
+        const id = typeof el.attrs?.id === 'string' ? el.attrs.id : '';
+        const filas = (el.content ?? []) as Array<{
+          content?: Array<{ content?: Array<{ content?: Array<{ text?: string }> }> }>;
+        }>;
+        const tieneTexto = filas.some((fila) =>
+          (fila.content ?? []).some((celda) =>
+            (celda.content ?? []).some((parrafo) =>
+              (parrafo.content ?? []).some((nodo) => typeof nodo.text === 'string' && nodo.text.trim().length > 0),
+            ),
+          ),
+        );
+        if (!tieneTexto) {
+          errores.push({
+            indice,
+            id,
+            campo: 'tabla',
+            mensaje: 'La tabla no tiene contenido',
+          });
+        }
+      }
+    });
   }
   return errores;
 }

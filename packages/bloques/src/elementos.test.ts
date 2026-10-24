@@ -32,7 +32,7 @@ import {
   type NodoPrueba,
 } from './pruebas/corpus-documento';
 
-const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador } = nodo;
+const { doc, texto, salto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, encabezado, fila, tabla, parrafoSimple } = nodo;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SALIDA_ANTERIOR = JSON.parse(
   readFileSync(fileURLToPath(new URL('./pruebas/salida-anterior.json', import.meta.url)), 'utf8'),
@@ -43,7 +43,7 @@ const comoElemento = (elemento: NodoPrueba) => elemento as never;
 const comoDocumento = (documento: NodoPrueba) => documento as never;
 
 describe('TIPOS_ELEMENTO', () => {
-  it('son los once tipos de primer nivel de la Fase 10, en el orden del contrato (la tabla llega en T138)', () => {
+  it('son los doce tipos de primer nivel en el orden del contrato, con table (T133)', () => {
     expect([...TIPOS_ELEMENTO]).toEqual([
       'paragraph',
       'heading',
@@ -52,6 +52,7 @@ describe('TIPOS_ELEMENTO', () => {
       'blockquote',
       'codeBlock',
       'horizontalRule',
+      'table',
       'imagen',
       'galeria',
       'cta',
@@ -82,6 +83,17 @@ describe('crearElemento', () => {
     expect(crearElemento('galeria')).toMatchObject({ attrs: { imagenes: [], columnas: 3 } });
     expect(crearElemento('video')).toMatchObject({ attrs: { proveedor: 'youtube', idVideo: '', titulo: '' } });
     expect(crearElemento('cta')).toMatchObject({ attrs: { titulo: '', etiquetaBoton: '', url: '' } });
+  });
+
+  it('una tabla nueva es de 3x3 con encabezados y tiene id uuid (T133)', () => {
+    const t = crearElemento('table' as never) as unknown as NodoPrueba;
+    expect(t.type).toBe('table');
+    expect(t.attrs?.id).toMatch(UUID);
+    expect(t.content).toHaveLength(3);
+    const primeraFila = t.content?.[0] as NodoPrueba;
+    expect(primeraFila.type).toBe('tableRow');
+    expect(primeraFila.content).toHaveLength(3);
+    expect(primeraFila.content?.[0]?.type).toBe('tableHeader');
   });
 
   it('una lista nueva tiene un ítem con un párrafo (la forma del contrato)', () => {
@@ -124,6 +136,15 @@ describe('textoDeElemento', () => {
   it('un separador no tiene texto', () => {
     expect(textoDeElemento(comoElemento(separador()))).toBe('');
   });
+
+  it('una tabla da el texto de todas sus celdas separadas por saltos de línea (T133)', () => {
+    const t = tabla(
+      undefined,
+      fila(encabezado(undefined, parrafoSimple(texto('A'))), encabezado(undefined, parrafoSimple(texto('B')))),
+      fila(celda(undefined, parrafoSimple(texto('C'))), celda(undefined, parrafoSimple(texto('D')))),
+    );
+    expect(textoDeElemento(comoElemento(t))).toBe('A\nB\nC\nD');
+  });
 });
 
 describe('visibleDeDocumento (D26, D31 C2): lo que muestra el sitio, sin JSX', () => {
@@ -137,6 +158,17 @@ describe('visibleDeDocumento (D26, D31 C2): lo que muestra el sitio, sin JSX', (
 
   it('el documento vacío no muestra nada', () => {
     expect(visibleDeDocumento(comoDocumento(doc()))).toEqual({ textos: [], anclas: [], imagenes: [], enlaces: [] });
+  });
+
+  it('una tabla en visibleDeDocumento extrae el texto de las celdas y enlaces en ellas (T133)', () => {
+    const t = tabla(
+      { descripcion: 'Una tabla' },
+      fila(encabezado(undefined, parrafoSimple(texto('Encabezado')))),
+      fila(celda(undefined, parrafoSimple(texto('Dato con '), texto('enlace', marca.enlace('/ruta'))))),
+    );
+    const visible = visibleDeDocumento(comoDocumento(doc(t)));
+    expect(visible.textos).toContain('Encabezado Dato con enlace');
+    expect(visible.enlaces).toContainEqual({ href: '/ruta', texto: 'enlace' });
   });
 
   it('las anclas son únicas como hoy: sufijo -2, no pisan "contenido" y un título sin letras no tiene ancla', () => {

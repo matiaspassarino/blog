@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizarDocumento } from './normalizar';
 import { alineado, CORPUS_DOCUMENTOS, idDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 
-const { doc, texto, salto, parrafo } = nodo;
+const { doc, texto, salto, parrafo, celda, encabezado, fila, tabla, parrafoSimple } = nodo;
 const ORDEN_DE_MARCAS = [
   'link',
   'bold',
@@ -370,6 +370,116 @@ describe('normalizarDocumento', () => {
         expect(normalizar(una), `vuelta ${vuelta}`).toEqual(una);
         comprobarCanonica(una, `vuelta ${vuelta}`);
       }
+    });
+  });
+
+  describe('Fase 13 (Historia 7): normalización de tablas (T133)', () => {
+    it('quita colspan: 1 y rowspan: 1 y deja la celda sin attrs si no hay otros', () => {
+      const entrada = doc(
+        tabla(
+          undefined,
+          fila(
+            { type: 'tableCell', attrs: { colspan: 1, rowspan: 1 }, content: [parrafoSimple(texto('A'))] },
+            { type: 'tableHeader', attrs: { colspan: 1 }, content: [parrafoSimple(texto('B'))] },
+          ),
+        ),
+      );
+      const salida = normalizar(entrada);
+      const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
+      const celdas = (primeraFila?.content ?? []) as NodoPrueba[];
+      expect(celdas[0]!.attrs).toBeUndefined();
+      expect(celdas[1]!.attrs).toBeUndefined();
+    });
+
+    it('conserva colspan >= 2 y rowspan >= 2', () => {
+      const entrada = doc(
+        tabla(
+          undefined,
+          fila(
+            { type: 'tableCell', attrs: { colspan: 2, rowspan: 3 }, content: [parrafoSimple(texto('A'))] },
+          ),
+        ),
+      );
+      const salida = normalizar(entrada);
+      const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
+      const celdas = (primeraFila?.content ?? []) as NodoPrueba[];
+      expect(celdas[0]!.attrs).toEqual({ colspan: 2, rowspan: 3 });
+    });
+
+    it('descarta colwidth en celdas', () => {
+      const entrada = doc(
+        tabla(
+          undefined,
+          fila(
+            { type: 'tableCell', attrs: { colwidth: [120, 240], colspan: 2 }, content: [parrafoSimple(texto('A'))] },
+          ),
+        ),
+      );
+      const salida = normalizar(entrada);
+      const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
+      const celdas = (primeraFila?.content ?? []) as NodoPrueba[];
+      expect(celdas[0]!.attrs).toEqual({ colspan: 2 });
+    });
+
+    it('conserva párrafos vacíos dentro de celdas (no se descartan como en el primer nivel)', () => {
+      const entrada = doc(
+        tabla(
+          undefined,
+          fila(
+            { type: 'tableCell', content: [{ type: 'paragraph' }] },
+          ),
+        ),
+      );
+      const salida = normalizar(entrada);
+      const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
+      const celdas = (primeraFila?.content ?? []) as NodoPrueba[];
+      expect(celdas[0]!.content).toEqual([{ type: 'paragraph' }]);
+    });
+
+    it('une textos contiguos con las mismas marcas dentro de las celdas', () => {
+      const entrada = doc(
+        tabla(
+          undefined,
+          fila(
+            {
+              type: 'tableCell',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [texto('Hola '), texto('mundo', marca.negrita), texto('!', marca.negrita)],
+                },
+              ],
+            },
+          ),
+        ),
+      );
+      const salida = normalizar(entrada);
+      const primeraFila = (salida.content?.[0] as NodoPrueba)?.content?.[0] as NodoPrueba;
+      const celdaActual = ((primeraFila?.content ?? []) as NodoPrueba[])[0];
+      const parrafoActual = celdaActual?.content?.[0] as NodoPrueba;
+      expect(parrafoActual?.content).toEqual([
+        texto('Hola '),
+        texto('mundo!', marca.negrita),
+      ]);
+    });
+
+    it('es idempotente sobre tablas', () => {
+      const t = doc(
+        tabla(
+          { descripcion: 'Datos' },
+          fila(
+            encabezado({ colspan: 2 }, parrafoSimple(texto('Encabezado'))),
+            encabezado(undefined, parrafoSimple(texto('Otro'))),
+          ),
+          fila(
+            celda(undefined, parrafoSimple(texto('1'))),
+            celda(undefined, parrafoSimple(texto('2'))),
+            celda(undefined, parrafoSimple(texto('3'))),
+          ),
+        ),
+      );
+      const una = normalizar(t);
+      expect(normalizar(una)).toEqual(una);
     });
   });
 });

@@ -8,8 +8,10 @@ import { Link } from '@tiptap/extension-link';
 import { OrderedList } from '@tiptap/extension-list';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { findTable, goToNextCell, isInTable, selectionCell, TableMap } from '@tiptap/pm/tables';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
   CLASE_ENLACE,
@@ -33,6 +35,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Suggestion from '@tiptap/suggestion';
 import { atajosDeIndices, detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { deshacerORehacer, registrarAccion } from './acciones-elemento';
+import { agregarFila, registrarReferenciaTabla } from './tablas';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { claveErrores, claveModo, claveSubidas } from './claves';
@@ -62,6 +65,7 @@ const TIPOS_CON_ID = [
   'orderedList',
   'codeBlock',
   'horizontalRule',
+  'table',
   'imagen',
   'galeria',
   'cta',
@@ -91,6 +95,7 @@ const atributosDelDocumento = (devoluciones: DevolucionesDelEditor) =>
         { types: TIPOS_CON_ID, attributes: { id: { ...propio, keepOnSplit: false } } },
         { types: ['blockquote'], attributes: { autor: propio, fuente: propio } },
         { types: ['codeBlock'], attributes: { lenguaje: propio } },
+        { types: ['table'], attributes: { descripcion: propio } },
       ];
     },
   });
@@ -199,6 +204,123 @@ const ItemDeLista = Node.create({
     return { Enter: ({ editor }) => editor.commands.splitListItem(this.name) };
   },
 });
+
+/** Tablas sin colwidth y con celdas de párrafos (research D29, D31 C12 y U15). */
+const Tabla = Table.configure({
+  resizable: false,
+  allowTableNodeSelection: true,
+});
+
+const CeldaEncabezado = TableHeader.extend({
+  content: 'paragraph+',
+  addAttributes() {
+    return {
+      colspan: {
+        default: 1,
+        parseHTML: (element) => {
+          const valor = parseInt(element.getAttribute('colspan') || '1', 10);
+          return valor > 0 ? valor : 1;
+        },
+        renderHTML: (attributes) => (attributes.colspan > 1 ? { colspan: attributes.colspan } : {}),
+      },
+      rowspan: {
+        default: 1,
+        parseHTML: (element) => {
+          const valor = parseInt(element.getAttribute('rowspan') || '1', 10);
+          return valor > 0 ? valor : 1;
+        },
+        renderHTML: (attributes) => (attributes.rowspan > 1 ? { rowspan: attributes.rowspan } : {}),
+      },
+    };
+  },
+});
+
+const Celda = TableCell.extend({
+  content: 'paragraph+',
+  addAttributes() {
+    return {
+      colspan: {
+        default: 1,
+        parseHTML: (element) => {
+          const valor = parseInt(element.getAttribute('colspan') || '1', 10);
+          return valor > 0 ? valor : 1;
+        },
+        renderHTML: (attributes) => (attributes.colspan > 1 ? { colspan: attributes.colspan } : {}),
+      },
+      rowspan: {
+        default: 1,
+        parseHTML: (element) => {
+          const valor = parseInt(element.getAttribute('rowspan') || '1', 10);
+          return valor > 0 ? valor : 1;
+        },
+        renderHTML: (attributes) => (attributes.rowspan > 1 ? { rowspan: attributes.rowspan } : {}),
+      },
+    };
+  },
+});
+
+const reglasDeTabla = (devoluciones: DevolucionesDelEditor) => {
+  return Extension.create({
+    name: 'reglasDeTabla',
+    priority: 150,
+    addKeyboardShortcuts() {
+      return {
+        'Shift-Tab': ({ editor }) => {
+          if (!isInTable(editor.state)) return false;
+          const pos = editor.state.selection.from;
+          const t = findTable(editor.state.doc.resolve(pos));
+          if (!t) return false;
+          const map = TableMap.get(t.node);
+          const cell = selectionCell(editor.state);
+          if (cell.pos - t.start === map.map[0]) {
+            devoluciones.anunciar('Primera celda');
+            return true;
+          }
+          return false;
+        },
+        Tab: ({ editor }) => {
+          if (!isInTable(editor.state)) return false;
+          const pos = editor.state.selection.from;
+          const t = findTable(editor.state.doc.resolve(pos));
+          if (!t) return false;
+          const map = TableMap.get(t.node);
+          const cell = selectionCell(editor.state);
+          if (cell.pos - t.start === map.map[map.map.length - 1]) {
+            const anchoValido =
+              typeof window === 'undefined' ? true : window.matchMedia('(min-width: 48rem)').matches;
+            if (!anchoValido) {
+              return true;
+            }
+            let aviso = '';
+            const pudo = agregarFila(editor, { alAvisar: (msg) => (aviso = msg) });
+            if (!pudo) {
+              if (aviso) devoluciones.anunciar(aviso);
+              return true;
+            }
+            goToNextCell(1)(editor.state, editor.view.dispatch);
+            return true;
+          }
+          return false;
+        },
+      };
+    },
+    addProseMirrorPlugins() {
+      const editor = this.editor;
+      return [
+        new Plugin({
+          key: new PluginKey('reglasDeTabla'),
+          view() {
+            return {
+              update: () => {
+                if (editor) registrarReferenciaTabla(editor);
+              },
+            };
+          },
+        }),
+      ];
+    },
+  });
+};
 
 /** Los títulos no llevan saltos simples, las citas y los ítems no los ofrecen y el código no lleva marcas. */
 const ReglasDeTexto = Extension.create({
@@ -594,6 +716,10 @@ function menuBarra(devoluciones: DevolucionesDelEditor) {
           startOfLine: true,
           allow: ({ state, range }) => {
             const $desde = state.doc.resolve(range.from);
+            for (let d = $desde.depth; d > 0; d--) {
+              const tipo = $desde.node(d).type.name;
+              if (tipo === 'tableCell' || tipo === 'tableHeader') return false;
+            }
             return puedeAbrirMenu({
               antes: $desde.parent.textBetween(0, $desde.parentOffset),
               despues: $desde.parent.textBetween(range.to - $desde.start(), $desde.parent.content.size),
@@ -681,6 +807,11 @@ export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtens
     BloqueDeCodigo,
     Cita,
     ItemDeLista,
+    Tabla,
+    TableRow,
+    CeldaEncabezado,
+    Celda,
+    reglasDeTabla(devoluciones),
     atributosDelDocumento(devoluciones),
     Tipografia,
     ReglasDeTexto,

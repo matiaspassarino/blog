@@ -151,4 +151,40 @@ describe.skipIf(sinSupabase)('buscarArticulos (integración, anon)', () => {
 
     expect(espiaFetch).toHaveBeenCalledTimes(1);
   });
+
+  it('RF-027 / T137: encuentra el artículo por una palabra dentro de una celda de tabla y por la descripción', async () => {
+    const palabraCelda = `${palabraUnica}celda`;
+    const palabraDesc = `${palabraUnica}desc`;
+    const enTabla = await crearArticuloDePrueba(admin, creados, {
+      titulo: `H7 tabla búsqueda ${sufijo}`,
+      slug: `h7-tabla-busqueda-${sufijo}`,
+      contenido: {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            attrs: { id: crypto.randomUUID(), descripcion: `Tabla con ${palabraDesc}` },
+            content: [
+              {
+                type: 'tableRow',
+                content: [
+                  {
+                    type: 'tableCell',
+                    content: [{ type: 'paragraph', content: [{ type: 'text', text: `Dato con ${palabraCelda}` }] }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      categoriaId: categoria.id,
+    });
+
+    const resCelda = await buscarArticulos(anon, palabraCelda);
+    expect(resCelda.items.map((i) => i.id)).toContain(enTabla.id);
+
+    const resDesc = await buscarArticulos(anon, palabraDesc);
+    expect(resDesc.items.map((i) => i.id)).toContain(enTabla.id);
+  });
 });

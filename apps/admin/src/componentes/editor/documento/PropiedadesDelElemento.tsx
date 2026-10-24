@@ -3,6 +3,7 @@
 // Propiedades del elemento seleccionado (contracts/componentes.md): un solo componente para la pestaña «Elemento» de
 // la columna lateral (desde 1280 px) y para la hoja inferior (por debajo). Muestra el editor de campos del tipo del
 // elemento; el texto de los elementos de texto se escribe en el lienzo.
+import { useSyncExternalStore } from 'react';
 import type { ErrorElemento } from '@blog/bloques';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../ui/button';
@@ -11,6 +12,17 @@ import { EditorDeBloque } from '../bloques/EditorDeBloque';
 import type { CambiosDeElemento } from '../bloques/tipos';
 import { ALINEACIONES, type Alineacion } from './comandos';
 import type { SeleccionDelDocumento } from './tipos';
+
+export type AccionTabla =
+  | 'fila_arriba'
+  | 'fila_abajo'
+  | 'columna_izquierda'
+  | 'columna_derecha'
+  | 'quitar_fila'
+  | 'quitar_columna'
+  | 'combinar'
+  | 'separar'
+  | 'encabezado';
 
 type Props = {
   variante: 'lateral' | 'hoja';
@@ -23,9 +35,20 @@ type Props = {
   alCambiar: (cambios: CambiosDeElemento) => void;
   /** Alinea el párrafo o el título (RF-020). */
   alAlinear?: (alineacion: Alineacion) => void;
+  /** Ejecuta una acción de tabla sobre la referencia actual (RF-028). */
+  alAccionTabla?: (accion: AccionTabla) => void;
   /** Solo en la hoja. */
   alCerrar?: () => void;
 };
+
+const suscribirMedia = (cb: () => void) => {
+  if (typeof window === 'undefined') return () => undefined;
+  const mql = window.matchMedia('(min-width: 48rem)');
+  mql.addEventListener('change', cb);
+  return () => mql.removeEventListener('change', cb);
+};
+const getSnapshotMedia = () => (typeof window === 'undefined' ? true : window.matchMedia('(min-width: 48rem)').matches);
+const getServerSnapshotMedia = () => true;
 
 export function PropiedadesDelElemento({
   variante,
@@ -35,8 +58,10 @@ export function PropiedadesDelElemento({
   errores,
   alCambiar,
   alAlinear,
+  alAccionTabla,
   alCerrar,
 }: Props) {
+  const anchoEscritorioTabla = useSyncExternalStore(suscribirMedia, getSnapshotMedia, getServerSnapshotMedia);
   const elementos = seleccion.tipo === 'elementos' ? seleccion.elementos : [];
   const elemento = elementos.length === 1 ? elementos[0] : undefined;
   const sinPropiedades = elemento?.type === 'horizontalRule';
@@ -88,6 +113,91 @@ export function PropiedadesDelElemento({
             </label>
           ))}
         </fieldset>
+      )}
+      {elemento?.type === 'table' && (
+        <section aria-label="Estructura de la tabla" className="flex flex-col gap-2">
+          <h3 className="font-semibold text-sm">Estructura de la tabla</h3>
+          {!anchoEscritorioTabla ? (
+            <p className="text-sm text-texto-suave">
+              Para cambiar filas, columnas o combinar celdas, usa una pantalla más ancha
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('encabezado')}
+              >
+                Fila de encabezado
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('fila_arriba')}
+              >
+                Insertar fila arriba
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('fila_abajo')}
+              >
+                Insertar fila abajo
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('columna_izquierda')}
+              >
+                Insertar columna a la izquierda
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('columna_derecha')}
+              >
+                Insertar columna a la derecha
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('quitar_fila')}
+              >
+                Quitar fila
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('quitar_columna')}
+              >
+                Quitar columna
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('combinar')}
+              >
+                Combinar celdas
+              </Button>
+              <Button
+                type="button"
+                variante="secundaria"
+                tamanio="compacto"
+                onClick={() => alAccionTabla?.('separar')}
+              >
+                Separar celdas
+              </Button>
+            </div>
+          )}
+        </section>
       )}
     </aside>
   );

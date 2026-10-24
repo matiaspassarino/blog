@@ -92,6 +92,7 @@ const ICONOS_DE_ALINEACION: Record<string, NombreIcono> = {
 
 const RAZON_CODIGO = 'El código no admite otros formatos';
 const RAZON_ALINEACION = 'La alineación es solo para párrafos y títulos';
+const RAZON_CELDA = 'Las celdas solo admiten párrafos con formato';
 
 /** "Más formato", "Más formato, resaltado activo" o "Más formato, tachado y resaltado activos". */
 function nombreDeMasFormato(activos: string[]) {
@@ -113,6 +114,7 @@ function etiquetaDeAcciones(editor: Editor | null) {
 function estadoDe(editor: Editor | null) {
   const activa = (marca: string) => editor?.isActive(marca) ?? false;
   const alineacion = editor ? alineacionDe(editor.state) : { alineable: false, valor: null };
+  const enCelda = editor ? editor.isActive('tableCell') || editor.isActive('tableHeader') : false;
   return {
     negrita: activa('bold'),
     cursiva: activa('italic'),
@@ -121,6 +123,7 @@ function estadoDe(editor: Editor | null) {
     masFormato: MAS_FORMATO.map(({ marca }) => activa(marca)),
     // El código en línea excluye los demás formatos (contracts/documento.md).
     conCodigo: activa('code'),
+    enCelda,
     alineable: alineacion.alineable,
     alineacion: alineacion.valor,
     viniietas: activa('bulletList'),
@@ -314,6 +317,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
   const idEnlace = useId();
   const idRazonCodigo = useId();
   const idRazonAlineacion = useId();
+  const idRazonCelda = useId();
   const [activo, setActivo] = useState('estilo');
   /** El control de la barra con el foco y si se cerró su aviso con `Esc`. */
   const [enfocado, setEnfocado] = useState<{ id: string; cerrado: boolean } | null>(null);
@@ -325,13 +329,18 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
   const sinEditor = editor === null || deshabilitada;
   const razonCodigo = !sinEditor && estado.conCodigo ? idRazonCodigo : undefined;
   const razonAlineacion = !sinEditor && !estado.alineable ? idRazonAlineacion : undefined;
+  const razonCelda = !sinEditor && estado.enCelda ? idRazonCelda : undefined;
   /** El id del texto que explica por qué un control no está disponible (se calcula con el estado de ahora). */
   const razones: Record<string, string | undefined> = {
+    estilo: razonCelda,
     negrita: razonCodigo,
     cursiva: razonCodigo,
     subrayado: razonCodigo,
     enlace: razonCodigo,
-    alineacion: razonAlineacion,
+    alineacion: razonCelda ?? razonAlineacion,
+    vinietas: razonCelda,
+    numerada: razonCelda,
+    insertar: razonCelda,
   };
   // El aviso sigue al estado: si el cursor entra al código después de enfocar el control, igual aparece.
   const aviso = enfocado && !enfocado.cerrado ? razones[enfocado.id] : undefined;
@@ -484,7 +493,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           rol="menuitemradio"
           opciones={ESTILOS.map((e) => ({ etiqueta: e.nombre, marcada: e.nombre === estado.estilo }))}
           alElegir={(indice) => editor && ESTILOS[indice]?.aplicar(editor)}
-          bloqueado={sinEditor}
+          bloqueado={sinEditor || estado.enCelda}
           ctl={ctl('estilo')}
         >
           {estado.estilo}
@@ -556,7 +565,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
             marcada: opcion.valor === estado.alineacion,
           }))}
           alElegir={(indice) => editor && alinear(editor, ALINEACIONES[indice]?.valor ?? null)}
-          bloqueado={sinEditor || !estado.alineable}
+          bloqueado={sinEditor || !estado.alineable || estado.enCelda}
           ctl={ctl('alineacion')}
           soloIcono
         >
@@ -572,7 +581,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           'lista',
           (e) => e.chain().focus().toggleBulletList().run(),
           { 'aria-pressed': estado.viniietas },
-          estado.sinListas && !estado.viniietas,
+          estado.enCelda || (estado.sinListas && !estado.viniietas),
         )}
         {boton(
           'numerada',
@@ -580,7 +589,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           'lista_numerada',
           (e) => e.chain().focus().toggleOrderedList().run(),
           { 'aria-pressed': estado.numerada },
-          estado.sinListas && !estado.numerada,
+          estado.enCelda || (estado.sinListas && !estado.numerada),
         )}
         <div className="relative">
           <Button
@@ -590,12 +599,12 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
             aria-expanded={insertarAbierto}
             aria-controls={insertarAbierto ? idInsertar : undefined}
             onClick={() => {
-              if (sinEditor) return;
+              if (sinEditor || estado.enCelda) return;
               setItemInsertar(0);
               setInsertarAbierto((abierto) => !abierto);
             }}
             {...ctl('insertar')}
-            {...bloqueo()}
+            {...bloqueo(estado.enCelda)}
           >
             <Icono nombre="insertar" />
             Insertar
@@ -655,6 +664,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           [
             [razonCodigo, RAZON_CODIGO],
             [razonAlineacion, RAZON_ALINEACION],
+            [razonCelda, RAZON_CELDA],
           ] as const
         ).map(
           ([id, texto]) =>

@@ -14,6 +14,7 @@ export const TIPOS_ELEMENTO = [
   'blockquote',
   'codeBlock',
   'horizontalRule',
+  'table',
   'imagen',
   'galeria',
   'cta',
@@ -36,6 +37,35 @@ const INICIALES = {
   blockquote: { content: [{ type: 'paragraph' }] },
   codeBlock: {},
   horizontalRule: {},
+  table: {
+    attrs: {},
+    content: [
+      {
+        type: 'tableRow',
+        content: [
+          { type: 'tableHeader', content: [{ type: 'paragraph' }] },
+          { type: 'tableHeader', content: [{ type: 'paragraph' }] },
+          { type: 'tableHeader', content: [{ type: 'paragraph' }] },
+        ],
+      },
+      {
+        type: 'tableRow',
+        content: [
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+        ],
+      },
+      {
+        type: 'tableRow',
+        content: [
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+          { type: 'tableCell', content: [{ type: 'paragraph' }] },
+        ],
+      },
+    ],
+  },
   imagen: { attrs: { imagen: { ruta: '', ancho: 0, alto: 0, alt: '', decorativa: false } } },
   galeria: { attrs: { imagenes: [], columnas: 3 } },
   cta: { attrs: { titulo: '', etiquetaBoton: '', url: '' } },
@@ -69,6 +99,10 @@ const parrafosDe = (elemento: Elemento): (readonly Inline[] | undefined)[] => {
       return elemento.content.map((item) => item.content[0].content);
     case 'blockquote':
       return [elemento.content[0].content];
+    case 'table':
+      return elemento.content.flatMap((fila) =>
+        fila.content.flatMap((celda) => celda.content.map((p) => p.content)),
+      );
     default:
       return [];
   }
@@ -151,6 +185,7 @@ export function visibleDeDocumento(documento: Documento): Visible {
       case 'paragraph':
       case 'bulletList':
       case 'orderedList':
+      case 'table':
         visible.textos.push(limpiar(texto));
         break;
       case 'heading': {

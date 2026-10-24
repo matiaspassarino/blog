@@ -22,6 +22,9 @@
   /* Resaltado (spec 005): fondo y texto de mark; texto ≥ 4,5:1 y la línea del enlace (marca) ≥ 3:1 sobre él. */
   --color-resaltado: oklch(0.93 0.1 95);
   --color-resaltado-texto: oklch(0.22 0.02 255);
+  /* Tablas (spec 005): borde ≥ 3:1 y fondo de encabezado con texto ≥ 4,5:1 y enlace ≥ 3:1. */
+  --color-borde-tabla: var(--color-borde);
+  --color-fondo-encabezado-tabla: var(--color-superficie);
   --color-foco: var(--color-marca);
   /* Anillo de foco (§VII.4) */
   --foco-ancho: 3px;

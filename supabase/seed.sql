@@ -136,6 +136,48 @@ create function pg_temp.video(id_video text, titulo text) returns jsonb language
   select jsonb_build_object('type', 'video', 'attrs', jsonb_build_object('id', pg_temp.id(), 'proveedor', 'youtube',
     'idVideo', id_video, 'titulo', titulo))
 $$;
+create function pg_temp.parrafo_alineado(alineacion text, variadic partes jsonb[]) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'paragraph',
+    'attrs', jsonb_strip_nulls(jsonb_build_object('id', pg_temp.id(), 'textAlign', alineacion)),
+    'content', to_jsonb(partes)
+  )
+$$;
+create function pg_temp.tabla(descripcion text, variadic filas jsonb[]) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'table',
+    'attrs', jsonb_strip_nulls(jsonb_build_object('id', pg_temp.id(), 'descripcion', descripcion)),
+    'content', to_jsonb(filas)
+  )
+$$;
+create function pg_temp.th(texto text, colspan int default null, rowspan int default null) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'tableHeader',
+    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'content', jsonb_build_array(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(texto))))
+  )
+$$;
+create function pg_temp.td(texto text, colspan int default null, rowspan int default null) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'tableCell',
+    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'content', jsonb_build_array(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(texto))))
+  )
+$$;
+create function pg_temp.td_parrafos(parrafos text[], colspan int default null, rowspan int default null) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'tableCell',
+    'attrs', jsonb_strip_nulls(jsonb_build_object('colspan', colspan, 'rowspan', rowspan)),
+    'content', (select jsonb_agg(jsonb_build_object('type', 'paragraph', 'content', jsonb_build_array(pg_temp.texto(p))) order by i)
+                from unnest(parrafos) with ordinality as x(p, i))
+  )
+$$;
+create function pg_temp.tr(variadic celdas jsonb[]) returns jsonb language sql as $$
+  select jsonb_build_object(
+    'type', 'tableRow',
+    'content', to_jsonb(celdas)
+  )
+$$;
 create function pg_temp.categoria(nombre text) returns uuid language sql as $$
   select id from public.categorias where nombre = categoria.nombre
 $$;
@@ -363,6 +405,63 @@ values
   pg_temp.imagen('producto', 'Producto fotografiado con luz natural'),
   pg_temp.doc(pg_temp.parrafo('Con luz de ventana y un fondo liso alcanza para empezar.')),
   pg_temp.categoria('Marketing'), '00000000-0000-4000-a000-000000000002', 'publicado', now() - interval '60 days', null
+),
+(
+  'Formatos, alineación y tablas en el editor',
+  'Un artículo de muestra con los nueve formatos en línea, las cuatro alineaciones y una tabla de 5 columnas con celdas combinadas.',
+  pg_temp.imagen('tablas', 'Cuadrícula con tablas y tipografías sobre un escritorio'),
+  pg_temp.doc(
+    pg_temp.parrafo('Este artículo demuestra los nuevos formatos de texto, las alineaciones disponibles y la estructura de tablas avanzadas.'),
+    pg_temp.parrafo_alineado('center', pg_temp.texto('Párrafo centrado con texto en negrita y cursiva.', 'bold', 'italic')),
+    pg_temp.parrafo_alineado('right', pg_temp.texto('Párrafo alineado a la derecha.', 'italic')),
+    pg_temp.parrafo_alineado('justify',
+      pg_temp.texto('Párrafo justificado con '),
+      pg_temp.texto('subrayado', 'underline'),
+      pg_temp.texto(', '),
+      pg_temp.texto('tachado', 'strike'),
+      pg_temp.texto(', '),
+      pg_temp.texto('resaltado', 'highlight'),
+      pg_temp.texto(', '),
+      pg_temp.enlace('un enlace web', 'https://ejemplo.com'),
+      pg_temp.texto(', superíndice m'),
+      pg_temp.texto('2', 'superscript'),
+      pg_temp.texto(', subíndice H'),
+      pg_temp.texto('2', 'subscript'),
+      pg_temp.texto('O y fragmento de '),
+      pg_temp.texto('código en línea', 'code'),
+      pg_temp.texto('.')
+    ),
+    pg_temp.tabla(
+      'Comparativa de planes y precios',
+      pg_temp.tr(
+        pg_temp.th('Plan'),
+        pg_temp.th('Proyectos'),
+        pg_temp.th('Almacenamiento'),
+        pg_temp.th('Soporte'),
+        pg_temp.th('Precio')
+      ),
+      pg_temp.tr(
+        pg_temp.td('Básico'),
+        pg_temp.td('1 proyecto'),
+        pg_temp.td('5 GB'),
+        pg_temp.td('Comunidad y foro', null, 2),
+        pg_temp.td('Gratis')
+      ),
+      pg_temp.tr(
+        pg_temp.td('Profesional'),
+        pg_temp.td('10 proyectos'),
+        pg_temp.td('50 GB'),
+        pg_temp.td('15 USD/mes')
+      ),
+      pg_temp.tr(
+        pg_temp.td('Empresarial'),
+        pg_temp.td('Ilimitados con copia de seguridad diaria', 2, null),
+        pg_temp.td('24/7 dedicado'),
+        pg_temp.td_parrafos(array['50 USD/mes', 'Facturación anual'])
+      )
+    )
+  ),
+  pg_temp.categoria('Diseño'), '00000000-0000-4000-a000-000000000002', 'publicado', now() - interval '1 day', null
 );
 
 -- ---------------------------------------------------------------------------
@@ -384,7 +483,8 @@ from (values
   ('Guía visual: todos los bloques del blog', array['UX', 'Accesibilidad', 'Tipografía']),
   ('Dos fotos también cuentan una historia', array['Branding']),
   ('Cómo responder consultas más rápido', array['Emprendimiento']),
-  ('Fotos de producto con el celular', array['Redes sociales', 'Contenidos'])
+  ('Fotos de producto con el celular', array['Redes sociales', 'Contenidos']),
+  ('Formatos, alineación y tablas en el editor', array['Diseño', 'UX'])
 ) as x(titulo, etiquetas)
 join public.articulos a on a.titulo = x.titulo
 join public.etiquetas e on e.nombre = any (x.etiquetas);

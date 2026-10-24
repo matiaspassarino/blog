@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { imagenDePrueba, marca, nodo, type NodoPrueba } from './pruebas/corpus-documento';
 import { validarDocumento, type ErrorElemento } from './validar';
 
-const { doc, texto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador } = nodo;
+const { doc, texto, parrafo, titulo, item, vinetas, numerada, cita, codigo, separador, celda, fila, tabla, parrafoSimple } = nodo;
 
 const MENSAJE_SIN_ALT = 'La imagen necesita un texto alternativo o marcarse como decorativa';
 // Mensajes por defecto de Zod en inglés: no deben llegar a la persona.
@@ -217,6 +217,44 @@ describe('validarDocumento', () => {
       for (const error of validarDocumento(conErrores)) {
         if (error.indice >= 0 && error.campo !== 'id') expect(error.id).toBe(ids.get(error.indice));
       }
+    });
+  });
+
+  describe('Fase 13 (Historia 7): validación de tablas (T133)', () => {
+    it('un borrador admite una tabla con todas sus celdas vacías', () => {
+      const tablaVacia = tabla(
+        undefined,
+        fila(celda(undefined, parrafoSimple()), celda(undefined, parrafoSimple())),
+        fila(celda(undefined, parrafoSimple()), celda(undefined, parrafoSimple())),
+      );
+      // Con publicar: false (por defecto), una tabla vacía no produce el error de publicación
+      const errores = validarDocumento(doc(tablaVacia), { publicar: false });
+      expect(errores.find((e) => e.mensaje === 'La tabla no tiene contenido')).toBeUndefined();
+    });
+
+    it('con publicar: true, una tabla sin texto en ninguna celda da "La tabla no tiene contenido"', () => {
+      const tablaVacia = tabla(
+        undefined,
+        fila(celda(undefined, parrafoSimple()), celda(undefined, parrafoSimple())),
+      );
+      const errores = validarDocumento(doc(tablaVacia), { publicar: true });
+      expect(errores).toContainEqual(
+        expect.objectContaining({
+          indice: 0,
+          id: tablaVacia.attrs?.id,
+          campo: 'tabla',
+          mensaje: 'La tabla no tiene contenido',
+        }),
+      );
+    });
+
+    it('con publicar: true, una tabla con texto en al menos una celda es válida', () => {
+      const tablaConDato = tabla(
+        undefined,
+        fila(celda(undefined, parrafoSimple(texto('Dato'))), celda(undefined, parrafoSimple())),
+      );
+      const errores = validarDocumento(doc(tablaConDato), { publicar: true });
+      expect(errores.find((e) => e.mensaje === 'La tabla no tiene contenido')).toBeUndefined();
     });
   });
 

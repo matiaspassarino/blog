@@ -7,6 +7,7 @@ import { EditorCta } from './EditorCta';
 import { EditorGaleria } from './EditorGaleria';
 import { EditorImagen } from './EditorImagen';
 import { EditorLista } from './EditorLista';
+import { EditorTabla } from './EditorTabla';
 import { EditorTitulo } from './EditorTitulo';
 import type { CambiosDeElemento } from './tipos';
 import { EditorVideo } from './EditorVideo';
@@ -42,6 +43,8 @@ export function EditorDeBloque({ elemento, indice, errores, cambiar }: Props) {
       return <EditorCta datos={datosDeElemento(elemento)} {...comun} />;
     case 'codeBlock':
       return <EditorCodigo datos={datosDeElemento(elemento)} {...comun} />;
+    case 'table':
+      return <EditorTabla datos={datosDeElemento(elemento)} {...comun} />;
     case 'video':
       return <EditorVideo datos={datosDeElemento(elemento)} {...comun} />;
     default:

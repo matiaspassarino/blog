@@ -26,3 +26,13 @@ export {
 } from './elementos';
 export { detectarImagen, type ImagenDetectada, type TipoImagenArchivo } from './imagen-archivo';
 export { rutasDeImagenes, rutasQuitadas, type ImagenesDeArticulo } from './imagenes-en-uso';
+export {
+  cuadricula,
+  esRectangulo,
+  LIMITES_TABLA,
+  type CeldaEstructural,
+  type CeldaUbicada,
+  type FilaEstructural,
+  type ResultadoCuadricula,
+  type TablaEstructural,
+} from './tablas';
