@@ -67,7 +67,7 @@ import {
   RastreadorDeAvisosLimite,
 } from './limites';
 import { partirTexto, restringirTextoPorTipo, limpiarIdsDeNodos, procesarTablaPegada } from './pegado';
-import { anuncioPegadoConSobrante } from '../anuncios';
+import { anuncioPegadoConSobrante, anuncioPrimeraCelda } from '../anuncios';
 
 declare module '@tiptap/core' {
   interface Storage {
@@ -334,7 +334,7 @@ const reglasDeTabla = (devoluciones: DevolucionesDelEditor) => {
           const map = TableMap.get(t.node);
           const cell = selectionCell(editor.state);
           if (cell.pos - t.start === map.map[0]) {
-            devoluciones.anunciar('Primera celda');
+            devoluciones.anunciar(anuncioPrimeraCelda());
             return true;
           }
           return false;

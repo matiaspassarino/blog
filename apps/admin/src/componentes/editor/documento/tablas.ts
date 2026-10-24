@@ -34,11 +34,6 @@ export function registrarReferenciaTabla(editor: Editor) {
   }
 }
 
-/** Obtiene la última referencia guardada de la celda de una tabla para un editor. */
-export function obtenerReferenciaTabla(editor: Editor): ReferenciaCelda | undefined {
-  return ultimasReferencias.get(editor);
-}
-
 /** Prepara el contexto asegurando que el cursor o selección actúe sobre la celda correspondiente. */
 function prepararContextoDeTabla(editor: Editor): { tableNode: ProseMirrorNode; tablePos: number } | null {
   const { state } = editor;

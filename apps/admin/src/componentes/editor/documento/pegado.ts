@@ -4,7 +4,7 @@ import { cuadricula, LIMITES_TABLA, type TablaEstructural } from '@blog/bloques'
 
 const MAXIMO_CARACTERES_PARRAFO = 5000;
 
-export const LIMITES_TIPO: Record<string, number> = {
+const LIMITES_TIPO: Record<string, number> = {
   paragraph: MAXIMO_CARACTERES_PARRAFO,
   heading: 150,
   blockquote: 1000,

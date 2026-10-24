@@ -19,9 +19,10 @@ Referencia que verifican las pruebas y la revisión de `revisor-ux-ui`. Cada con
 | Editor — programado | Guardar | B | Publicar · Cancelar programación | Vista previa · Más acciones | Eliminar (admin) |
 | Editor — publicado | Guardar | B | Volver a borrador · Archivar | Vista previa · Más acciones | Eliminar (admin) |
 | Editor — archivado | Guardar | B | Volver a borrador | Vista previa · Más acciones | Eliminar (admin) |
-| Editor — imagen destacada y de bloque | — | — | Elegir imagen / Agregar imagen | — | Quitar imagen |
-| Editor — barra de marcas | — | — | — | Negrita · Cursiva · Código · Enlace (compacto) | — |
-| Editor — bloques (provisorio hasta la spec 005) | — | — | Agregar bloque · Agregar ítem | Subir · Bajar · Duplicar · Quitar · Quitar ítem (compacto) | — |
+| Editor — imagen destacada y elementos especiales | — | — | Elegir imagen / Subir imagen | — | Quitar imagen |
+| Editor — barra de herramientas | — | — | — | Estilo de párrafo · Formato (Negrita · Cursiva · Subrayado · Enlace · Más formato) · Alineación · Listas · Insertar · Propiedades · Acciones (compacto) | — |
+| Editor — acciones de elemento y asa | — | — | — | Subir · Bajar · Duplicar · Convertir (compacto) | Quitar (compacto) |
+| Editor — barra «Tabla» (contextual) | — | — | — | Fila arriba · Fila abajo · Columna izquierda · Columna derecha · Combinar · Separar · Encabezado (compacto) | Quitar tabla (compacto) |
 | Editor — aviso de conflicto (`AvisoEstado` error) | — | — | Ver la versión vigente | — | Reemplazar con la vigente |
 | Diálogo "¿Reemplazar con la versión vigente?" | — | — | Cancelar | — | Reemplazar |
 | Diálogo "Programar la publicación" | Programar | D | Cancelar | — | — |
