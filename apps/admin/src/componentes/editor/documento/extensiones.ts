@@ -3,11 +3,16 @@
 // sabe dibujar no existe en el editor, y los atributos de la librería que no se guardan se quitan.
 import { Extension, Node, mergeAttributes, wrappingInputRule, type AnyExtension, type Editor } from '@tiptap/core';
 import { CodeBlock } from '@tiptap/extension-code-block';
+import { Highlight } from '@tiptap/extension-highlight';
 import { Link } from '@tiptap/extension-link';
 import { OrderedList } from '@tiptap/extension-list';
-import { NodeSelection, Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
+import { Subscript } from '@tiptap/extension-subscript';
+import { Superscript } from '@tiptap/extension-superscript';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { NodeSelection, Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import {
+  CLASE_ENLACE,
   CLASES_CITA,
   CLASES_CITA_TEXTO,
   CLASES_CODIGO,
@@ -15,15 +20,18 @@ import {
   CLASES_LISTA_NUMERADA,
   CLASES_LISTA_VINETAS,
   CLASES_PARRAFO,
+  CLASES_RESALTADO,
+  CLASES_SUBRAYADO,
   CLASES_SEPARADOR,
   CLASES_TITULO,
   CLASES_TITULO_POR_NIVEL,
+  conAlineacion,
 } from '@blog/bloques/render';
 import { Placeholder } from '@tiptap/extensions';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Suggestion from '@tiptap/suggestion';
-import { detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
+import { atajosDeIndices, detectarAtajo, nombreDeAtajo, puedeAbrirMenu } from './atajos';
 import { deshacerORehacer, registrarAccion } from './acciones-elemento';
 import { asegurarIds } from './ids';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
@@ -101,6 +109,50 @@ const ListaNumerada = OrderedList.extend({
   },
 });
 
+/**
+ * Sin atajo ni reglas de escritura (research D28): los atajos habituales del tachado y del resaltado chocan con
+ * Firefox y los de la alineación con el navegador y con AltGr. Se aplican desde la barra.
+ */
+const sinAtajos = { addKeyboardShortcuts: () => ({}), addInputRules: () => [], addPasteRules: () => [] };
+
+/** El tachado viene en `starter-kit`: se le quitan el atajo y la regla `~~x~~`. */
+const Base = StarterKit.extend({
+  addExtensions() {
+    return (this.parent?.() ?? []).map((extension) =>
+      extension.name === 'strike' ? extension.extend(sinAtajos) : extension,
+    );
+  },
+});
+
+/** Un solo color, el del sitio (sin `color`). */
+const Resaltado = Highlight.extend(sinAtajos).configure({
+  multicolor: false,
+  HTMLAttributes: { class: CLASES_RESALTADO },
+});
+
+/** Solo párrafos y títulos; la izquierda es la ausencia del atributo (`null`), nunca `"left"`. */
+const Alineacion = TextAlign.extend({ addKeyboardShortcuts: () => ({}) }).configure({
+  types: ['paragraph', 'heading'],
+  alignments: ['left', 'center', 'right', 'justify'],
+  defaultAlignment: null,
+});
+
+/** Superíndice y subíndice se excluyen entre sí; sus teclas dependen del sistema (contracts/atajos.md). */
+const Superindice = Superscript.extend({
+  excludes: 'subscript',
+  addKeyboardShortcuts() {
+    const teclas = atajosDeIndices();
+    return teclas ? { [teclas.superindice]: () => this.editor.commands.toggleSuperscript() } : {};
+  },
+});
+const Subindice = Subscript.extend({
+  excludes: 'superscript',
+  addKeyboardShortcuts() {
+    const teclas = atajosDeIndices();
+    return teclas ? { [teclas.subindice]: () => this.editor.commands.toggleSubscript() } : {};
+  },
+});
+
 /** Bloque de código sin el `language` de la librería: el lenguaje es el atributo propio `lenguaje`. */
 const BloqueDeCodigo = CodeBlock.extend({
   addAttributes() {
@@ -166,6 +218,7 @@ const ReglasDeTexto = Extension.create({
       'Mod-Enter': sinSalto,
       'Mod-b': sinMarcas,
       'Mod-i': sinMarcas,
+      'Mod-u': sinMarcas,
       'Mod-e': sinMarcas,
       'Mod-k': () => {
         if (!sinMarcas()) this.editor.view.dom.dispatchEvent(new CustomEvent('abrir-enlace'));
@@ -199,9 +252,12 @@ const ReglasDeTexto = Extension.create({
 function clasesDe(nodo: { type: { name: string }; attrs: Record<string, unknown> }): string | undefined {
   switch (nodo.type.name) {
     case 'paragraph':
-      return CLASES_PARRAFO;
+      return conAlineacion(CLASES_PARRAFO, nodo.attrs.textAlign as string | undefined);
     case 'heading':
-      return `${CLASES_TITULO} ${CLASES_TITULO_POR_NIVEL[nodo.attrs.level as 2 | 3 | 4] ?? ''}`;
+      return conAlineacion(
+        `${CLASES_TITULO} ${CLASES_TITULO_POR_NIVEL[nodo.attrs.level as 2 | 3 | 4] ?? ''}`,
+        nodo.attrs.textAlign as string | undefined,
+      );
     case 'blockquote':
       return `${CLASES_CITA} ${CLASES_CITA_TEXTO}`;
     case 'bulletList':
@@ -261,10 +317,13 @@ const AsignarIds = Extension.create({
             if (atributos && atributos.id !== nodo.attrs.id) {
               tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, ...atributos });
             }
-            // Solo los elementos de primer nivel tienen identidad: un párrafo que pasa a una cita o a una lista
-            // (`wrapIn`, `toggleBulletList`) deja su `id`, que la lista permitida no admite adentro.
+            // Solo los elementos de primer nivel tienen identidad y alineación: un párrafo que pasa a una cita o a
+            // una lista (`wrapIn`, `toggleBulletList`) o que llega pegado adentro deja su `id` y su `textAlign`, que
+            // la lista permitida no admite ahí.
             nodo.descendants((hijo, relativa) => {
-              if (hijo.attrs.id != null) tr.setNodeMarkup(pos + 1 + relativa, undefined, { ...hijo.attrs, id: null });
+              if (hijo.attrs.id != null || hijo.attrs.textAlign != null) {
+                tr.setNodeMarkup(pos + 1 + relativa, undefined, { ...hijo.attrs, id: null, textAlign: null });
+              }
             });
             pos += nodo.nodeSize;
           });
@@ -395,6 +454,16 @@ function modoElementos(devoluciones: DevolucionesDelEditor) {
             apply: (tr, anterior) => tr.getMeta(claveModo) ?? (tr.selectionSet ? false : anterior),
           },
           props: {
+            // Con elementos enteros seleccionados y el foco afuera (en el panel), al volver con un clic ProseMirror
+            // repone esa selección en el DOM y el clic no mueve el cursor: se lo pone acá, donde se hizo clic.
+            handleClick: (vista, pos) => {
+              const { selection, doc } = vista.state;
+              const entera = selection instanceof SeleccionDeElementos || selection instanceof NodeSelection;
+              if (!entera || (pos >= selection.from && pos <= selection.to)) return false;
+              if (!doc.resolve(pos).parent.isTextblock) return false;
+              vista.dispatch(vista.state.tr.setSelection(TextSelection.create(doc, pos)));
+              return true;
+            },
             decorations: (estado) => {
               const rango = rangoDeElementos(estado);
               if (!rango) return DecorationSet.empty;
@@ -587,17 +656,27 @@ const textoDeLineaVacia = () =>
 
 export function crearExtensiones(devoluciones: DevolucionesDelEditor): AnyExtension[] {
   return [
-    StarterKit.configure({
+    Base.configure({
       heading: { levels: [2, 3, 4] },
       blockquote: false,
       listItem: false,
       orderedList: false,
       codeBlock: false,
-      strike: false,
-      underline: false,
       link: false,
+      // El lienzo dibuja las marcas con las mismas clases que el sitio (RF-026).
+      underline: { HTMLAttributes: { class: CLASES_SUBRAYADO } },
     }),
-    Enlace.configure({ openOnClick: false, autolink: false, linkOnPaste: false, isAllowedUri: esEnlacePermitido }),
+    Enlace.configure({
+      openOnClick: false,
+      autolink: false,
+      linkOnPaste: false,
+      isAllowedUri: esEnlacePermitido,
+      HTMLAttributes: { class: CLASE_ENLACE, target: null, rel: null },
+    }),
+    Resaltado,
+    Superindice,
+    Subindice,
+    Alineacion,
     ListaNumerada,
     BloqueDeCodigo,
     Cita,

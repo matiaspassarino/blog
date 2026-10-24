@@ -16,7 +16,14 @@ import type { CambiosDeElemento } from '../bloques/tipos';
 import type { ContextoDeAcciones } from './acciones-elemento';
 import { AsaDeElemento } from './AsaDeElemento';
 import { AyudaAtajos } from './AyudaAtajos';
-import { actualizarElemento, buscarElemento, elementoDeNodo, SeleccionDeElementos } from './comandos';
+import {
+  actualizarElemento,
+  alinearElemento,
+  buscarElemento,
+  elementoDeNodo,
+  SeleccionDeElementos,
+  type Alineacion,
+} from './comandos';
 import { claveErrores, claveModo, claveSubidas } from './claves';
 import { crearExtensiones, type DevolucionesDelEditor, type EstadoMenu } from './extensiones';
 import { erroresPorId } from './mapa-errores';
@@ -49,6 +56,8 @@ export type PropsEditorDocumento = {
 export type AccionesDelLienzo = {
   /** Mezcla campos en el elemento con ese `id` (se busca al aplicar, no por la selección). */
   actualizarElemento: (id: string, cambios: CambiosDeElemento) => void;
+  /** Alinea el párrafo o el título con ese `id` (RF-020). */
+  alinearElemento: (id: string, alineacion: Alineacion) => void;
   /** Selecciona el elemento entero y lo deja a la vista. */
   seleccionarElemento: (id: string) => void;
   /** Devuelve el foco al lienzo conservando la selección. */
@@ -264,6 +273,9 @@ export default function EditorDocumento({
     () => ({
       actualizarElemento: (id, cambios) => {
         if (editor) actualizarElemento(editor, id, cambios);
+      },
+      alinearElemento: (id, alineacion) => {
+        if (editor) alinearElemento(editor, id, alineacion);
       },
       seleccionarElemento: (id) => {
         const elemento = editor && buscarElemento(editor, id);

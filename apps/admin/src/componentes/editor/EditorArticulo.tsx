@@ -41,6 +41,7 @@ import type { AccionesDelLienzo } from './documento/EditorDocumento';
 import { primerErrorDelDocumento } from './documento/mapa-errores';
 import { PropiedadesDelElemento } from './documento/PropiedadesDelElemento';
 import type { CambiosDeElemento } from './bloques/tipos';
+import type { Alineacion } from './documento/comandos';
 import type { ElementoActivo, SeleccionDelDocumento } from './documento/tipos';
 import { estaSucio, estadoInicial, iguales, reductor, type DatosArticulo } from './reductor';
 import { EncabezadoPagina } from '../estructura/EncabezadoPagina';
@@ -146,6 +147,12 @@ export function EditorArticulo({
   const alCambiarElemento = useCallback(
     (cambios: CambiosDeElemento) => {
       if (elemento) acciones.current?.actualizarElemento(elemento.id, cambios);
+    },
+    [elemento],
+  );
+  const alAlinearElemento = useCallback(
+    (alineacion: Alineacion) => {
+      if (elemento) acciones.current?.alinearElemento(elemento.id, alineacion);
     },
     [elemento],
   );
@@ -570,6 +577,7 @@ export function EditorArticulo({
                       indice={elemento?.indice ?? -1}
                       errores={errores.filter((error) => error.indice === elemento?.indice)}
                       alCambiar={alCambiarElemento}
+                      alAlinear={alAlinearElemento}
                     />
                   </ContextoEditor.Provider>
                 </div>
@@ -598,6 +606,7 @@ export function EditorArticulo({
                 indice={elemento?.indice ?? -1}
                 errores={errores.filter((error) => error.indice === elemento?.indice)}
                 alCambiar={alCambiarElemento}
+                alAlinear={alAlinearElemento}
                 alCerrar={() => {
                   setHojaAbierta(false);
                   acciones.current?.enfocar();

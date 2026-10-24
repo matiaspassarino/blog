@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import { anclasUnicas } from '../elementos';
 import type { Documento as TipoDocumento, Elemento } from '../esquema';
 import { Cita } from './Cita';
-import { CLASES_PARRAFO } from './clases';
+import { CLASES_PARRAFO, conAlineacion } from './clases';
 import { Codigo } from './Codigo';
 import { Cta } from './Cta';
 import { EnLinea } from './EnLinea';
@@ -22,7 +22,7 @@ function renderElemento(
   switch (elemento.type) {
     case 'paragraph':
       return (
-        <p className={CLASES_PARRAFO}>
+        <p className={conAlineacion(CLASES_PARRAFO, elemento.attrs.textAlign)}>
           <EnLinea contenido={elemento.content} />
         </p>
       );

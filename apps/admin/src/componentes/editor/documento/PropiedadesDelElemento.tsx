@@ -9,6 +9,7 @@ import { Button } from '../../ui/button';
 import { nombreDeTipo, tipoVisibleDe } from '../anuncios';
 import { EditorDeBloque } from '../bloques/EditorDeBloque';
 import type { CambiosDeElemento } from '../bloques/tipos';
+import { ALINEACIONES, type Alineacion } from './comandos';
 import type { SeleccionDelDocumento } from './tipos';
 
 type Props = {
@@ -20,14 +21,27 @@ type Props = {
   indice: number;
   errores: ErrorElemento[];
   alCambiar: (cambios: CambiosDeElemento) => void;
+  /** Alinea el párrafo o el título (RF-020). */
+  alAlinear?: (alineacion: Alineacion) => void;
   /** Solo en la hoja. */
   alCerrar?: () => void;
 };
 
-export function PropiedadesDelElemento({ variante, seleccion, posicion, indice, errores, alCambiar, alCerrar }: Props) {
+export function PropiedadesDelElemento({
+  variante,
+  seleccion,
+  posicion,
+  indice,
+  errores,
+  alCambiar,
+  alAlinear,
+  alCerrar,
+}: Props) {
   const elementos = seleccion.tipo === 'elementos' ? seleccion.elementos : [];
   const elemento = elementos.length === 1 ? elementos[0] : undefined;
-  const sinPropiedades = elemento?.type === 'paragraph' || elemento?.type === 'horizontalRule';
+  const sinPropiedades = elemento?.type === 'horizontalRule';
+  const alineacion =
+    elemento?.type === 'paragraph' || elemento?.type === 'heading' ? (elemento.attrs.textAlign ?? null) : undefined;
 
   return (
     <aside
@@ -55,8 +69,25 @@ export function PropiedadesDelElemento({ variante, seleccion, posicion, indice, 
       {elemento && sinPropiedades && (
         <p className="text-texto-suave">Este elemento no tiene propiedades. Escribe en el documento.</p>
       )}
-      {elemento && !sinPropiedades && (
+      {elemento && !sinPropiedades && elemento.type !== 'paragraph' && (
         <EditorDeBloque elemento={elemento} indice={indice} errores={errores} cambiar={alCambiar} />
+      )}
+      {alineacion !== undefined && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="font-semibold">Alineación</legend>
+          {ALINEACIONES.map((opcion) => (
+            <label key={opcion.etiqueta} className="flex min-h-(--tactil-min) items-center gap-2">
+              <input
+                type="radio"
+                name={`bloque-${indice}-alineacion`}
+                className="size-5 accent-marca"
+                checked={opcion.valor === alineacion}
+                onChange={() => alAlinear?.(opcion.valor)}
+              />
+              {opcion.etiqueta}
+            </label>
+          ))}
+        </fieldset>
       )}
     </aside>
   );

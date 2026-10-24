@@ -3,7 +3,8 @@
 // Barra de herramientas del lienzo (contracts/componentes.md y atajos.md): `role="toolbar"` con un solo tope de
 // tabulación y flechas entre controles. Los botones son los del panel (`terciaria`, `compacto`); el estado activo
 // se ve con `aria-pressed` además del color. Sin editor (servidor o librería cargando) se dibuja completa y
-// deshabilitada con `aria-disabled`.
+// deshabilitada con `aria-disabled`. Un control no disponible por una regla (código en línea, alineación fuera de
+// párrafos y títulos) dice por qué con `aria-describedby` y un aviso visible al enfocarlo, que `Esc` cierra (1.4.13).
 import type { Editor } from '@tiptap/core';
 import { useEditorState } from '@tiptap/react';
 import {
@@ -26,7 +27,14 @@ import { Button } from '../../ui/button';
 import { esEnlacePermitido } from './extensiones';
 import { filtrarItems, type ItemDeInsercion } from './menu-insercion';
 import { deshacerORehacer, type ContextoDeAcciones } from './acciones-elemento';
-import { elementoActivo, salirDelModo, sincronizarConElDom } from './comandos';
+import {
+  ALINEACIONES,
+  alineacionDe,
+  elementoActivo,
+  salirDelModo,
+  sincronizarConElDom,
+  type Alineacion,
+} from './comandos';
 import { MenuAcciones } from './MenuAcciones';
 import { MenuInsertar } from './MenuInsertar';
 import type { SeleccionDelDocumento } from './tipos';
@@ -67,6 +75,35 @@ const ESTILOS: Estilo[] = [
 const estiloVigente = (editor: Editor | null) =>
   ESTILOS.find((estilo) => editor && estilo.activo(editor))?.nombre ?? 'Párrafo';
 
+/** «Más formato» (research D28): las marcas que no tienen botón propio, en este orden. */
+const MAS_FORMATO: { marca: string; etiqueta: string; nombre: string; icono: NombreIcono }[] = [
+  { marca: 'strike', etiqueta: 'Tachado', nombre: 'tachado', icono: 'tachado' },
+  { marca: 'highlight', etiqueta: 'Resaltado', nombre: 'resaltado', icono: 'resaltado' },
+  { marca: 'code', etiqueta: 'Código', nombre: 'código', icono: 'codigo' },
+  { marca: 'superscript', etiqueta: 'Superíndice', nombre: 'superíndice', icono: 'superindice' },
+  { marca: 'subscript', etiqueta: 'Subíndice', nombre: 'subíndice', icono: 'subindice' },
+];
+
+const ICONOS_DE_ALINEACION: Record<string, NombreIcono> = {
+  center: 'alinear_centro',
+  right: 'alinear_derecha',
+  justify: 'alinear_justificado',
+};
+
+const RAZON_CODIGO = 'El código no admite otros formatos';
+const RAZON_ALINEACION = 'La alineación es solo para párrafos y títulos';
+
+/** "Más formato", "Más formato, resaltado activo" o "Más formato, tachado y resaltado activos". */
+function nombreDeMasFormato(activos: string[]) {
+  if (activos.length === 0) return 'Más formato';
+  const lista = activos.length === 1 ? activos[0] : `${activos.slice(0, -1).join(', ')} y ${activos.at(-1)}`;
+  return `Más formato, ${lista} ${activos.length === 1 ? 'activo' : 'activos'}`;
+}
+
+/** La izquierda quita el atributo: nunca se guarda `"left"`. */
+const alinear = (editor: Editor, valor: Alineacion) =>
+  valor ? editor.chain().focus().setTextAlign(valor).run() : editor.chain().focus().unsetTextAlign().run();
+
 /** Nombre del botón «Acciones»: dice sobre qué elemento actúa. */
 function etiquetaDeAcciones(editor: Editor | null) {
   const activo = editor ? elementoActivo(editor.state) : null;
@@ -74,88 +111,128 @@ function etiquetaDeAcciones(editor: Editor | null) {
 }
 
 function estadoDe(editor: Editor | null) {
+  const activa = (marca: string) => editor?.isActive(marca) ?? false;
+  const alineacion = editor ? alineacionDe(editor.state) : { alineable: false, valor: null };
   return {
-    negrita: editor?.isActive('bold') ?? false,
-    cursiva: editor?.isActive('italic') ?? false,
-    codigo: editor?.isActive('code') ?? false,
-    enlace: editor?.isActive('link') ?? false,
-    viniietas: editor?.isActive('bulletList') ?? false,
-    numerada: editor?.isActive('orderedList') ?? false,
+    negrita: activa('bold'),
+    cursiva: activa('italic'),
+    subrayado: activa('underline'),
+    enlace: activa('link'),
+    masFormato: MAS_FORMATO.map(({ marca }) => activa(marca)),
+    // El código en línea excluye los demás formatos (contracts/documento.md).
+    conCodigo: activa('code'),
+    alineable: alineacion.alineable,
+    alineacion: alineacion.valor,
+    viniietas: activa('bulletList'),
+    numerada: activa('orderedList'),
     estilo: estiloVigente(editor),
-    sinMarcas: editor ? editor.isActive('heading') || editor.isActive('codeBlock') : false,
-    sinListas: editor
-      ? editor.isActive('heading') || editor.isActive('codeBlock') || editor.isActive('blockquote')
-      : false,
+    // Los títulos admiten formato (RF-009); el bloque de código no.
+    sinMarcas: activa('codeBlock'),
+    sinListas: activa('heading') || activa('codeBlock') || activa('blockquote'),
     etiquetaAcciones: etiquetaDeAcciones(editor),
     puedeDeshacer: editor?.can().undo() ?? false,
     puedeRehacer: editor?.can().redo() ?? false,
   };
 }
 
-/** Menú del selector de estilo de párrafo: muestra el vigente como texto y abre los estilos con el teclado. */
-function SelectorDeEstilo({
+type OpcionDeMenu = {
+  etiqueta: string;
+  marcada: boolean;
+  deshabilitada?: boolean;
+  icono?: NombreIcono;
+  razon?: string;
+};
+
+/**
+ * Un botón de la barra que abre un menú de opciones marcables (estilo, «Más formato», «Alineación»): el foco entra a
+ * la primera opción, elegir una cierra el menú y la aplica, y `Esc` lo cierra devolviendo el foco al botón.
+ */
+function MenuDeLaBarra({
   editor,
-  ctl,
-  estilo,
+  nombre,
+  etiquetaDelMenu,
+  rol,
+  opciones,
+  alElegir,
   bloqueado,
+  ctl,
+  soloIcono = false,
+  children,
 }: {
   editor: Editor | null;
-  ctl: (id: string) => ControlProps;
-  estilo: string;
+  nombre: string;
+  /** El nombre del menú abierto, sin el estado ("Alineación", no "Alineación: centro"). */
+  etiquetaDelMenu: string;
+  rol: 'menuitemradio' | 'menuitemcheckbox';
+  opciones: OpcionDeMenu[];
+  alElegir: (indice: number) => void;
   bloqueado: boolean;
+  ctl: ControlProps;
+  soloIcono?: boolean;
+  children: ReactNode;
 }) {
   const idPanel = useId();
   const refBoton = useRef<HTMLButtonElement>(null);
   const refPanel = useRef<HTMLDivElement>(null);
   const { abierto, cerrar, alternar } = useDesplegable({ refBoton, refPanel });
-  const items = ESTILOS.map((e) => ({ etiqueta: e.nombre }));
   const { propsDeContenedor, propsDeItem } = useMenuTeclado({
-    items,
+    items: opciones.map((opcion) => ({ etiqueta: opcion.etiqueta, deshabilitado: opcion.deshabilitada })),
     abierto,
     alCerrar: () => cerrar(true),
     alElegir: (indice) => {
       cerrar();
-      if (editor) ESTILOS[indice]?.aplicar(editor);
+      // El foco vuelve al lienzo en el acto: el `focus()` de la librería espera un cuadro y la tecla siguiente se
+      // perdería (o actuaría sobre la selección vieja).
+      editor?.view.focus();
+      alElegir(indice);
     },
   });
+  const comunes = {
+    ref: refBoton,
+    variante: 'terciaria',
+    'aria-haspopup': 'menu',
+    'aria-expanded': abierto,
+    'aria-controls': abierto ? idPanel : undefined,
+    'aria-disabled': bloqueado || undefined,
+    onClick: () => !bloqueado && alternar(),
+    ...ctl,
+  } as const;
   return (
     <div className="relative">
-      <Button
-        ref={refBoton}
-        variante="terciaria"
-        tamanio="compacto"
-        aria-label={`Estilo de párrafo: ${estilo}`}
-        aria-haspopup="menu"
-        aria-expanded={abierto}
-        aria-controls={abierto ? idPanel : undefined}
-        aria-disabled={bloqueado || undefined}
-        onClick={() => !bloqueado && alternar()}
-        {...ctl('estilo')}
-      >
-        {estilo}
-        <Icono nombre="bajar" />
-      </Button>
+      {soloIcono ? (
+        <Button {...comunes} tamanio="compacto" soloIcono aria-label={nombre}>
+          {children}
+        </Button>
+      ) : (
+        <Button {...comunes} tamanio="compacto" aria-label={nombre}>
+          {children}
+        </Button>
+      )}
       {abierto && (
         <div
           id={idPanel}
-          aria-label="Estilo de párrafo"
-          className="absolute top-full left-0 z-20 mt-1 flex w-44 flex-col rounded-md border border-borde bg-fondo p-1 shadow-tarjeta"
+          aria-label={etiquetaDelMenu}
+          className="absolute top-full left-0 z-20 mt-1 flex w-48 flex-col rounded-md border border-borde bg-fondo p-1 shadow-tarjeta"
           {...propsDeContenedor}
           ref={(elemento) => {
             refPanel.current = elemento;
             propsDeContenedor.ref(elemento);
           }}
         >
-          {ESTILOS.map((e, indice) => (
+          {opciones.map((opcion, indice) => (
             <button
-              key={e.nombre}
+              key={opcion.etiqueta}
               type="button"
-              className="min-h-(--tactil-min) rounded-sm px-3 text-left hover:bg-superficie aria-checked:bg-marca-suave"
+              className="flex min-h-(--tactil-min) items-center gap-2 rounded-sm px-3 text-left hover:bg-superficie aria-checked:bg-marca-suave aria-disabled:text-texto-suave"
               {...propsDeItem(indice)}
-              role="menuitemradio"
-              aria-checked={e.nombre === estilo}
+              role={rol}
+              aria-checked={opcion.marcada}
+              aria-describedby={opcion.deshabilitada ? opcion.razon : undefined}
             >
-              {e.nombre}
+              {opcion.icono && <Icono nombre={opcion.icono} />}
+              <span className="flex-1">{opcion.etiqueta}</span>
+              {/* La marca no depende del color: un ícono de verificación. */}
+              <Icono nombre="check" className={opcion.marcada ? undefined : 'invisible'} />
             </button>
           ))}
         </div>
@@ -226,27 +303,53 @@ type ControlProps = {
   'data-barra': string;
   tabIndex: number;
   onFocus: () => void;
+  onBlur: () => void;
   onPointerDown: (evento: React.PointerEvent) => void;
+  'aria-describedby'?: string;
 };
 
 export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropiedades, contextoDeAcciones }: Props) {
   const barra = useRef<HTMLDivElement>(null);
   const idInsertar = useId();
   const idEnlace = useId();
+  const idRazonCodigo = useId();
+  const idRazonAlineacion = useId();
   const [activo, setActivo] = useState('estilo');
+  /** El control de la barra con el foco y si se cerró su aviso con `Esc`. */
+  const [enfocado, setEnfocado] = useState<{ id: string; cerrado: boolean } | null>(null);
   const [insertarAbierto, setInsertarAbierto] = useState(false);
   const [itemInsertar, setItemInsertar] = useState(0);
   const [enlace, setEnlace] = useState<{ valor: string; error: boolean } | null>(null);
   const estado = useEditorState({ editor, selector: ({ editor: e }) => estadoDe(e) }) ?? estadoDe(null);
 
   const sinEditor = editor === null || deshabilitada;
-  const ctl = (id: string): ControlProps => ({
-    'data-barra': id,
-    tabIndex: activo === id ? 0 : -1,
-    onFocus: () => setActivo(id),
-    // Con el puntero no se pierde el foco del lienzo (ni el teclado virtual).
-    onPointerDown: (evento) => evento.preventDefault(),
-  });
+  const razonCodigo = !sinEditor && estado.conCodigo ? idRazonCodigo : undefined;
+  const razonAlineacion = !sinEditor && !estado.alineable ? idRazonAlineacion : undefined;
+  /** El id del texto que explica por qué un control no está disponible (se calcula con el estado de ahora). */
+  const razones: Record<string, string | undefined> = {
+    negrita: razonCodigo,
+    cursiva: razonCodigo,
+    subrayado: razonCodigo,
+    enlace: razonCodigo,
+    alineacion: razonAlineacion,
+  };
+  // El aviso sigue al estado: si el cursor entra al código después de enfocar el control, igual aparece.
+  const aviso = enfocado && !enfocado.cerrado ? razones[enfocado.id] : undefined;
+  const ctl = (id: string): ControlProps => {
+    const razon = razones[id];
+    return {
+      'data-barra': id,
+      tabIndex: activo === id ? 0 : -1,
+      onFocus: () => {
+        setActivo(id);
+        setEnfocado({ id, cerrado: false });
+      },
+      onBlur: () => setEnfocado(null),
+      // Con el puntero no se pierde el foco del lienzo (ni el teclado virtual).
+      onPointerDown: (evento) => evento.preventDefault(),
+      ...(razon ? { 'aria-describedby': razon } : {}),
+    };
+  };
   const bloqueo = (cond = false) => (sinEditor || cond ? { 'aria-disabled': true as const } : {});
   const ejecutar =
     (orden: (e: Editor) => void, cond = false) =>
@@ -255,6 +358,12 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
     };
 
   const alTeclear = (evento: KeyboardEvent) => {
+    if (evento.key === 'Escape' && aviso) {
+      // Cierra el aviso sin mover el foco (WCAG 1.4.13).
+      evento.preventDefault();
+      setEnfocado((actual) => actual && { ...actual, cerrado: true });
+      return;
+    }
     if (evento.target instanceof HTMLInputElement) return;
     const teclas = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
     if (!teclas.includes(evento.key)) return;
@@ -274,7 +383,7 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
   };
 
   const abrirEnlace = () => {
-    if (!editor || sinEditor || estado.sinMarcas) return;
+    if (!editor || sinEditor || estado.sinMarcas || estado.conCodigo) return;
     setEnlace({ valor: (editor.getAttributes('link').href as string | undefined) ?? '', error: false });
   };
   const aplicarEnlace = (evento: FormEvent) => {
@@ -368,30 +477,34 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           'sticky top-0 z-10 flex flex-wrap items-center gap-1 rounded-md border border-borde bg-fondo p-1 @container',
         )}
       >
-        <SelectorDeEstilo editor={editor} ctl={ctl} estilo={estado.estilo} bloqueado={sinEditor} />
-        {boton(
-          'negrita',
-          'Negrita',
-          'negrita',
-          (e) => e.chain().focus().toggleBold().run(),
-          { 'aria-pressed': estado.negrita },
-          estado.sinMarcas,
-        )}
-        {boton(
-          'cursiva',
-          'Cursiva',
-          'cursiva',
-          (e) => e.chain().focus().toggleItalic().run(),
-          { 'aria-pressed': estado.cursiva },
-          estado.sinMarcas,
-        )}
-        {boton(
-          'codigo',
-          'Código',
-          'codigo',
-          (e) => e.chain().focus().toggleMark('code').run(),
-          { 'aria-pressed': estado.codigo },
-          estado.sinMarcas,
+        <MenuDeLaBarra
+          editor={editor}
+          nombre={`Estilo de párrafo: ${estado.estilo}`}
+          etiquetaDelMenu="Estilo de párrafo"
+          rol="menuitemradio"
+          opciones={ESTILOS.map((e) => ({ etiqueta: e.nombre, marcada: e.nombre === estado.estilo }))}
+          alElegir={(indice) => editor && ESTILOS[indice]?.aplicar(editor)}
+          bloqueado={sinEditor}
+          ctl={ctl('estilo')}
+        >
+          {estado.estilo}
+          <Icono nombre="bajar" />
+        </MenuDeLaBarra>
+        {(
+          [
+            ['negrita', 'Negrita', 'bold', estado.negrita],
+            ['cursiva', 'Cursiva', 'italic', estado.cursiva],
+            ['subrayado', 'Subrayado', 'underline', estado.subrayado],
+          ] as const
+        ).map(([id, nombre, marca, activa]) =>
+          boton(
+            id,
+            nombre,
+            id,
+            (e) => e.chain().focus().toggleMark(marca).run(),
+            { 'aria-pressed': activa },
+            estado.sinMarcas || estado.conCodigo,
+          ),
         )}
         {boton(
           'enlace',
@@ -399,8 +512,60 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
           'enlace',
           abrirEnlace,
           { 'aria-pressed': undefined, 'aria-expanded': enlace !== null },
-          estado.sinMarcas,
+          estado.sinMarcas || estado.conCodigo,
         )}
+        <MenuDeLaBarra
+          editor={editor}
+          nombre={nombreDeMasFormato(MAS_FORMATO.filter((_, i) => estado.masFormato[i]).map((f) => f.nombre))}
+          etiquetaDelMenu="Más formato"
+          rol="menuitemcheckbox"
+          opciones={MAS_FORMATO.map((formato, i) => ({
+            etiqueta: formato.etiqueta,
+            icono: formato.icono,
+            marcada: estado.masFormato[i] ?? false,
+            // Con código en línea, solo «Código» (para quitarlo).
+            deshabilitada: estado.conCodigo && formato.marca !== 'code',
+            razon: idRazonCodigo,
+          }))}
+          alElegir={(indice) => {
+            const formato = MAS_FORMATO[indice];
+            if (editor && formato) editor.chain().focus().toggleMark(formato.marca).run();
+          }}
+          bloqueado={sinEditor || estado.sinMarcas}
+          ctl={ctl('mas-formato')}
+        >
+          Más formato
+          {estado.masFormato.some(Boolean) && (
+            // Marca que no depende del color: algo de «Más formato» está activo.
+            <span aria-hidden="true" className="size-2 rounded-full bg-current" />
+          )}
+          <Icono nombre="bajar" />
+        </MenuDeLaBarra>
+        <MenuDeLaBarra
+          editor={editor}
+          nombre={`Alineación: ${
+            estado.alineacion === 'varias'
+              ? 'varias'
+              : (ALINEACIONES.find((opcion) => opcion.valor === estado.alineacion)?.nombre ?? 'izquierda')
+          }`}
+          etiquetaDelMenu="Alineación"
+          rol="menuitemradio"
+          opciones={ALINEACIONES.map((opcion) => ({
+            etiqueta: opcion.etiqueta,
+            icono: opcion.valor ? ICONOS_DE_ALINEACION[opcion.valor] : 'alinear_izquierda',
+            marcada: opcion.valor === estado.alineacion,
+          }))}
+          alElegir={(indice) => editor && alinear(editor, ALINEACIONES[indice]?.valor ?? null)}
+          bloqueado={sinEditor || !estado.alineable}
+          ctl={ctl('alineacion')}
+          soloIcono
+        >
+          <Icono
+            nombre={
+              (typeof estado.alineacion === 'string' && ICONOS_DE_ALINEACION[estado.alineacion]) || 'alinear_izquierda'
+            }
+          />
+        </MenuDeLaBarra>
         {boton(
           'vinietas',
           'Lista con viñetas',
@@ -450,7 +615,6 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
         </div>
         {seleccion.tipo === 'elementos' &&
           seleccion.elementos.length === 1 &&
-          seleccion.elementos[0]?.type !== 'paragraph' &&
           seleccion.elementos[0]?.type !== 'horizontalRule' &&
           alPropiedades && (
             <Button variante="terciaria" tamanio="compacto" onClick={alPropiedades} {...ctl('propiedades')}>
@@ -486,6 +650,27 @@ export function BarraHerramientas({ editor, deshabilitada, seleccion, alPropieda
               Salir de la selección
             </Button>
           </>
+        )}
+        {(
+          [
+            [razonCodigo, RAZON_CODIGO],
+            [razonAlineacion, RAZON_ALINEACION],
+          ] as const
+        ).map(
+          ([id, texto]) =>
+            id && (
+              <span
+                key={id}
+                id={id}
+                role="tooltip"
+                className={cn(
+                  'absolute top-full left-0 z-20 mt-1 rounded-md bg-texto px-3 py-2 text-sm text-fondo shadow-tarjeta',
+                  aviso !== id && 'hidden',
+                )}
+              >
+                {texto}
+              </span>
+            ),
         )}
       </div>
       {enlace && (

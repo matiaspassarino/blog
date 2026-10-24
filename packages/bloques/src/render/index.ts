@@ -4,3 +4,4 @@
 export { Documento } from './Documento';
 export type { ComponentesDocumento, PropsImagen } from './tipos';
 export * from './clases';
+export { CLASE_ENLACE } from './enlaces';

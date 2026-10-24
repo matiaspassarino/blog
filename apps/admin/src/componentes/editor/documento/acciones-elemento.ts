@@ -4,6 +4,7 @@
 import type { Editor } from '@tiptap/core';
 import type { EditorState, Transaction } from '@tiptap/pm/state';
 import { anuncioConvertido, anuncioDeshacer, anuncioDuplicado, anuncioRehacer } from '../anuncios';
+import { esMac } from './atajos';
 import {
   convertirElemento,
   duplicarRango,
@@ -22,7 +23,6 @@ export type IdDeAccion =
 
 export type ItemDeAccion = { id: IdDeAccion; etiqueta: string; atajo?: string; deshabilitado: boolean };
 
-const esMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 export const teclaModificadora = () => (esMac() ? '⌘' : 'Ctrl');
 
 /** El estado con el elemento activo ya seleccionado en modo elementos (sin despacharlo), o `null` si no hay. */

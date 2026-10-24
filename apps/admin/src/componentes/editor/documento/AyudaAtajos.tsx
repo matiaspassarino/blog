@@ -5,6 +5,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
 import { Button } from '../../ui/button';
 import { teclaModificadora } from './acciones-elemento';
+import { atajosDeIndices } from './atajos';
 
 type Props = { alCerrar: () => void };
 
@@ -13,8 +14,10 @@ export function AyudaAtajos({ alCerrar }: Props) {
   const titulo = useRef<HTMLHeadingElement>(null);
   const caja = useRef<HTMLDivElement>(null);
   const mod = teclaModificadora();
+  const indices = atajosDeIndices();
   const atajos: [string, string][] = [
-    ['Negrita, cursiva y código', `${mod} + B, ${mod} + I, ${mod} + E`],
+    ['Negrita, cursiva, subrayado y código', `${mod} + B, ${mod} + I, ${mod} + U, ${mod} + E`],
+    ...(indices ? ([['Superíndice y subíndice', 'Ctrl + . y Ctrl + ,']] as [string, string][]) : []),
     ['Enlace', `${mod} + K`],
     ['Deshacer y rehacer', `${mod} + Z, ${mod} + Shift + Z`],
     ['Insertar un elemento', '/ en una línea vacía'],

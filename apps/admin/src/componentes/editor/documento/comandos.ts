@@ -32,6 +32,53 @@ export function elementoDeNodo(nodo: NodoPm): Elemento | undefined {
   return normalizarDocumento({ type: 'doc', content: [nodo.toJSON()] }).content[0];
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Alineación de párrafos y títulos (RF-024): la izquierda es la ausencia del atributo (`null`).
+
+export type Alineacion = 'center' | 'right' | 'justify' | null;
+
+/** Las cuatro opciones, en el orden de la barra y del panel; `nombre` es el que dice el botón ("Alineación: centro"). */
+export const ALINEACIONES: { valor: Alineacion; etiqueta: string; nombre: string }[] = [
+  { valor: null, etiqueta: 'Izquierda', nombre: 'izquierda' },
+  { valor: 'center', etiqueta: 'Centro', nombre: 'centro' },
+  { valor: 'right', etiqueta: 'Derecha', nombre: 'derecha' },
+  { valor: 'justify', etiqueta: 'Justificado', nombre: 'justificado' },
+];
+
+/**
+ * La alineación de lo seleccionado: `alineable` si todos los bloques de texto son párrafos o títulos de primer nivel
+ * (no citas, ítems, código ni elementos especiales); `valor` es `'varias'` si se mezclan.
+ */
+export function alineacionDe(estado: EditorState): { alineable: boolean; valor: Alineacion | 'varias' } {
+  const { from, to } = estado.selection;
+  const valores = new Set<Alineacion>();
+  let alineable = true;
+  estado.doc.nodesBetween(from, to, (nodo, _pos, padre) => {
+    if (!nodo.isTextblock) return !nodo.isAtom;
+    if (padre !== estado.doc || !['paragraph', 'heading'].includes(nodo.type.name)) alineable = false;
+    valores.add((nodo.attrs.textAlign as Alineacion | undefined) ?? null);
+    return false;
+  });
+  if (valores.size === 0) alineable = false;
+  const [unica] = valores;
+  return { alineable, valor: valores.size > 1 ? 'varias' : (unica ?? null) };
+}
+
+/** Alinea el párrafo o el título con ese `id` (desde el panel). */
+export function alinearElemento(editor: Editor, id: string, alineacion: Alineacion): boolean {
+  const encontrado = buscarElemento(editor, id);
+  if (!encontrado || !['paragraph', 'heading'].includes(encontrado.nodo.type.name)) return false;
+  const { nodo, pos } = encontrado;
+  const { state } = editor;
+  const tr = state.tr.setNodeMarkup(pos, undefined, { ...nodo.attrs, textAlign: alineacion });
+  // El elemento sigue seleccionado entero (y en modo elementos): el panel no se cierra al cambiar la alineación.
+  if (state.selection instanceof NodeSelection && state.selection.from === pos) {
+    tr.setSelection(NodeSelection.create(tr.doc, pos)).setMeta(claveModo, claveModo.getState(state) ?? false);
+  }
+  editor.view.dispatch(tr);
+  return true;
+}
+
 const TIPOS_CON_DATOS = new Set<string>([
   'imagen',
   'galeria',
@@ -254,8 +301,12 @@ export function pierdeAlConvertir(
   if (tipo === 'codigo' && hayMarcas(contenidoEnLinea(nodo))) {
     pierde.push('el formato del texto (negrita, cursiva, código y enlaces)');
   }
+  // RF-024: solo los párrafos y los títulos se alinean.
+  if (nodo.attrs.textAlign && !CONSERVAN_ALINEACION.includes(tipo)) pierde.push('la alineación');
   return { pierde };
 }
+
+const CONSERVAN_ALINEACION: TipoDeTexto[] = ['parrafo', 'titulo'];
 
 /** «Convertir en…»: cambia el tipo de UN elemento de texto conservando el texto y el identificador. */
 export const convertirElemento =
@@ -270,15 +321,13 @@ export const convertirElemento =
       const plano = textoPlano(enLinea);
       const soloTexto = plano ? Fragment.from(text(plano)) : Fragment.empty;
       const id = nodo.attrs.id ?? null;
+      const textAlign = nodo.attrs.textAlign ?? null;
       const interno = nodes.paragraph!.create({}, enLinea);
       const nuevo = {
-        parrafo: () => nodes.paragraph!.create({ id }, enLinea),
-        titulo: () => nodes.heading!.create({ id, level: opciones.nivel ?? 2 }, enLinea),
+        parrafo: () => nodes.paragraph!.create({ id, textAlign }, enLinea),
+        titulo: () => nodes.heading!.create({ id, level: opciones.nivel ?? 2, textAlign }, enLinea),
         cita: () =>
-          nodes.blockquote!.create(
-            { id, autor: nodo.attrs.autor ?? null, fuente: nodo.attrs.fuente ?? null },
-            interno,
-          ),
+          nodes.blockquote!.create({ id, autor: nodo.attrs.autor ?? null, fuente: nodo.attrs.fuente ?? null }, interno),
         lista: () => nodes.bulletList!.create({ id }, nodes.listItem!.create(null, interno)),
         codigo: () => nodes.codeBlock!.create({ id }, soloTexto),
       }[tipo]();

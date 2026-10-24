@@ -2445,7 +2445,7 @@ test.describe('Más formato y alineación (H6)', () => {
       await expect(botonDeBarra(page, nombre), nombre).toHaveAttribute('aria-disabled', 'true');
       expect(await razonDe(botonDeBarra(page, nombre)), nombre).toContain(RAZON_CODIGO);
     }
-    await botonDeBarra(page, 'Negrita').click();
+    await botonDeBarra(page, 'Negrita').click({ force: true }); // aria-disabled: Playwright no lo considera habilitado
     await expect(lienzo(page).locator('strong')).toHaveCount(0);
     await expect(page.getByLabel('URL del enlace')).toHaveCount(0);
 
@@ -2467,6 +2467,8 @@ test.describe('Más formato y alineación (H6)', () => {
     });
     await abrirArticulo(page, articulo.id);
     await lienzo(page).locator('code').click();
+    // El lienzo ya leyó el cursor en el código (si el foco sale antes, ProseMirror no lo lee).
+    await expect(botonDeBarra(page, 'Negrita')).toHaveAttribute('aria-disabled', 'true');
     await expect(razonVisible(page, RAZON_CODIGO)).toBeHidden();
 
     await botonDeBarra(page, 'Negrita').focus();
@@ -2579,7 +2581,7 @@ test.describe('Más formato y alineación (H6)', () => {
       await expect(botonAlineacion(page), `lugar ${i}`).toBeVisible();
       await expect(botonAlineacion(page), `lugar ${i}`).toHaveAttribute('aria-disabled', 'true');
       expect(await razonDe(botonAlineacion(page)), `lugar ${i}`).toContain(RAZON_ALINEACION);
-      await botonAlineacion(page).click();
+      await botonAlineacion(page).click({ force: true });
       await expect(page.getByRole('menuitemradio'), `lugar ${i}`).toHaveCount(0);
     }
 

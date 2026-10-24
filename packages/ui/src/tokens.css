@@ -19,6 +19,9 @@
   /* Separadores decorativos (tarjetas, hr): no transmiten información. */
   --color-separador: oklch(0.9 0.01 255);
   --color-marca-suave: oklch(0.95 0.03 255);
+  /* Resaltado (spec 005): fondo y texto de mark; texto ≥ 4,5:1 y la línea del enlace (marca) ≥ 3:1 sobre él. */
+  --color-resaltado: oklch(0.93 0.1 95);
+  --color-resaltado-texto: oklch(0.22 0.02 255);
   --color-foco: var(--color-marca);
   /* Anillo de foco (§VII.4) */
   --foco-ancho: 3px;
@@ -72,4 +75,12 @@
   /* Movimiento */
   --ease-estandar: cubic-bezier(0.2, 0, 0, 1);
   --duracion-corta: 150ms;
+}
+
+/* Alto contraste: el resaltado usa los colores del sistema (spec 005, D31 U7). */
+@media (forced-colors: active) {
+  mark {
+    background: Mark;
+    color: MarkText;
+  }
 }

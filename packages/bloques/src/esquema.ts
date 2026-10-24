@@ -52,9 +52,7 @@ const tituloVideo = texto('El título del video', 1, 150);
 export const camposVideo = {
   youtube: {
     proveedor: z.literal('youtube'),
-    idVideo: z
-      .string({ error: 'Falta el id del video' })
-      .regex(/^[A-Za-z0-9_-]{11}$/, 'El id de YouTube no es válido'),
+    idVideo: z.string({ error: 'Falta el id del video' }).regex(/^[A-Za-z0-9_-]{11}$/, 'El id de YouTube no es válido'),
     titulo: tituloVideo,
   },
   vimeo: {
@@ -95,7 +93,13 @@ const marca = z.discriminatedUnion(
     }),
     estricto('La negrita', { type: z.literal('bold') }),
     estricto('La cursiva', { type: z.literal('italic') }),
+    estricto('El subrayado', { type: z.literal('underline') }),
+    estricto('El tachado', { type: z.literal('strike') }),
+    // Un solo color, el del sitio: sin `color`.
+    estricto('El resaltado', { type: z.literal('highlight') }),
     estricto('El código en línea', { type: z.literal('code') }),
+    estricto('El superíndice', { type: z.literal('superscript') }),
+    estricto('El subíndice', { type: z.literal('subscript') }),
   ],
   { error: 'Formato no permitido' },
 );
@@ -106,8 +110,16 @@ const nodoTexto = estricto('El texto', {
   marks: z.array(marca, { error: 'Las marcas deben ser una lista' }).optional(),
 }).superRefine((nodo, ctx) => {
   const marcas = nodo.marks ?? [];
-  if (marcas.some((m) => m.type === 'code') && marcas.length > 1) {
+  const tiene = (tipoMarca: z.infer<typeof marca>['type']) => marcas.some((m) => m.type === tipoMarca);
+  if (tiene('code') && marcas.length > 1) {
     ctx.addIssue({ code: 'custom', path: ['marks'], message: 'El código en línea no admite otros formatos' });
+  }
+  if (tiene('superscript') && tiene('subscript')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['marks'],
+      message: 'El texto no puede ser superíndice y subíndice a la vez',
+    });
   }
 });
 
@@ -134,7 +146,12 @@ function limitarTexto(ctx: z.core.$RefinementCtx, cantidad: number, max: number,
  * El texto del elemento tiene de 1 a `max` caracteres (campo `texto`). Se comprueba aunque otro campo ya haya
  * fallado (`when`), así un título vacío con un nivel inválido informa los dos errores.
  */
-const conTexto = <T extends z.ZodType>(esquema: T, max: number, campo: string, contenido: (valor: unknown) => unknown) =>
+const conTexto = <T extends z.ZodType>(
+  esquema: T,
+  max: number,
+  campo: string,
+  contenido: (valor: unknown) => unknown,
+) =>
   esquema.check(
     z.superRefine<unknown>(
       (valor, ctx) => {
@@ -155,10 +172,15 @@ const parrafoInterno = estricto('El párrafo', { type: tipo('paragraph'), conten
 
 // --- Elementos de primer nivel ---
 
+/** La izquierda es la ausencia del atributo: nunca se guarda `"left"`. */
+const alineacion = z
+  .enum(['center', 'right', 'justify'], { error: 'La alineación debe ser centro, derecha o justificado' })
+  .optional();
+
 const parrafo = conTexto(
   estricto('El párrafo', {
     type: z.literal('paragraph'),
-    attrs: estricto('El párrafo', { id }),
+    attrs: estricto('El párrafo', { id, textAlign: alineacion }),
     content: enLinea.optional(),
   }),
   5000,
@@ -169,7 +191,7 @@ const parrafo = conTexto(
 const titulo = conTexto(
   estricto('El título', {
     type: z.literal('heading'),
-    attrs: estricto('El título', { id, level: nivelTitulo }),
+    attrs: estricto('El título', { id, level: nivelTitulo, textAlign: alineacion }),
     content: z
       .array(z.discriminatedUnion('type', [nodoTexto], { error: 'El título no admite saltos de línea' }))
       .optional(),
@@ -253,19 +275,7 @@ const video = estricto('El video', {
 
 const elemento = z.discriminatedUnion(
   'type',
-  [
-    parrafo,
-    titulo,
-    lista('bulletList'),
-    lista('orderedList'),
-    cita,
-    codigo,
-    separador,
-    imagen,
-    galeria,
-    cta,
-    video,
-  ],
+  [parrafo, titulo, lista('bulletList'), lista('orderedList'), cita, codigo, separador, imagen, galeria, cta, video],
   { error: 'Tipo de elemento desconocido' },
 );
 

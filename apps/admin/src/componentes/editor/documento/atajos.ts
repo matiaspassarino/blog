@@ -29,6 +29,14 @@ export function detectarAtajo(textoDeLaLinea: string): AtajoDeEscritura | null {
 export const puedeAbrirMenu = ({ antes, despues }: { antes: string; despues: string }) =>
   antes === '' && despues === '';
 
+export const esMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/**
+ * Teclas del superíndice y del subíndice: `Ctrl+.` y `Ctrl+,` fuera de macOS. En Mac no hay (`Cmd+,` abre la
+ * configuración y `Cmd+.` detiene la carga en Safari). El tachado, el resaltado y la alineación no tienen atajo.
+ */
+export const atajosDeIndices = () => (esMac() ? null : { superindice: 'Ctrl-.', subindice: 'Ctrl-,' });
+
 /** Nombre del resultado, para anunciarlo ("Se convirtió en título 2"). */
 export function nombreDeAtajo(atajo: AtajoDeEscritura): string {
   switch (atajo.tipo) {
