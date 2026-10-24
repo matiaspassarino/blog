@@ -226,7 +226,7 @@ values
     pg_temp.separador(),
     pg_temp.parrafo('Medí antes y después de cada cambio: la intuición falla seguido con el rendimiento.')
   ),
-  pg_temp.categoria('Desarrollo'), '00000000-0000-4000-a000-000000000003', 'publicado', now() - interval '60 days', null
+  pg_temp.categoria('Desarrollo'), '00000000-0000-4000-a000-000000000003', 'publicado', now() - interval '65 days', null
 ),
 (
   'SEO técnico: lo esencial para empezar',
