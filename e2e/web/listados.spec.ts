@@ -1,8 +1,9 @@
 // T061: listados del blog (spec 002, H2-E1 a H2-E7; RF-007 a RF-011, RSEO-004, RSEO-009).
-// Datos del seed (supabase/seed.sql): 14 publicados (12 en /blog y 2 en /blog/pagina/2).
-// - Diseño (`diseno`): 5 publicados, y además el programado "Tendencias de diseño…".
+// Actualizado en la spec 005 (H7, T144): suma el artículo con tablas "Formatos, alineación y tablas en el editor".
+// Datos del seed (supabase/seed.sql): 15 publicados (12 en /blog y 3 en /blog/pagina/2).
+// - Diseño (`diseno`): 6 publicados, y además el programado "Tendencias de diseño…".
 // - Branding (`branding`): 3 publicados y el mismo programado.
-// - Eva Editora (`eva-editora`): 7 publicados, un programado y ningún avatar.
+// - Eva Editora (`eva-editora`): 8 publicados, un programado y ningún avatar.
 // El estado vacío (H2-E7) necesita una categoría y una etiqueta sin publicados, que el seed no
 // tiene: cada worker crea las suyas como postgres (docker exec sobre supabase_db_blog), con un
 // sufijo aleatorio, y las borra al terminar. No tienen artículos, así que no cambian ningún
@@ -10,7 +11,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { abrir, esperar404, taxonomiasVacias } from './ayudas';
 
+const TITULO_TABLAS = 'Formatos, alineación y tablas en el editor';
+
 const TITULOS_DISENO = [
+  TITULO_TABLAS,
   'Guía visual: todos los bloques del blog',
   'Dos fotos también cuentan una historia',
   'Identidades visuales que nos inspiran',
@@ -23,6 +27,7 @@ const TITULOS_BRANDING = [
   'Cómo elegir una tipografía para tu marca',
 ];
 const TITULOS_EVA = [
+  TITULO_TABLAS,
   'Guía visual: todos los bloques del blog',
   'Redes sociales para pymes: menos es más',
   'Dos fotos también cuentan una historia',
@@ -33,8 +38,9 @@ const TITULOS_EVA = [
 ];
 const TITULO_PROGRAMADO = 'Tendencias de diseño para el próximo año';
 const TITULO_DE_OTRO_AUTOR = 'Primeros pasos con JavaScript moderno';
-// Los dos publicados más antiguos: los únicos de /blog/pagina/2.
+// Los tres publicados más antiguos: los únicos de /blog/pagina/2.
 const TITULOS_PAGINA_2 = [
+  'Guía de rendimiento para sitios estáticos',
   'Principios de accesibilidad web que todo sitio necesita',
   'Cómo elegir una tipografía para tu marca',
 ];
@@ -107,7 +113,7 @@ test.describe('H2-E1 / RF-007: /blog lista los publicados de a 12', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(tarjetas(page)).toHaveCount(12);
     const titulos = await titulosDe(page);
-    expect(titulos[0]).toBe('Guía visual: todos los bloques del blog');
+    expect(titulos[0]).toBe(TITULO_TABLAS);
     for (const titulo of TITULOS_PAGINA_2) expect(titulos).not.toContain(titulo);
     expect(titulos).not.toContain(TITULO_PROGRAMADO);
   });
@@ -144,11 +150,11 @@ test.describe('H2-E1 / RF-007: /blog lista los publicados de a 12', () => {
 });
 
 test.describe('RF-007 / RF-010 / RSEO-004: /blog/pagina/2', () => {
-  test('RF-007: /blog/pagina/2 muestra los 2 publicados más antiguos', async ({ page }) => {
+  test('RF-007: /blog/pagina/2 muestra los 3 publicados más antiguos', async ({ page }) => {
     await abrir(page, '/blog/pagina/2');
 
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    await expect(tarjetas(page)).toHaveCount(2);
+    await expect(tarjetas(page)).toHaveCount(3);
     expect(await titulosDe(page)).toEqual(TITULOS_PAGINA_2);
     await esperarOrdenDescendente(page);
   });
