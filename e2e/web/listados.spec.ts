@@ -40,7 +40,7 @@ const TITULO_PROGRAMADO = 'Tendencias de diseño para el próximo año';
 const TITULO_DE_OTRO_AUTOR = 'Primeros pasos con JavaScript moderno';
 // Los tres publicados más antiguos: los únicos de /blog/pagina/2.
 const TITULOS_PAGINA_2 = [
-  'Guía de rendimiento para sitios estáticos',
+  'Fotos de producto con el celular',
   'Principios de accesibilidad web que todo sitio necesita',
   'Cómo elegir una tipografía para tu marca',
 ];
