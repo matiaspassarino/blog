@@ -117,6 +117,7 @@ export function EditorArticulo({
   // Sube al adoptar la versión vigente: el documento y su historial se vuelven a crear desde lo adoptado.
   const [reinicio, setReinicio] = useState(0);
   const titulo = useRef<HTMLHeadingElement>(null);
+  const refInputTitulo = useRef<HTMLTextAreaElement>(null);
   // El lienzo no se vuelve a dibujar en cada tecla: estas props tienen que ser estables.
   const erroresDeElementos = useMemo(() => errores.filter((error) => error.indice >= 0), [errores]);
   const alCambiarContenido = useCallback((valor: Documento) => despachar({ tipo: 'contenido', valor }), []);
@@ -196,6 +197,14 @@ export function EditorArticulo({
     return () => clearTimeout(espera);
   }, [actual.titulo, estado.slugManual, id]);
 
+  // Altura autoajustable del título en el lienzo.
+  useEffect(() => {
+    if (refInputTitulo.current) {
+      refInputTitulo.current.style.height = 'auto';
+      refInputTitulo.current.style.height = `${refInputTitulo.current.scrollHeight}px`;
+    }
+  }, [actual.titulo]);
+
   const rutasGuardadas = useMemo(
     () => new Set(rutasDeImagenes(estado.guardado)),
     // `guardado` solo cambia al guardar o al adoptar la versión vigente.
@@ -238,7 +247,10 @@ export function EditorArticulo({
     setErrores(lista);
     setAnuncio(resumenDeErrores(lista));
     const primero = lista.some((error) => error.indice < 0) ? null : primerErrorDelDocumento(actual.contenido, lista);
-    if (!primero) return void setTimeout(() => enfocarPrimerCampo(lista), 0);
+    if (!primero) {
+      setPestania('articulo');
+      return void setTimeout(() => enfocarPrimerCampo(lista), 0);
+    }
     // Un error en un elemento: se selecciona, se abre su panel y el foco va al campo con el error.
     acciones.current?.seleccionarElemento(primero.id);
     setPestania('elemento');
@@ -374,51 +386,45 @@ export function EditorArticulo({
 
         <fieldset disabled={reemplazando} className="contents">
           <div className="grid gap-panel-seccion xl:grid-cols-[1fr_var(--container-panel-propiedades)]">
-            <div className="flex min-w-0 flex-col gap-panel-seccion">
-              <CampoFormulario etiqueta="Título" id="campo-titulo" error={errorTitulo}>
-                {(a) => (
-                  <Input
-                    {...a}
-                    value={actual.titulo}
-                    onChange={(e) => despachar({ tipo: 'campo', campo: 'titulo', valor: e.target.value })}
-                  />
+            <div className="flex min-w-0 flex-col gap-6">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="campo-titulo" className="sr-only">
+                  Título
+                </label>
+                <textarea
+                  id="campo-titulo"
+                  name="titulo"
+                  ref={refInputTitulo}
+                  aria-label="Título"
+                  aria-invalid={errorTitulo ? true : undefined}
+                  aria-describedby={errorTitulo ? 'campo-titulo-error' : undefined}
+                  rows={1}
+                  value={actual.titulo}
+                  placeholder="Título del artículo..."
+                  className="w-full resize-none overflow-hidden bg-transparent font-titulos text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight text-texto placeholder:text-texto-suave/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-foco rounded-sm border-0 p-0"
+                  onChange={(e) => {
+                    despachar({ tipo: 'campo', campo: 'titulo', valor: e.target.value });
+                    if (errorTitulo) setErrorTitulo(undefined);
+                    if (refInputTitulo.current) {
+                      refInputTitulo.current.style.height = 'auto';
+                      refInputTitulo.current.style.height = `${refInputTitulo.current.scrollHeight}px`;
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      acciones.current?.enfocar();
+                    }
+                  }}
+                />
+                {errorTitulo && (
+                  <p id="campo-titulo-error" className="text-sm font-semibold text-error">
+                    {errorTitulo}
+                  </p>
                 )}
-              </CampoFormulario>
-              <CampoFormulario etiqueta="Slug" id="campo-slug" ayuda="La dirección del artículo en el sitio.">
-                {(a) => (
-                  <Input
-                    {...a}
-                    value={actual.slug}
-                    onChange={(e) => despachar({ tipo: 'campo', campo: 'slug', valor: e.target.value })}
-                  />
-                )}
-              </CampoFormulario>
-              <CampoFormulario etiqueta="Extracto" id="campo-extracto">
-                {(a) => (
-                  <Textarea
-                    {...a}
-                    value={actual.extracto ?? ''}
-                    onChange={(e) => despachar({ tipo: 'campo', campo: 'extracto', valor: vacioANulo(e.target.value) })}
-                  />
-                )}
-              </CampoFormulario>
+              </div>
 
-              <section aria-labelledby="titulo-imagen-destacada" className="flex flex-col gap-4">
-                <TituloSeccion id="titulo-imagen-destacada">Imagen destacada</TituloSeccion>
-                <fieldset aria-labelledby="titulo-imagen-destacada" className="min-w-0">
-                  <ImagenEditable
-                    imagen={actual.imagen_destacada}
-                    alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
-                    idRuta="campo-imagen_destacada"
-                    idAlt="campo-imagen_destacada"
-                    errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
-                    errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
-                  />
-                </fieldset>
-              </section>
-
-              <section aria-labelledby="titulo-contenido" className="flex flex-col gap-4">
-                <TituloSeccion id="titulo-contenido">Contenido</TituloSeccion>
+              <div className="min-w-0">
                 <CargadorDeEditorDocumento
                   contenido={estado.guardado.contenido}
                   reinicio={reinicio}
@@ -433,7 +439,7 @@ export function EditorArticulo({
                   alCerrarHoja={alCerrarHoja}
                   bloqueado={reemplazando}
                 />
-              </section>
+              </div>
             </div>
 
             <div className="flex min-w-0 flex-col gap-panel-seccion xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:self-start xl:overflow-y-auto">
@@ -486,6 +492,44 @@ export function EditorArticulo({
                 hidden={anchoDeEscritorio && pestania !== 'articulo'}
                 className="flex flex-col gap-panel-seccion"
               >
+                <section aria-labelledby="titulo-detalles" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-detalles">Detalles</TituloSeccion>
+                  <CampoFormulario etiqueta="Slug" id="campo-slug" ayuda="La dirección del artículo en el sitio.">
+                    {(a) => (
+                      <Input
+                        {...a}
+                        value={actual.slug}
+                        onChange={(e) => despachar({ tipo: 'campo', campo: 'slug', valor: e.target.value })}
+                      />
+                    )}
+                  </CampoFormulario>
+                  <CampoFormulario etiqueta="Extracto" id="campo-extracto">
+                    {(a) => (
+                      <Textarea
+                        {...a}
+                        value={actual.extracto ?? ''}
+                        onChange={(e) =>
+                          despachar({ tipo: 'campo', campo: 'extracto', valor: vacioANulo(e.target.value) })
+                        }
+                      />
+                    )}
+                  </CampoFormulario>
+                </section>
+
+                <section aria-labelledby="titulo-imagen-destacada" className="flex flex-col gap-4">
+                  <TituloSeccion id="titulo-imagen-destacada">Imagen destacada</TituloSeccion>
+                  <fieldset aria-labelledby="titulo-imagen-destacada" className="min-w-0">
+                    <ImagenEditable
+                      imagen={actual.imagen_destacada}
+                      alCambiar={(imagen) => despachar({ tipo: 'campo', campo: 'imagen_destacada', valor: imagen })}
+                      idRuta="campo-imagen_destacada"
+                      idAlt="campo-imagen_destacada"
+                      errorRuta={mensajeDeCampo(erroresDestacada, 'imagen_destacada.ruta')}
+                      errorAlt={mensajeDeCampo(erroresDestacada, 'imagen_destacada.alt')}
+                    />
+                  </fieldset>
+                </section>
+
                 <section aria-labelledby="titulo-taxonomias" className="flex flex-col gap-4">
                   <TituloSeccion id="titulo-taxonomias">Taxonomías</TituloSeccion>
                   <CampoFormulario etiqueta="Categoría" id="campo-categoria">
